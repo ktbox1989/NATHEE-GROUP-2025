@@ -78,6 +78,8 @@ Node.js 22.13 or newer is required.
 - The Load Board coordinates assignment with the audited motorcycle timeline: LOADING/LOADED, IN_TRANSIT, ARRIVED/UNLOADED and DELIVERED/CLOSED readiness must agree before the trip can advance.
 - Confirmed truck capacity is enforced in D1; an unconfirmed capacity remains visibly marked and uses a 1,000-record hard safety ceiling rather than an unbounded list.
 - Load history is retained after cancellation or completion, rendered in bounded pages and cannot be hard-deleted.
+- Fleet/eligible-motorcycle discovery uses validated prefix input, field-specific indexed queries and bounded server merging; trip status filtering preserves keyset pagination.
+- Authorized internal users see the active trip context on motorcycle detail, while customer roles never receive the internal trip link/query.
 
 ## Z.com public website
 

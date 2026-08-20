@@ -1,5 +1,15 @@
 # NATHEE GROUP 2025 — Work History
 
+## 2026-08-21 — Load Board Operational Context and Discovery
+
+- Commits: `bc90bb3`, `bc3e1f1`
+- Added internal-only active-trip context to motorcycle detail so operators can reconcile the motorcycle timeline with the separate trip assignment ledger.
+- Added validated, bounded prefix search for eligible motorcycles, fleet code/registration and indexed trip-status filters.
+- Replaced a demonstrated SQLite OR-index scan with separate field-specific range queries and bounded de-duplicated server merge.
+- Query-plan tests prove the truck code, truck registration, Job number, motorcycle Public ID, motorcycle registration and active-assignment indexes are selected.
+- Verification: full tests 68/68, build PASS, lint PASS, public SEO/deployment guards PASS.
+- Deployment: source pushed to `main`; no Production runtime, database or public website was changed.
+
 ## 2026-08-21 — Audited Trip–Motorcycle Load Board
 
 - Implementation commit: `8dd8e8a`

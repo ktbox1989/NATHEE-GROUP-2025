@@ -5,7 +5,7 @@ Updated: 2026-08-21 (Asia/Bangkok)
 ## Source checkpoint
 
 - Branch: `main`
-- Latest verified implementation milestone: `8dd8e8a` — Audited Trip–Motorcycle Load Board
+- Latest verified implementation milestone: `bc3e1f1` — Audited Load Board and Index-backed Discovery
 - Canonical repository: `ktbox1989/NATHEE-GROUP-2025`
 - Working rule: resolve the current checkpoint-document commit with `git rev-parse HEAD`; never infer Production deployment from source HEAD.
 
@@ -72,13 +72,16 @@ Updated: 2026-08-21 (Asia/Bangkok)
 - Database triggers independently require DRAFT/PLANNED + SCHEDULED for assignment, LOADING + LOADED for load confirmation, ARRIVED + ARRIVED/DELIVERED/CLOSED for unload confirmation, and complete delivery readiness before trip completion.
 - Cancellation/completion preserves assignment history by releasing records in the same D1 batch as trip event and Audit writes; assignment hard delete is rejected.
 - Added a responsive real-data Load Board with readiness explanations, bounded 50-record keyset pages, 100-item eligible selector and no fake load counts.
+- Motorcycle detail now exposes its active trip/assignment context to authorized internal users, while customer views remain isolated from internal trip operations.
+- Fleet and eligible-motorcycle search uses validated prefix terms, separate field-specific index queries and bounded server-side merging; query-plan tests reject the former OR-scan behavior.
+- Trip lists can be filtered by indexed lifecycle status without losing keyset bounds.
 - Migration `0008_trip_motorcycle_loads` upgrades an existing `0007` database without rewriting prior trips and remains unapplied in Production.
 
 ## Verified source gates
 
-- Full test suite: 65 passing
-- Authorization/unit tests: 41 passing
-- Render/schema/notification/yard/trip-assignment tests: 24 passing
+- Full test suite: 68 passing
+- Authorization/unit tests: 42 passing
+- Render/schema/notification/yard/trip-assignment/query-plan tests: 26 passing
 - Production Vinext build: PASS
 - ESLint: PASS
 - Public SEO and deployment architecture guards: PASS
@@ -96,8 +99,8 @@ Updated: 2026-08-21 (Asia/Bangkok)
 ## Next autonomous work
 
 1. Continue dependency order: Container, Inspection/Damage, POD, documents and print center.
-2. Add trip search/filtering and a dedicated fleet search contract before selector limits are reached.
-3. Add bounded Company Search before management selector limits are reached.
+2. Add bounded Company Search before management selector limits are reached.
+3. Replace the still-bounded 200-driver selector with an indexed driver lookup before large staff rollout.
 4. Keep all new migrations local until Production backup/runtime gates are satisfied.
 
 ## Prohibited claims
