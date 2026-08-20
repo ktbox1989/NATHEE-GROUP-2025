@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   DEFAULT_SITE_CONTENT,
+  SITE_PAGE_DEFINITIONS,
   isSitePageSlug,
   parseCmsPageContent,
   parseCmsPageContentJson,
@@ -15,7 +16,10 @@ test("every managed page default is valid structured content", () => {
 });
 
 test("CMS accepts only the allowlisted page identities", () => {
-  for (const slug of ["home", "services", "about", "contact"]) assert.equal(isSitePageSlug(slug), true);
+  const expected = ["home", "services", "motorcycle-transport", "international", "storage", "container-loading", "dealer-fleet", "quotation", "about", "contact"];
+  assert.deepEqual(Object.keys(SITE_PAGE_DEFINITIONS), expected);
+  assert.equal(new Set(Object.values(SITE_PAGE_DEFINITIONS).map((definition) => definition.path)).size, expected.length);
+  for (const slug of expected) assert.equal(isSitePageSlug(slug), true);
   for (const slug of ["admin", "login", "app", "../home", "HOME"]) assert.equal(isSitePageSlug(slug), false);
 });
 

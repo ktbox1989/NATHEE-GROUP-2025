@@ -25,7 +25,8 @@ const organizationSchema = {
 };
 
 function PublicHeader({ active }: { active: SitePageSlug }) {
-  return <header className="cms-site-header"><div className="shell cms-nav"><Link className="brand" href="/"><span className="brand-mark">NG</span><span className="brand-name">NATHEE GROUP<small>MOTORCYCLE LOGISTICS · 2025</small></span></Link><nav aria-label="เมนูหลัก"><Link className={active === "home" ? "active" : ""} href="/">หน้าแรก</Link><Link className={active === "services" ? "active" : ""} href="/services">บริการ</Link><Link href="/gallery">ผลงาน</Link><Link className={active === "about" ? "active" : ""} href="/about">เกี่ยวกับเรา</Link><Link className={active === "contact" ? "active" : ""} href="/contact">ติดต่อ</Link><Link className="button button-small button-gradient" href="/login">เข้าสู่ระบบ</Link></nav></div></header>;
+  const servicePages: SitePageSlug[] = ["services", "motorcycle-transport", "international", "storage", "container-loading", "dealer-fleet", "quotation"];
+  return <header className="cms-site-header"><div className="shell cms-nav"><Link className="brand" href="/"><span className="brand-mark">NG</span><span className="brand-name">NATHEE GROUP<small>MOTORCYCLE LOGISTICS · 2025</small></span></Link><nav aria-label="เมนูหลัก"><Link className={active === "home" ? "active" : ""} href="/">หน้าแรก</Link><Link className={servicePages.includes(active) ? "active" : ""} href="/services">บริการ</Link><Link href="/gallery">ผลงาน</Link><Link className={active === "about" ? "active" : ""} href="/about">เกี่ยวกับเรา</Link><Link className={active === "contact" ? "active" : ""} href="/contact">ติดต่อ</Link><Link className="button button-small button-gradient" href="/login">เข้าสู่ระบบ</Link></nav></div></header>;
 }
 
 async function CmsSectionView({ section }: { section: CmsSection }) {

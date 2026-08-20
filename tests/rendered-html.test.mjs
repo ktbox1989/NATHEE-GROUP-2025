@@ -59,11 +59,23 @@ test("server-renders password recovery without revealing account data", async ()
 });
 
 test("managed public pages fail safely without a D1 binding", async () => {
-  for (const [path, expected] of [["/services", /บริการขนส่งรถจักรยานยนต์ครบวงจร/], ["/about", /บริษัท นทีกรุ๊ป2025 จำกัด/], ["/contact", /063-194-1191/]]) {
+  for (const [path, expected] of [
+    ["/services", /บริการขนส่งรถจักรยานยนต์ครบวงจร/],
+    ["/motorcycle-transport", /ขนส่งรถจักรยานยนต์ทั่วประเทศ/],
+    ["/international", /ขนส่งรถจักรยานยนต์ต่างประเทศ/],
+    ["/storage", /รับฝากรถ สต๊อกรถ และสต๊อกสินค้า/],
+    ["/container-loading", /รับขึ้นตู้ Container และเตรียมส่งออก/],
+    ["/dealer-fleet", /งาน Dealer, Fleet และงานล็อตใหญ่/],
+    ["/quotation", /ข้อมูลที่ควรเตรียม/],
+    ["/about", /บริษัท นทีกรุ๊ป2025 จำกัด/],
+    ["/contact", /063-194-1191/],
+  ]) {
     const response = await render(path);
     assert.equal(response.status, 200, path);
     const html = await response.text();
     assert.match(html, expected, path);
+    assert.match(html, new RegExp(`<link rel="canonical" href="https://natheegroup2025\\.com${path}/"`), path);
+    assert.doesNotMatch(html, /<meta name="robots" content="[^"]*noindex/i, path);
     assert.doesNotMatch(html, /owner123|staff123|abc123|nathee2025/i, path);
   }
 });

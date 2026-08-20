@@ -5,7 +5,7 @@ Updated: 2026-08-21 (Asia/Bangkok)
 ## Source checkpoint
 
 - Branch: `main`
-- Latest verified implementation milestone: Structured Site Content CMS and bounded Gallery batch upload (resolve the final commit with `git rev-parse HEAD`)
+- Latest verified implementation milestone: Full textual public-page CMS coverage and bounded Gallery batch upload (resolve the final commit with `git rev-parse HEAD`)
 - Canonical repository: `ktbox1989/NATHEE-GROUP-2025`
 - Working rule: resolve the current checkpoint-document commit with `git rev-parse HEAD`; never infer Production deployment from source HEAD.
 
@@ -110,13 +110,15 @@ Updated: 2026-08-21 (Asia/Bangkok)
 - The homepage Gallery preview and `/gallery/` consume the same versioned manifest. No location, date, customer identity or unverified performance claim was inferred.
 - Production remains on the preceding public-site release until the guarded Z.com pull, backup, deploy and live postcheck pass.
 
-### Structured Site Content CMS and Gallery batch workflow
+### Full textual Site Content CMS and Gallery batch workflow
 
-- Added an authenticated CMS for Home, Services, About and Contact using allowlisted structured sections rather than raw HTML.
+- Added an authenticated CMS for all ten textual public pages: Home, Services, motorcycle transport, international transport, storage, Container loading, Dealer/Fleet, Quotation, About and Contact. Every page uses an allowlisted identity and structured sections rather than raw HTML.
+- Added fail-safe dynamic rendering and canonical INDEX metadata for the six newly managed public routes. Their factual defaults use only verified services and contact numbers; no price, capacity, service area, performance or timeline claim is invented.
 - Added immutable content revisions with SHA-256 hashes, append-only publication events, same-page publication enforcement, Audit records and forward-only rollback by republishing an older revision.
 - Added explicit `site:read`, `site:write` and `site:publish` permissions. OWNER retains business-wide rights; every other internal role remains fail-closed and CUSTOMER roles receive no CMS access.
 - Added a bounded Gallery batch uploader for up to 20 real images per batch. Images are processed and uploaded sequentially, require title/Alt text, remain Draft until separately published and preserve completed Drafts when a later image fails.
 - Public CMS Gallery sections query only `PUBLIC` + `PUBLISHED` items, remain bounded to 24 images per section and fail safely to an honest empty state when Gallery storage is unavailable.
+- Kept Gallery media management separate from text editing so categories, Alt text, featured selection, ordering, visibility, responsive variants and audit history remain intact. The Site Content dashboard links directly to Media Library.
 - Migration `0012` adds Site Content pages/revisions/publication history and the new permissions. It remains unapplied in Production.
 
 ## Verified source gates

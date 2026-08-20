@@ -1,5 +1,15 @@
 # NATHEE GROUP 2025 — Work History
 
+## 2026-08-21 — Full textual public-page CMS coverage
+
+- Expanded the allowlisted Site Content CMS from four pages to all ten textual public pages: Home, Services, five service-detail pages, Quotation, About and Contact.
+- Added real fail-safe public routes for motorcycle transport, international transport, storage, Container loading, Dealer/Fleet and Quotation. Defaults use only verified services and phone numbers; no price, capacity, location, timing or performance claim was invented.
+- Centralized canonical metadata for managed pages, with INDEX/FOLLOW, canonical URL and Open Graph identity on every public textual route.
+- Kept Gallery as a separate Media Library and linked it from the Site Content dashboard, preserving category, Alt text, ordering, featured, visibility, responsive media and audit behavior.
+- Verification: CMS unit tests PASS, all ten defaults validate, all six new routes render without D1, canonical/robots checks PASS, Vinext production build PASS and ESLint PASS.
+- Deployment: source only. The Z.com static website remains unchanged; dynamic CMS routes still require the approved Auth, D1 migration `0012`, R2 and application-routing gates.
+- Rollback: revert this commit. No migration, Production data, public website file or media artifact is changed by this slice.
+
 ## 2026-08-21 — Responsive Owner media sizing
 
 - Reduced the homepage brand artwork and LINE QR footprint so they support the content instead of dominating it on mobile or desktop.
