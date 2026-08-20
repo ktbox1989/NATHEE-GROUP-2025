@@ -2,16 +2,46 @@
   "version": 1,
   "updatedAt": "2026-08-21",
   "categories": [
-    { "id": "domestic", "label": "ขนส่งในประเทศ" },
-    { "id": "international", "label": "ขนส่งต่างประเทศ" },
-    { "id": "truck-4", "label": "รถ 4 ล้อ" },
-    { "id": "truck-6", "label": "รถ 6 ล้อ" },
-    { "id": "storage", "label": "ลานสต๊อก / รับฝากรถ" },
-    { "id": "container", "label": "Container Loading / Export" },
-    { "id": "dealer-fleet", "label": "Dealer / Fleet" },
-    { "id": "large-batch", "label": "งานล็อตใหญ่" },
-    { "id": "truck-loading", "label": "โหลดรถขึ้นรถบรรทุก" },
-    { "id": "delivery", "label": "ส่งมอบปลายทาง" }
+    {
+      "id": "domestic",
+      "label": "ขนส่งในประเทศ"
+    },
+    {
+      "id": "international",
+      "label": "ขนส่งต่างประเทศ"
+    },
+    {
+      "id": "truck-4",
+      "label": "รถ 4 ล้อ"
+    },
+    {
+      "id": "truck-6",
+      "label": "รถ 6 ล้อ"
+    },
+    {
+      "id": "storage",
+      "label": "ลานสต๊อก / รับฝากรถ"
+    },
+    {
+      "id": "container",
+      "label": "Container Loading / Export"
+    },
+    {
+      "id": "dealer-fleet",
+      "label": "Dealer / Fleet"
+    },
+    {
+      "id": "large-batch",
+      "label": "งานล็อตใหญ่"
+    },
+    {
+      "id": "truck-loading",
+      "label": "โหลดรถขึ้นรถบรรทุก"
+    },
+    {
+      "id": "delivery",
+      "label": "ส่งมอบปลายทาง"
+    }
   ],
   "items": [
     {
@@ -26,7 +56,11 @@
       "width": 1706,
       "height": 960,
       "featured": true,
-      "order": 10
+      "order": 10,
+      "thumbnailWebp": "/assets/gallery/motorcycle-truck-loading-01-thumbnail.webp",
+      "thumbnailAvif": "/assets/gallery/motorcycle-truck-loading-01-thumbnail.avif",
+      "displayWebp": "/assets/gallery/motorcycle-truck-loading-01-display.webp",
+      "displayAvif": "/assets/gallery/motorcycle-truck-loading-01-display.avif"
     },
     {
       "id": "motorcycle-storage-yard-01",
@@ -40,7 +74,11 @@
       "width": 1477,
       "height": 1108,
       "featured": true,
-      "order": 20
+      "order": 20,
+      "thumbnailWebp": "/assets/gallery/motorcycle-storage-yard-01-thumbnail.webp",
+      "thumbnailAvif": "/assets/gallery/motorcycle-storage-yard-01-thumbnail.avif",
+      "displayWebp": "/assets/gallery/motorcycle-storage-yard-01-display.webp",
+      "displayAvif": "/assets/gallery/motorcycle-storage-yard-01-display.avif"
     },
     {
       "id": "nathee-yard-front-01",
@@ -56,7 +94,9 @@
       "width": 1477,
       "height": 1108,
       "featured": false,
-      "order": 30
+      "order": 30,
+      "thumbnailAvif": "/assets/gallery/nathee-yard-front-01-thumbnail.avif",
+      "displayAvif": "/assets/gallery/nathee-yard-front-01-display.avif"
     },
     {
       "id": "motorcycle-yard-container-01",
@@ -72,7 +112,9 @@
       "width": 1477,
       "height": 1108,
       "featured": true,
-      "order": 40
+      "order": 40,
+      "thumbnailAvif": "/assets/gallery/motorcycle-yard-container-01-thumbnail.avif",
+      "displayAvif": "/assets/gallery/motorcycle-yard-container-01-display.avif"
     },
     {
       "id": "motorcycle-storage-yard-02",
@@ -88,7 +130,9 @@
       "width": 1477,
       "height": 1108,
       "featured": false,
-      "order": 50
+      "order": 50,
+      "thumbnailAvif": "/assets/gallery/motorcycle-storage-yard-02-thumbnail.avif",
+      "displayAvif": "/assets/gallery/motorcycle-storage-yard-02-display.avif"
     },
     {
       "id": "motorcycle-fleet-staging-01",
@@ -104,7 +148,9 @@
       "width": 1477,
       "height": 1108,
       "featured": true,
-      "order": 60
+      "order": 60,
+      "thumbnailAvif": "/assets/gallery/motorcycle-fleet-staging-01-thumbnail.avif",
+      "displayAvif": "/assets/gallery/motorcycle-fleet-staging-01-display.avif"
     },
     {
       "id": "nathee-six-wheel-truck-01",
@@ -120,7 +166,9 @@
       "width": 1093,
       "height": 1093,
       "featured": false,
-      "order": 70
+      "order": 70,
+      "thumbnailAvif": "/assets/gallery/nathee-six-wheel-truck-01-thumbnail.avif",
+      "displayAvif": "/assets/gallery/nathee-six-wheel-truck-01-display.avif"
     },
     {
       "id": "motorcycle-pickup-loading-01",
@@ -136,7 +184,9 @@
       "width": 1169,
       "height": 1399,
       "featured": true,
-      "order": 80
+      "order": 80,
+      "thumbnailAvif": "/assets/gallery/motorcycle-pickup-loading-01-thumbnail.avif",
+      "displayAvif": "/assets/gallery/motorcycle-pickup-loading-01-display.avif"
     },
     {
       "id": "motorcycle-container-loading-01",
@@ -152,7 +202,9 @@
       "width": 1108,
       "height": 1477,
       "featured": true,
-      "order": 90
+      "order": 90,
+      "thumbnailAvif": "/assets/gallery/motorcycle-container-loading-01-thumbnail.avif",
+      "displayAvif": "/assets/gallery/motorcycle-container-loading-01-display.avif"
     }
   ]
 }

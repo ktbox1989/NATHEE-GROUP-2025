@@ -126,7 +126,7 @@ export default async function MotorcycleDocumentsPage({ params }: { params: Prom
               <header><div><span>INSPECTION {index + 1}</span><h3>{inspectionTypeLabel(inspection.type)} · {inspectionResultLabel(inspection.result)}</h3></div><b>{formatThaiDateTime(inspection.inspectedAt)}</b></header>
               <dl><div><dt>ผู้ตรวจ</dt><dd>{inspection.inspectorName}</dd></div><div><dt>เลขไมล์</dt><dd>{inspection.odometerKm === null ? "ไม่ระบุ" : `${inspection.odometerKm.toLocaleString("th-TH")} กม.`}</dd></div><div><dt>น้ำมัน</dt><dd>{fuelLevelLabel(inspection.fuelLevel)}</dd></div></dl>
               <p>{inspection.notes || "ไม่มีหมายเหตุ"}</p>
-              {recordFindings.map((finding) => <div className="document-finding" key={finding.id}><div><b>{finding.area}</b><span>{damageSeverityLabel(finding.severity)}</span></div><p>{finding.description}</p>{finding.evidenceImageId && <img src={`/api/images/${finding.evidenceImageId}`} alt={`หลักฐาน ${finding.area}`} />}</div>)}
+              {recordFindings.map((finding) => <div className="document-finding" key={finding.id}><div><b>{finding.area}</b><span>{damageSeverityLabel(finding.severity)}</span></div><p>{finding.description}</p>{finding.evidenceImageId && <img src={`/api/images/${finding.evidenceImageId}`} alt={`หลักฐาน ${finding.area}`} width={640} height={480} loading="lazy" decoding="async" />}</div>)}
             </article>;
           }) : <p className="document-empty">ยังไม่มีใบตรวจสภาพ</p>}
         </section>
@@ -138,7 +138,7 @@ export default async function MotorcycleDocumentsPage({ params }: { params: Prom
             <dl><div><dt>ผู้รับ</dt><dd>{pod.recipientName}</dd></div><div><dt>โทร</dt><dd>{maskPhone(pod.recipientPhone)}</dd></div><div><dt>สถานที่</dt><dd>{pod.deliveryLocation}</dd></div><div><dt>ผู้บันทึก</dt><dd>{pod.receiverName}</dd></div></dl>
             <p>{pod.notes || "ไม่มีหมายเหตุ"}</p>
             {pod.status === "VOIDED" && <p className="document-void-reason">ยกเลิก: {pod.voidReason}</p>}
-            <img className="document-pod-image" src={`/api/images/${pod.evidenceImageId}`} alt={`รูปส่งมอบให้ ${pod.recipientName}`} />
+            <img className="document-pod-image" src={`/api/images/${pod.evidenceImageId}`} alt={`รูปส่งมอบให้ ${pod.recipientName}`} width={640} height={480} loading="lazy" decoding="async" />
           </article>) : <p className="document-empty">ยังไม่มีหลักฐานส่งมอบ</p>}
         </section>
         <footer className="document-footer">เอกสารนี้แสดงข้อมูล ณ เวลาที่พิมพ์ ประวัติต้นฉบับและ Audit อยู่ใน NATHEE SYSTEM</footer>

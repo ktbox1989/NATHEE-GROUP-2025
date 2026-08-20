@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, lt, or, sql } from "drizzle-orm";
+/* eslint-disable jsx-a11y/no-noninteractive-tabindex -- the scoped overflow table must be keyboard-focusable */
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getDb } from "@/db";
@@ -97,7 +98,7 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
       )}
       <div className="data-card">
         {rows.length ? (
-          <div className="data-table-wrap"><table className="data-table">
+          <div className="data-table-wrap" tabIndex={0} role="region" aria-label="ตารางงานขนส่ง เลื่อนแนวนอนได้บนหน้าจอเล็ก"><table className="data-table">
             <thead><tr><th>JOB NO.</th><th>บริษัท</th><th>เส้นทาง</th><th>กำหนดการ</th><th>สถานะ</th><th>ฉลาก</th></tr></thead>
             <tbody>{rows.map((job) => (
               <tr key={job.id}>

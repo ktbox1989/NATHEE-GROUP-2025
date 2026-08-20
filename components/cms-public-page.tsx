@@ -1,8 +1,9 @@
 /* eslint-disable @next/next/no-img-element -- public CMS media is served through an authorization-aware R2 image route */
 import Link from "next/link";
 import { and, asc, desc, eq } from "drizzle-orm";
+import { CmsPublicNav } from "@/components/cms-public-nav";
 import { GalleryLightbox, type PublicGalleryItem } from "@/components/gallery-lightbox";
-import { galleryCategories, galleryItems } from "@/db/schema";
+import { galleryCategories, galleryImageVariants, galleryItems } from "@/db/schema";
 import { SITE_PAGE_DEFINITIONS, type CmsPageContent, type CmsSection, type SitePageSlug } from "@/lib/site-cms";
 import { getPublishedSiteSettings, type SiteSettings } from "@/lib/site-settings";
 import { serializeStructuredData, siteOrganizationSchema } from "@/lib/site-structured-data";
@@ -21,12 +22,13 @@ export async function CmsPublicPage({ content, slug, preview = false }: { conten
 async function PublicHeader({ active, settings }: { active: SitePageSlug; settings: SiteSettings }) {
   const servicePages: SitePageSlug[] = ["services", "motorcycle-transport", "international", "storage", "container-loading", "dealer-fleet", "quotation"];
   const activePath = SITE_PAGE_DEFINITIONS[active].path;
-  return <header className="cms-site-header"><div className="shell cms-nav"><Link className="brand" href="/" aria-label={`${settings.brand.name} หน้าแรก`}><PublicBrandIdentity settings={settings} /></Link><nav aria-label="เมนูหลัก">{settings.navigation.items.map((item) => <Link className={item.href === activePath || item.href === "/services" && servicePages.includes(active) ? "active" : ""} href={item.href} key={item.href}>{item.label}</Link>)}<Link className="button button-small button-gradient" href="/login">{settings.navigation.loginLabel}</Link></nav></div></header>;
+  const items = settings.navigation.items.map((item) => ({ ...item, active: item.href === activePath || item.href === "/services" && servicePages.includes(active) }));
+  return <header className="cms-site-header"><div className="shell cms-nav"><Link className="brand" href="/" aria-label={`${settings.brand.name} หน้าแรก`}><PublicBrandIdentity settings={settings} /></Link><CmsPublicNav items={items} loginLabel={settings.navigation.loginLabel} /></div></header>;
 }
 
 export async function PublicBrandIdentity({ settings }: { settings: SiteSettings }) {
   const logo = settings.brand.logoItemId ? await getPublicMedia(settings.brand.logoItemId) : null;
-  return <>{logo ? <span className="brand-mark cms-brand-logo"><img src={`/api/gallery/images/${logo.id}?role=thumbnail`} alt={logo.altText || settings.brand.name} decoding="async" /></span> : <span className="brand-mark">{settings.brand.abbreviation}</span>}<span className="brand-name">{settings.brand.name}<small>{settings.brand.tagline}</small></span></>;
+  return <>{logo ? <span className="brand-mark cms-brand-logo"><img src={`/api/gallery/images/${logo.id}?role=thumbnail`} alt={logo.altText || settings.brand.name} width={96} height={96} decoding="async" /></span> : <span className="brand-mark">{settings.brand.abbreviation}</span>}<span className="brand-name">{settings.brand.name}<small>{settings.brand.tagline}</small></span></>;
 }
 
 async function CmsSectionView({ section }: { section: CmsSection }) {
@@ -56,13 +58,20 @@ async function GallerySection({ section }: { section: CmsSection }) {
 
 async function PublicImage({ itemId, alt }: { itemId: string; alt: string }) {
   const item = await getPublicMedia(itemId);
-  return item ? <figure className="cms-section-image"><img src={`/api/gallery/images/${item.id}?role=display`} alt={item.altText || alt} loading="lazy" decoding="async" /></figure> : null;
+  const width = item?.width ?? 1600, height = item?.height ?? 1200;
+  const ratio = width / height;
+  const orientation = ratio > 1.12 ? "landscape" : ratio < .88 ? "portrait" : "square";
+  return item ? <figure className="cms-section-image" data-orientation={orientation}><img src={`/api/gallery/images/${item.id}?role=display`} alt={item.altText || alt} width={width} height={height} loading="lazy" decoding="async" sizes="(max-width: 940px) calc(100vw - 40px), 48vw" /></figure> : null;
 }
 
-async function getPublicMedia(itemId: string): Promise<{ id: string; altText: string } | null> {
+async function getPublicMedia(itemId: string): Promise<{ id: string; altText: string; width: number | null; height: number | null } | null> {
   try {
     const { getDb } = await import("@/db");
-    return await getDb().select({ id: galleryItems.id, altText: galleryItems.altText }).from(galleryItems).where(and(eq(galleryItems.id, itemId), eq(galleryItems.status, "PUBLISHED"), eq(galleryItems.visibility, "PUBLIC"))).get() ?? null;
+    const db = getDb();
+    const item = await db.select({ id: galleryItems.id, altText: galleryItems.altText }).from(galleryItems).where(and(eq(galleryItems.id, itemId), eq(galleryItems.status, "PUBLISHED"), eq(galleryItems.visibility, "PUBLIC"))).get();
+    if (!item) return null;
+    const variant = await db.select({ width: galleryImageVariants.width, height: galleryImageVariants.height }).from(galleryImageVariants).where(and(eq(galleryImageVariants.galleryItemId, itemId), eq(galleryImageVariants.role, "DISPLAY"))).limit(1).get();
+    return { ...item, width: variant?.width ?? null, height: variant?.height ?? null };
   } catch {
     return null;
   }

@@ -62,9 +62,13 @@
     const node = document.createElement('picture');
     const avif = safeAsset(thumbnail ? item.thumbnailAvif : item.displayAvif);
     const webp = safeAsset(thumbnail ? item.thumbnailWebp : item.displayWebp);
-    if (avif) { const source = document.createElement('source'); source.type = 'image/avif'; source.srcset = avif; node.append(source); }
-    if (webp) { const source = document.createElement('source'); source.type = 'image/webp'; source.srcset = webp; node.append(source); }
-    const image = document.createElement('img'); image.src = safeAsset(thumbnail ? item.thumbnail : item.display); image.alt = text(item.alt, 300); image.width = item.width; image.height = item.height; image.loading = thumbnail ? 'lazy' : 'eager'; image.decoding = 'async'; image.addEventListener('error', () => { const error = document.createElement('span'); error.className = 'gallery-image-error'; error.textContent = 'ไม่สามารถโหลดภาพนี้ได้'; node.replaceChildren(error); }); node.append(image);
+    const displayAvif = safeAsset(item.displayAvif), displayWebp = safeAsset(item.displayWebp), displayJpeg = safeAsset(item.display);
+    const thumbnailWidth = Math.min(item.width, 640), displayWidth = Math.min(item.width, 1600);
+    const sourceSet = (small, large) => thumbnail || !large ? small : `${small} ${thumbnailWidth}w, ${large} ${displayWidth}w`;
+    const sizes = thumbnail ? '(max-width: 680px) calc(100vw - 28px), (max-width: 980px) calc(50vw - 32px), 374px' : 'min(1100px, calc(100vw - 24px))';
+    if (avif) { const source = document.createElement('source'); source.type = 'image/avif'; source.srcset = sourceSet(avif, displayAvif); source.sizes = sizes; node.append(source); }
+    if (webp) { const source = document.createElement('source'); source.type = 'image/webp'; source.srcset = sourceSet(webp, displayWebp); source.sizes = sizes; node.append(source); }
+    const image = document.createElement('img'); image.src = safeAsset(thumbnail ? item.thumbnail : item.display); image.srcset = sourceSet(safeAsset(item.thumbnail), displayJpeg); image.sizes = sizes; image.alt = text(item.alt, 300); image.width = item.width; image.height = item.height; image.loading = thumbnail ? 'lazy' : 'eager'; image.fetchPriority = thumbnail ? 'low' : 'high'; image.decoding = 'async'; image.addEventListener('error', () => { const error = document.createElement('span'); error.className = 'gallery-image-error'; error.textContent = 'ไม่สามารถโหลดภาพนี้ได้'; node.replaceChildren(error); }); node.append(image);
     return node;
   }
 

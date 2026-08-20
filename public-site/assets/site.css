@@ -17,20 +17,24 @@
 }
 
 * { box-sizing: border-box; }
-html { scroll-behavior: smooth; scroll-padding-top: 90px; }
+html { max-width: 100%; overflow-x: clip; scroll-behavior: smooth; scroll-padding-top: 90px; }
 body {
   margin: 0;
   min-width: 320px;
+  max-width: 100%;
+  overflow-x: clip;
   color: var(--text);
   background: var(--surface);
   font-family: "Leelawadee UI", "Noto Sans Thai", Tahoma, sans-serif;
+  font-size: clamp(15px, 1.15vw, 16px);
   line-height: 1.65;
   -webkit-font-smoothing: antialiased;
 }
+img, video, svg, canvas { max-width: 100%; }
 a { color: inherit; text-decoration: none; }
 button, a { -webkit-tap-highlight-color: transparent; }
 button { font: inherit; }
-.shell { width: var(--shell); margin-inline: auto; }
+.shell { width: var(--shell); max-width: 100%; margin-inline: auto; }
 .sr-only {
   position: absolute;
   width: 1px;
@@ -158,7 +162,7 @@ button { font: inherit; }
   background: #05080f;
   box-shadow: 0 35px 90px rgba(0,0,0,.42);
 }
-.hero-brand-art img { width: 100%; height: auto; display: block; }
+.hero-brand-art picture, .hero-brand-art img { width: 100%; height: auto; display: block; }
 .route-card {
   width: min(100%, 465px);
   padding: 25px;
@@ -411,4 +415,22 @@ body.lightbox-open { overflow: hidden; }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
+}
+
+@media (max-width: 360px) {
+  :root { --shell: min(100% - 24px, 1160px); }
+  .header-inner { gap: 8px; }
+  .brand { min-width: 0; gap: 9px; }
+  .brand > span:last-child { min-width: 0; }
+  .brand strong { max-width: 184px; overflow: hidden; font-size: 11px; letter-spacing: .9px; text-overflow: ellipsis; white-space: nowrap; }
+  .brand small { display: none; }
+  .menu-toggle { width: 44px; height: 44px; flex: none; }
+  .site-nav { right: 12px; left: 12px; }
+  .hero h1 { font-size: clamp(34px, 11vw, 42px); overflow-wrap: anywhere; }
+  .hero-visual { min-height: 260px; }
+  .hero-brand-art { width: min(100%, 250px); }
+  .section { padding-block: 64px; }
+  .service-card { padding: 24px; }
+  .contact-button, .contact-pending { padding-inline: 18px; }
+  .gallery-card figcaption { padding-inline: 15px; }
 }

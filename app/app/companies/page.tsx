@@ -1,4 +1,5 @@
 import { asc, gt, sql } from "drizzle-orm";
+/* eslint-disable jsx-a11y/no-noninteractive-tabindex -- the scoped overflow table must be keyboard-focusable */
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getDb } from "@/db";
@@ -56,7 +57,7 @@ export default async function CompaniesPage({ searchParams }: CompaniesPageProps
       )}
       <div className="data-card">
         {visibleRows.length ? (
-          <div className="data-table-wrap"><table className="data-table">
+          <div className="data-table-wrap" tabIndex={0} role="region" aria-label="ตารางบริษัทลูกค้า เลื่อนแนวนอนได้บนหน้าจอเล็ก"><table className="data-table">
             <thead><tr><th>รหัส</th><th>บริษัท</th><th>ผู้ติดต่อ</th><th>สถานะ</th></tr></thead>
             <tbody>{visibleRows.map((company) => (
               <tr key={company.id}>

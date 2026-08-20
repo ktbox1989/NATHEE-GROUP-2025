@@ -59,7 +59,7 @@ function VehicleLabel({ record }: { record: {
   return (
     <article className="vehicle-label">
       <div className="vehicle-label-brand"><b>NATHEE GROUP 2025</b><span>SECURE TRANSPORT LABEL</span></div>
-      <img src={`/api/qr/motorcycles/${encodeURIComponent(record.publicId)}`} alt={`QR สำหรับรถคันที่ ${record.sequenceNumber}`} />
+      <img src={`/api/qr/motorcycles/${encodeURIComponent(record.publicId)}`} alt={`QR สำหรับรถคันที่ ${record.sequenceNumber}`} width={232} height={232} decoding="sync" />
       <div className="vehicle-label-copy">
         <h2>{record.jobNumber} · #{record.sequenceNumber}</h2>
         <p>{record.companyName}</p>

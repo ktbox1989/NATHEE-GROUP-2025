@@ -1,3 +1,4 @@
+/* eslint-disable jsx-a11y/no-noninteractive-tabindex -- the scoped overflow table must be keyboard-focusable */
 import Link from "next/link";
 import { asc, desc, eq, notInArray } from "drizzle-orm";
 import { redirect } from "next/navigation";
@@ -81,7 +82,7 @@ export default async function MotorcyclesPage({ searchParams }: MotorcyclesPageP
       )}
       <div className="data-card">
         {rows.length ? (
-          <div className="data-table-wrap"><table className="data-table">
+          <div className="data-table-wrap" tabIndex={0} role="region" aria-label="ตารางรถจักรยานยนต์ เลื่อนแนวนอนได้บนหน้าจอเล็ก"><table className="data-table">
             <thead><tr><th>รถ / JOB</th><th>บริษัท</th><th>รายละเอียด</th><th>VIN / เลขเครื่อง</th><th>สถานะ</th></tr></thead>
             <tbody>{rows.map((motorcycle) => (
               <tr key={motorcycle.id}>

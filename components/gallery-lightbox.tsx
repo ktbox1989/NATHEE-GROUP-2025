@@ -30,13 +30,13 @@ export function GalleryLightbox({ items }: { items: PublicGalleryItem[] }) {
   const active = selected === null ? null : items[selected];
   return <>
     <div className="public-gallery-grid">{items.map((item, index) => <figure key={item.id}>
-      <button type="button" onClick={(event) => { setOpener(event.currentTarget); setSelected(index); }} aria-label={`เปิดภาพขนาดใหญ่: ${item.altText}`}><img src={`/api/gallery/images/${item.id}?role=thumbnail`} alt={item.altText} loading="lazy" decoding="async" /></button>
+      <button type="button" onClick={(event) => { setOpener(event.currentTarget); setSelected(index); }} aria-label={`เปิดภาพขนาดใหญ่: ${item.altText}`}><img src={`/api/gallery/images/${item.id}?role=thumbnail`} alt={item.altText} width={640} height={480} loading="lazy" decoding="async" sizes="(max-width: 600px) calc(100vw - 28px), (max-width: 940px) 48vw, 32vw" /></button>
       <figcaption><span>{item.categoryName}</span><h2>{item.title}</h2>{(item.takenAt || item.location) && <small>{[item.takenAt, item.location].filter(Boolean).join(" · ")}</small>}{item.caption && <p>{item.caption}</p>}</figcaption>
     </figure>)}</div>
     {active && <div className="gallery-lightbox" role="dialog" aria-modal="true" aria-label={active.title}>
       <button className="gallery-lightbox-close" type="button" onClick={() => { setSelected(null); queueMicrotask(() => opener?.focus()); }} aria-label="ปิดภาพ">×</button>
       <button className="gallery-lightbox-prev" type="button" onClick={() => setSelected((selected! - 1 + items.length) % items.length)} aria-label="ภาพก่อนหน้า">‹</button>
-      <figure><img src={`/api/gallery/images/${active.id}?role=display`} alt={active.altText} /><figcaption><span>{active.categoryName}</span><h2>{active.title}</h2>{(active.takenAt || active.location) && <small>{[active.takenAt, active.location].filter(Boolean).join(" · ")}</small>}{active.caption && <p>{active.caption}</p>}</figcaption></figure>
+      <figure><img src={`/api/gallery/images/${active.id}?role=display`} alt={active.altText} width={1600} height={1200} decoding="async" sizes="(max-width: 940px) calc(100vw - 16px), 1100px" /><figcaption><span>{active.categoryName}</span><h2>{active.title}</h2>{(active.takenAt || active.location) && <small>{[active.takenAt, active.location].filter(Boolean).join(" · ")}</small>}{active.caption && <p>{active.caption}</p>}</figcaption></figure>
       <button className="gallery-lightbox-next" type="button" onClick={() => setSelected((selected! + 1) % items.length)} aria-label="ภาพถัดไป">›</button>
     </div>}
   </>;

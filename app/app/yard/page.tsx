@@ -1,3 +1,4 @@
+/* eslint-disable jsx-a11y/no-noninteractive-tabindex -- the scoped overflow table must be keyboard-focusable */
 import Link from "next/link";
 import { and, count, desc, eq, isNull, lt, or } from "drizzle-orm";
 import { notFound, redirect } from "next/navigation";
@@ -109,7 +110,7 @@ export default async function YardPage({ searchParams }: YardPageProps) {
 
       <section className="detail-section">
         <div className="detail-section-head"><div><p>ACTIVE PLACEMENTS</p><h2>รถที่อยู่ในลานขณะนี้</h2></div><span>{placements.length} รายการในหน้านี้</span></div>
-        {placements.length ? <div className="data-card"><div className="data-table-wrap"><table className="data-table">
+        {placements.length ? <div className="data-card"><div className="data-table-wrap" tabIndex={0} role="region" aria-label="ตารางรถในลาน เลื่อนแนวนอนได้บนหน้าจอเล็ก"><table className="data-table">
           <thead><tr><th>โซน</th><th>รถ / JOB</th><th>บริษัท</th><th>รายละเอียด</th><th>สถานะ</th><th>เข้าลาน</th></tr></thead>
           <tbody>{placements.map((row) => <tr key={row.placementId}>
             <td><b>{row.zoneCode}</b><small>{row.zoneName}</small></td>

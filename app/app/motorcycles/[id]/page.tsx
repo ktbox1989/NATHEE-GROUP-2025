@@ -342,7 +342,7 @@ export default async function MotorcycleDetailPage({ params, searchParams }: Mot
           </form>
         )}
         {images.length ? <div className="image-grid">{images.map((image) => (
-          <figure key={image.id}><img src={`/api/images/${image.id}`} alt={`ภาพ ${image.category} ของรถคันที่ ${record.sequenceNumber}`} loading="lazy" /><figcaption><b>{image.category}</b><span>{formatThaiDateTime(image.createdAt)}</span></figcaption></figure>
+          <figure key={image.id}><img src={`/api/images/${image.id}`} alt={`ภาพ ${image.category} ของรถคันที่ ${record.sequenceNumber}`} width={640} height={480} loading="lazy" decoding="async" sizes="(max-width: 600px) calc(100vw - 28px), (max-width: 940px) 48vw, 31vw" /><figcaption><b>{image.category}</b><span>{formatThaiDateTime(image.createdAt)}</span></figcaption></figure>
         ))}</div> : <div className="app-panel app-empty"><div>📷</div><h2>ยังไม่มีรูปภาพ</h2><p>พนักงานสามารถอัปโหลดรูปจากมือถือได้โดยตรง</p></div>}
       </section>
 
