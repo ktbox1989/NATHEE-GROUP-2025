@@ -56,11 +56,11 @@ export async function POST(request: NextRequest) {
       return { ...attachment, id: attachmentId, storageKey: `quotations/${id}/${attachmentId}.${attachment.extension}` };
     });
     for (const attachment of attachments) {
+      storedKeys.push(attachment.storageKey);
       await env.FILES.put(attachment.storageKey, attachment.bytes, {
         httpMetadata: { contentType: attachment.contentType },
         customMetadata: { quoteRequestId: id, checksum: attachment.checksum },
       });
-      storedKeys.push(attachment.storageKey);
     }
     await db.batch([
       db.insert(quoteRequests).values({

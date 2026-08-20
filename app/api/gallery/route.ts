@@ -8,7 +8,7 @@ import { makeAuditRecord } from "@/lib/audit";
 import { can } from "@/lib/authorization";
 import { getCurrentActor } from "@/lib/current-actor";
 import { boundedText, GALLERY_MAX_ORIGINAL_BYTES, GALLERY_MAX_VARIANT_BYTES, galleryVisibilities, isGalleryUploadRequestKey, parseGallerySortOrder, parsePositiveDimension } from "@/lib/gallery";
-import { hasExpectedImageSignature, sha256Hex, SUPPORTED_IMAGE_TYPES } from "@/lib/image-validation";
+import { hasExpectedImageSignature, imageDimensionsMatchClaim, readImageDimensions, sha256Hex, SUPPORTED_IMAGE_TYPES } from "@/lib/image-validation";
 import { isSameOrigin } from "@/lib/same-origin";
 
 type PreparedVariant = { id: string; role: GalleryVariantRole; file: File; bytes: Uint8Array; checksum: string; width: number | null; height: number | null; storageKey: string };
@@ -70,8 +70,8 @@ export async function POST(request: NextRequest) {
   const storedKeys: string[] = [];
   try {
     for (const variant of variants) {
-      await env.FILES.put(variant.storageKey, variant.bytes, { httpMetadata: { contentType: variant.file.type }, customMetadata: { galleryItemId: itemId, role: variant.role, uploadedBy: actor.userId, checksum: variant.checksum } });
       storedKeys.push(variant.storageKey);
+      await env.FILES.put(variant.storageKey, variant.bytes, { httpMetadata: { contentType: variant.file.type }, customMetadata: { galleryItemId: itemId, role: variant.role, uploadedBy: actor.userId, checksum: variant.checksum } });
     }
     const now = new Date().toISOString();
     await db.batch([
@@ -80,9 +80,15 @@ export async function POST(request: NextRequest) {
       db.insert(auditLogs).values(makeAuditRecord({ actor, action: "CREATE", entityType: "gallery_item", entityId: itemId, companyId, after: { categoryId, title, visibility, takenAt, location, publicJobReference, status: "DRAFT", variants: variants.map(({ role, file, checksum }) => ({ role, contentType: file.type, byteSize: file.size, checksum })) } })),
     ]);
   } catch {
-    await Promise.allSettled(storedKeys.map((key) => env.FILES.delete(key)));
-    const raced = await db.select({ id: galleryItems.id }).from(galleryItems).where(eq(galleryItems.requestKey, requestKey)).get();
+    const cleanup = await Promise.allSettled(storedKeys.map((key) => env.FILES.delete(key)));
+    let raced: { id: string } | undefined;
+    try {
+      raced = await db.select({ id: galleryItems.id }).from(galleryItems).where(eq(galleryItems.requestKey, requestKey)).get();
+    } catch {
+      // The response remains fail-closed below when reconciliation cannot be proved.
+    }
     if (raced) return respondSuccess(request, raced.id, true);
+    if (cleanup.some((result) => result.status === "rejected")) return respondError(request, "gallery_cleanup", 500);
     return respondError(request, "gallery_save", 500);
   }
   return respondSuccess(request, itemId, false);
@@ -95,10 +101,12 @@ async function prepareVariant(file: File, role: GalleryVariantRole, maxBytes: nu
   const width = parsePositiveDimension(widthValue);
   const height = parsePositiveDimension(heightValue);
   if (width === undefined || height === undefined) return null;
+  const actual = readImageDimensions(bytes, file.type);
+  if (!actual || !imageDimensionsMatchClaim(actual, width, height, role !== "ORIGINAL")) return null;
   const id = crypto.randomUUID();
   const checksum = await sha256Hex(bytes);
   const extension = SUPPORTED_IMAGE_TYPES.get(file.type)!;
-  return { id, role, file, bytes, checksum, width, height, storageKey: `gallery/${itemId}/${role.toLowerCase()}-${id}.${extension}` };
+  return { id, role, file, bytes, checksum, width: actual.width, height: actual.height, storageKey: `gallery/${itemId}/${role.toLowerCase()}-${id}.${extension}` };
 }
 
 function wantsJson(request: NextRequest): boolean {

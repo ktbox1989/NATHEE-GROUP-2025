@@ -7,7 +7,7 @@ import type { ImageCategory, MotorcycleImageVariantRole } from "@/db/schema";
 import { makeAuditRecord } from "@/lib/audit";
 import { can } from "@/lib/authorization";
 import { getCurrentActor } from "@/lib/current-actor";
-import { hasExpectedImageSignature, sha256Hex, SUPPORTED_IMAGE_TYPES } from "@/lib/image-validation";
+import { hasExpectedImageSignature, imageDimensionsMatchClaim, readImageDimensions, sha256Hex, SUPPORTED_IMAGE_TYPES } from "@/lib/image-validation";
 import {
   hasRequiredMotorcycleImageVariants,
   isMotorcycleImageRequestKey,
@@ -78,11 +78,11 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   const storageKey = `${storagePrefix}.${extension}`;
   const storedKeys: string[] = [];
   try {
-    await env.FILES.put(storageKey, bytes, { httpMetadata: { contentType: file.type }, customMetadata: { motorcycleId: id, companyId: motorcycle.companyId, uploadedBy: actor.userId, checksum, role: "ORIGINAL" } });
     storedKeys.push(storageKey);
+    await env.FILES.put(storageKey, bytes, { httpMetadata: { contentType: file.type }, customMetadata: { motorcycleId: id, companyId: motorcycle.companyId, uploadedBy: actor.userId, checksum, role: "ORIGINAL" } });
     for (const variant of variants) {
-      await env.FILES.put(variant.storageKey, variant.bytes, { httpMetadata: { contentType: variant.file.type }, customMetadata: { motorcycleId: id, motorcycleImageId: imageId, companyId: motorcycle.companyId, uploadedBy: actor.userId, checksum: variant.checksum, role: variant.role } });
       storedKeys.push(variant.storageKey);
+      await env.FILES.put(variant.storageKey, variant.bytes, { httpMetadata: { contentType: variant.file.type }, customMetadata: { motorcycleId: id, motorcycleImageId: imageId, companyId: motorcycle.companyId, uploadedBy: actor.userId, checksum: variant.checksum, role: variant.role } });
     }
     const metadata = { id: imageId, requestKey, motorcycleId: id, companyId: motorcycle.companyId, storageKey, category: category as ImageCategory, contentType: file.type, byteSize: file.size, checksum, uploadedBy: actor.userId };
     await db.batch([
@@ -91,9 +91,15 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       db.insert(auditLogs).values(makeAuditRecord({ actor, action: "UPLOAD_IMAGE", entityType: "motorcycle_image", entityId: imageId, companyId: motorcycle.companyId, after: { motorcycleId: id, category, contentType: file.type, byteSize: file.size, checksum, variants: variants.map(({ role, file: variantFile, width, height, checksum: variantChecksum }) => ({ role, contentType: variantFile.type, byteSize: variantFile.size, width, height, checksum: variantChecksum })) } })),
     ]);
   } catch {
-    await Promise.all(storedKeys.map((key) => env.FILES.delete(key)));
-    const raced = await db.select({ id: motorcycleImages.id }).from(motorcycleImages).where(eq(motorcycleImages.requestKey, requestKey)).get();
+    const cleanup = await Promise.allSettled(storedKeys.map((key) => env.FILES.delete(key)));
+    let raced: { id: string } | undefined;
+    try {
+      raced = await db.select({ id: motorcycleImages.id }).from(motorcycleImages).where(eq(motorcycleImages.requestKey, requestKey)).get();
+    } catch {
+      // The response remains fail-closed below when reconciliation cannot be proved.
+    }
     if (raced) return respondSuccess(request, raced.id, true, `/app/motorcycles/${id}?status=image_uploaded`);
+    if (cleanup.some((result) => result.status === "rejected")) return respondError(request, "image_cleanup", 500, `/app/motorcycles/${id}?error=image_cleanup`);
     return respondError(request, "image_save", 500, `/app/motorcycles/${id}?error=image_save`);
   }
   return respondSuccess(request, imageId, false, `/app/motorcycles/${id}?status=image_uploaded`);
@@ -106,10 +112,12 @@ async function prepareVariant(file: File, role: MotorcycleImageVariantRole, stor
   if (!width || !height) return null;
   const bytes = new Uint8Array(await file.arrayBuffer());
   if (bytes.byteLength !== file.size || !hasExpectedImageSignature(bytes, file.type)) return null;
+  const actual = readImageDimensions(bytes, file.type);
+  if (!actual || !imageDimensionsMatchClaim(actual, width, height)) return null;
   const id = crypto.randomUUID();
   const checksum = await sha256Hex(bytes);
   const extension = SUPPORTED_IMAGE_TYPES.get(file.type)!;
-  return { id, role, file, contentType: file.type, bytes, checksum, width, height, storageKey: `${storagePrefix}/variants/${role.toLowerCase()}-${id}.${extension}` };
+  return { id, role, file, contentType: file.type, bytes, checksum, width: actual.width, height: actual.height, storageKey: `${storagePrefix}/variants/${role.toLowerCase()}-${id}.${extension}` };
 }
 
 function wantsJson(request: NextRequest): boolean {
