@@ -337,10 +337,14 @@ footer { border-top: 1px solid var(--border); background: #050611; color: var(--
 .upload-form { margin-bottom: 16px; }
 .image-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 13px; }
 .image-grid figure { overflow: hidden; border: 1px solid var(--border); border-radius: 15px; background: var(--card); }
+.image-grid figure > a { display: block; }
 .image-grid img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; background: var(--bg-2); }
 .image-grid figcaption { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; }
 .image-grid figcaption b { font-family: var(--font-mono); font-size: 9.5px; }
 .image-grid figcaption span { color: var(--muted); font-size: 9.5px; }
+.evidence-upload-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.evidence-upload-actions progress { width: min(100%, 320px); accent-color: var(--gold); }
+.evidence-upload-actions p { flex-basis: 100%; margin: 0; color: var(--muted); font-size: 12px; }
 .inspection-form, .pod-form { margin-bottom: 16px; }
 .inspection-finding-fields { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; padding: 14px; border: 1px solid var(--border); border-radius: 13px; background: rgba(255,255,255,.02); }
 .inspection-finding-fields > div:first-child { grid-column: 1 / -1; display: flex; justify-content: space-between; gap: 12px; }

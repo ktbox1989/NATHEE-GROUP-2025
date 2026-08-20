@@ -59,6 +59,7 @@ test("fresh migrations create every phase-one table", () => {
     "gallery_image_variants",
     "gallery_items",
     "inspection_findings",
+    "motorcycle_image_variants",
     "motorcycle_images",
     "motorcycle_import_batches",
     "motorcycle_import_rows",

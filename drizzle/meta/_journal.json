@@ -141,6 +141,13 @@
       "when": 1787263966502,
       "tag": "0019_supreme_imperial_guard",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "6",
+      "when": 1787264566320,
+      "tag": "0020_awesome_quentin_quire",
+      "breakpoints": true
     }
   ]
 }

@@ -81,6 +81,7 @@ export const IMAGE_CATEGORIES = [
   "DELIVERY",
   "OTHER",
 ] as const;
+export const MOTORCYCLE_IMAGE_VARIANT_ROLES = ["DISPLAY", "THUMBNAIL"] as const;
 export const QUOTE_STATUSES = [
   "NEW",
   "CONTACTED",
@@ -590,6 +591,7 @@ export const motorcycleImages = sqliteTable(
   "motorcycle_images",
   {
     id: text("id").primaryKey(),
+    requestKey: text("request_key"),
     motorcycleId: text("motorcycle_id")
       .notNull()
       .references(() => motorcycles.id, { onDelete: "restrict", onUpdate: "cascade" }),
@@ -607,6 +609,7 @@ export const motorcycleImages = sqliteTable(
     createdAt: createdAt(),
   },
   (table) => [
+    uniqueIndex("uq_motorcycle_images_request_key").on(table.requestKey),
     uniqueIndex("uq_motorcycle_images_storage_key").on(table.storageKey),
     index("idx_motorcycle_images_motorcycle_created").on(table.motorcycleId, table.createdAt),
     index("idx_motorcycle_images_company").on(table.companyId),
@@ -853,6 +856,35 @@ export const sitePagePublicationEvents = sqliteTable(
     check("ck_site_page_publication_action", sql`${table.action} IN ('PUBLISH', 'HIDE')`),
     check("ck_site_page_publication_revision", sql`(${table.action} = 'PUBLISH' AND ${table.revisionId} IS NOT NULL) OR (${table.action} = 'HIDE' AND ${table.revisionId} IS NULL)`),
     check("ck_site_page_publication_note", sql`${table.note} IS NULL OR length(${table.note}) <= 500`),
+  ],
+);
+
+export const motorcycleImageVariants = sqliteTable(
+  "motorcycle_image_variants",
+  {
+    id: text("id").primaryKey(),
+    motorcycleImageId: text("motorcycle_image_id")
+      .notNull()
+      .references(() => motorcycleImages.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    role: text("role", { enum: MOTORCYCLE_IMAGE_VARIANT_ROLES }).notNull(),
+    storageKey: text("storage_key").notNull(),
+    contentType: text("content_type").notNull(),
+    width: integer("width").notNull(),
+    height: integer("height").notNull(),
+    byteSize: integer("byte_size").notNull(),
+    checksum: text("checksum").notNull(),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    uniqueIndex("uq_motorcycle_image_variants_storage_key").on(table.storageKey),
+    uniqueIndex("uq_motorcycle_image_variants_image_role_type").on(table.motorcycleImageId, table.role, table.contentType),
+    index("idx_motorcycle_image_variants_image_role").on(table.motorcycleImageId, table.role),
+    check("ck_motorcycle_image_variants_role", sql`${table.role} IN ('DISPLAY', 'THUMBNAIL')`),
+    check("ck_motorcycle_image_variants_content_type", sql`${table.contentType} IN ('image/webp', 'image/avif')`),
+    check("ck_motorcycle_image_variants_width", sql`${table.width} BETWEEN 1 AND 50000`),
+    check("ck_motorcycle_image_variants_height", sql`${table.height} BETWEEN 1 AND 50000`),
+    check("ck_motorcycle_image_variants_size", sql`${table.byteSize} > 0`),
+    check("ck_motorcycle_image_variants_checksum", sql`length(${table.checksum}) = 64 AND ${table.checksum} NOT GLOB '*[^0-9a-f]*'`),
   ],
 );
 
@@ -1124,6 +1156,7 @@ export type UserRole = (typeof USER_ROLES)[number];
 export type LegacyUserRole = (typeof LEGACY_USER_ROLES)[number];
 export type MotorcycleStatus = (typeof MOTORCYCLE_STATUSES)[number];
 export type ImageCategory = (typeof IMAGE_CATEGORIES)[number];
+export type MotorcycleImageVariantRole = (typeof MOTORCYCLE_IMAGE_VARIANT_ROLES)[number];
 export type YardZoneStatus = (typeof YARD_ZONE_STATUSES)[number];
 export type GalleryItemStatus = (typeof GALLERY_ITEM_STATUSES)[number];
 export type GalleryVisibility = (typeof GALLERY_VISIBILITIES)[number];

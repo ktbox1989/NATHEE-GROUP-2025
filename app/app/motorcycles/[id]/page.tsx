@@ -1,5 +1,6 @@
 /* eslint-disable @next/next/no-img-element -- Private R2 images are served by an authenticated endpoint and must not pass through the public image optimizer. */
 import Link from "next/link";
+import { MotorcycleImageUploadForm } from "@/components/motorcycle-image-upload-form";
 import { and, asc, desc, eq, isNull } from "drizzle-orm";
 import { notFound, redirect } from "next/navigation";
 import { getDb } from "@/db";
@@ -341,15 +342,9 @@ export default async function MotorcycleDetailPage({ params, searchParams }: Mot
 
       <section className="detail-section">
         <div className="detail-section-head"><div><p>IMAGES</p><h2>รูปภาพรถ</h2></div></div>
-        {canUpload && (
-          <form className="record-form upload-form" action={`/api/motorcycles/${id}/images`} method="post" encType="multipart/form-data">
-            <div className="field"><label htmlFor="category">ประเภทภาพ</label><select id="category" name="category"><option value="FRONT">ด้านหน้า</option><option value="REAR">ด้านหลัง</option><option value="LEFT">ด้านซ้าย</option><option value="RIGHT">ด้านขวา</option><option value="DAMAGE">ตำหนิ / ความเสียหาย</option><option value="DELIVERY">ส่งมอบ</option><option value="OTHER">อื่นๆ</option></select></div>
-            <div className="field"><label htmlFor="image">เลือกรูป (ไม่เกิน 10 MB)</label><input id="image" name="image" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" required /></div>
-            <div className="full"><button className="button button-gradient" type="submit">อัปโหลดรูป</button></div>
-          </form>
-        )}
+        {canUpload && <MotorcycleImageUploadForm motorcycleId={id} />}
         {images.length ? <div className="image-grid">{images.map((image) => (
-          <figure key={image.id}><img src={`/api/images/${image.id}`} alt={`ภาพ ${image.category} ของรถคันที่ ${record.sequenceNumber}`} width={640} height={480} loading="lazy" decoding="async" sizes="(max-width: 600px) calc(100vw - 28px), (max-width: 940px) 48vw, 31vw" /><figcaption><b>{image.category}</b><span>{formatThaiDateTime(image.createdAt)}</span></figcaption></figure>
+          <figure key={image.id}><a href={`/api/images/${image.id}?role=display`} target="_blank" rel="noreferrer" aria-label={`เปิดภาพ ${image.category} ขนาดใหญ่`}><img src={`/api/images/${image.id}?role=thumbnail`} alt={`ภาพ ${image.category} ของรถคันที่ ${record.sequenceNumber}`} width={640} height={480} loading="lazy" decoding="async" sizes="(max-width: 600px) calc(100vw - 28px), (max-width: 940px) 48vw, 31vw" /></a><figcaption><b>{image.category}</b><span>{formatThaiDateTime(image.createdAt)}</span></figcaption></figure>
         ))}</div> : <div className="app-panel app-empty"><div>📷</div><h2>ยังไม่มีรูปภาพ</h2><p>พนักงานสามารถอัปโหลดรูปจากมือถือได้โดยตรง</p></div>}
       </section>
 
@@ -381,7 +376,7 @@ export default async function MotorcycleDetailPage({ params, searchParams }: Mot
               <div className="inspection-card-head"><div><span>{inspectionTypeLabel(inspection.type)}</span><h3>{inspectionResultLabel(inspection.result)}</h3></div><span className="status-pill">{formatThaiDateTime(inspection.inspectedAt)}</span></div>
               <dl><div><dt>ผู้ตรวจ</dt><dd>{inspection.inspectorName}</dd></div><div><dt>เลขไมล์</dt><dd>{inspection.odometerKm === null ? "ไม่ระบุ" : `${inspection.odometerKm.toLocaleString("th-TH")} กม.`}</dd></div><div><dt>น้ำมัน</dt><dd>{fuelLevelLabel(inspection.fuelLevel)}</dd></div></dl>
               <p>{inspection.notes || "ไม่พบหมายเหตุเพิ่มเติม"}</p>
-              {inspectionFindingsForRecord.length > 0 && <div className="inspection-findings">{inspectionFindingsForRecord.map((finding) => <div key={finding.id}><div><b>{finding.area}</b><span className={`finding-severity ${finding.severity.toLowerCase()}`}>{damageSeverityLabel(finding.severity)}</span></div><p>{finding.description}</p>{finding.evidenceImageId ? <a href={`/api/images/${finding.evidenceImageId}`} target="_blank" rel="noreferrer">เปิดรูปหลักฐาน</a> : <span>ยังไม่มีรูปหลักฐาน</span>}</div>)}</div>}
+              {inspectionFindingsForRecord.length > 0 && <div className="inspection-findings">{inspectionFindingsForRecord.map((finding) => <div key={finding.id}><div><b>{finding.area}</b><span className={`finding-severity ${finding.severity.toLowerCase()}`}>{damageSeverityLabel(finding.severity)}</span></div><p>{finding.description}</p>{finding.evidenceImageId ? <a href={`/api/images/${finding.evidenceImageId}?role=display`} target="_blank" rel="noreferrer">เปิดรูปหลักฐาน</a> : <span>ยังไม่มีรูปหลักฐาน</span>}</div>)}</div>}
               {canInspect && inspection.result !== "PASS" && <form className="inspection-add-finding" action={`/api/motorcycles/${id}/inspections/${inspection.id}/findings`} method="post" aria-label={`เพิ่มรายการตรวจพบในใบตรวจ ${inspectionTypeLabel(inspection.type)}`}><input type="hidden" name="requestKey" value={crypto.randomUUID()} /><input name="area" maxLength={100} required placeholder="ตำแหน่ง *" aria-label="ตำแหน่งที่ตรวจพบ" /><select name="severity" required defaultValue="MINOR" aria-label="ระดับความเสียหาย"><option value="MINOR">เล็กน้อย</option><option value="MODERATE">ปานกลาง</option><option value="MAJOR">รุนแรง</option></select><input name="description" minLength={3} maxLength={1000} required placeholder="รายละเอียด *" aria-label="รายละเอียดที่ตรวจพบ" /><select name="evidenceImageId" defaultValue="" aria-label="รูปหลักฐานความเสียหาย"><option value="">ไม่มีรูป</option>{damageImages.map((image) => <option key={image.id} value={image.id}>{formatThaiDateTime(image.createdAt)} · {image.id.slice(0, 8)}</option>)}</select><button type="submit">เพิ่มรายการตรวจพบ</button></form>}
             </article>;
           })}</div> : <div className="app-panel app-empty"><div>🧾</div><h2>ยังไม่มีใบตรวจสภาพ</h2><p>บันทึกผลตรวจจริงก่อนเปลี่ยนรถเป็นสถานะตรวจสภาพแล้ว</p></div>}
@@ -408,7 +403,7 @@ export default async function MotorcycleDetailPage({ params, searchParams }: Mot
             <div className="pod-card-head"><div><span>{pod.status === "ACTIVE" ? "ACTIVE POD" : "VOIDED POD"}</span><h3>{pod.recipientName}</h3></div><span className="status-pill">{pod.status === "ACTIVE" ? "ใช้งาน" : "ยกเลิกแล้ว"}</span></div>
             <dl><div><dt>ส่งมอบ</dt><dd>{formatThaiDateTime(pod.deliveredAt)}</dd></div><div><dt>สถานที่</dt><dd>{pod.deliveryLocation}</dd></div><div><dt>เบอร์ผู้รับ</dt><dd>{maskPhone(pod.recipientPhone)}</dd></div><div><dt>ผู้บันทึก</dt><dd>{pod.receiverName}</dd></div></dl>
             <p>{pod.notes || "ไม่มีหมายเหตุ"}</p>
-            <a className="button button-glass button-small" href={`/api/images/${pod.evidenceImageId}`} target="_blank" rel="noreferrer">เปิดรูปส่งมอบ</a>
+            <a className="button button-glass button-small" href={`/api/images/${pod.evidenceImageId}?role=display`} target="_blank" rel="noreferrer">เปิดรูปส่งมอบ</a>
             {pod.status === "VOIDED" && <div className="trip-release-note">เหตุผลยกเลิก: {pod.voidReason}</div>}
             {canManagePod && pod.status === "ACTIVE" && record.currentStatus === "ARRIVED" && <form className="pod-void-form" action={`/api/motorcycles/${id}/pod/${pod.id}`} method="post"><input name="reason" minLength={3} maxLength={500} required placeholder="เหตุผลยกเลิกฉบับนี้ *" aria-label="เหตุผลยกเลิกหลักฐานส่งมอบ" /><button type="submit">ยกเลิกและเก็บประวัติ</button></form>}
           </article>)}</div> : <div className="app-panel app-empty"><div>🤝</div><h2>ยังไม่มีหลักฐานส่งมอบ</h2><p>เมื่อรถถึงปลายทาง ให้บันทึกผู้รับ สถานที่ เวลา และรูปส่งมอบจริง</p></div>}
