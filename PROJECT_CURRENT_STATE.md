@@ -5,7 +5,7 @@ Updated: 2026-08-21 (Asia/Bangkok)
 ## Source checkpoint
 
 - Branch: `main`
-- Latest verified implementation milestone: `7b618cc` — Production Role and Permission Foundation
+- Latest verified implementation milestone: `cdfc445` — Audited Member Lifecycle
 - Canonical repository: `ktbox1989/NATHEE-GROUP-2025`
 - Working rule: resolve the current checkpoint-document commit with `git rev-parse HEAD`; never infer Production deployment from source HEAD.
 
@@ -39,11 +39,19 @@ Updated: 2026-08-21 (Asia/Bangkok)
 - Migration `0004_role_system_foundation` is additive: role-assignment table, legacy backfill, indexes and compatibility triggers.
 - No Production migration was applied.
 
+### Audited Member Lifecycle (`cdfc445`)
+
+- OWNER can change another member's canonical role, customer company, explicit permissions and ACTIVE/INACTIVE state without hard deletion.
+- The current OWNER cannot demote or deactivate their own identity; database triggers independently preserve at least one active OWNER.
+- D1 mutations use a revision/request claim, atomic batch, stale-write rejection and an Audit Log reason.
+- Member rendering is bounded to 50 records per keyset page; permissions are queried only for visible users.
+- Migration `0005_member_lifecycle_safety` is additive and remains unapplied in Production.
+
 ## Verified source gates
 
-- Full test suite: 43 passing
-- Authorization/unit tests: 28 passing
-- Render/schema/yard tests: 15 passing
+- Full test suite: 49 passing
+- Authorization/unit tests: 33 passing
+- Render/schema/yard tests: 16 passing
 - Production Vinext build: PASS
 - ESLint: PASS
 - Public SEO and deployment architecture guards: PASS
@@ -53,16 +61,16 @@ Updated: 2026-08-21 (Asia/Bangkok)
 
 - Approve application routing model: apex edge routes or an application subdomain.
 - Supply/configure Supabase Production values through a secure hosting channel.
-- Backup and apply migrations `0001`–`0004` to the protected D1 runtime.
+- Backup and apply migrations `0001`–`0005` to the protected D1 runtime.
 - Verify private R2 readiness.
 - Bootstrap the real OWNER identity and accept two-company customer isolation.
 - Add real company Gallery photographs and verified location/map data.
 
 ## Next autonomous work
 
-1. Complete member lifecycle: server-side role/permission update, deactivate/reactivate, audit and compensating Auth handling.
-2. Add notification data model and in-app notification vertical slice without enabling external LINE/Email secrets.
-3. Expand logistics schema in dependency order: Trip/Truck, Container, Inspection/Damage, POD, documents and print center.
+1. Add notification data model and in-app notification vertical slice without enabling external LINE/Email secrets.
+2. Expand logistics schema in dependency order: Trip/Truck, Container, Inspection/Damage, POD, documents and print center.
+3. Add bounded Company Search before active customer companies reach the 500-option management limit.
 4. Keep all new migrations local until Production backup/runtime gates are satisfied.
 
 ## Prohibited claims

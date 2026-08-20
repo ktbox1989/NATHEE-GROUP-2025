@@ -1,5 +1,18 @@
 # NATHEE GROUP 2025 — Work History
 
+## 2026-08-21 — Audited Member Lifecycle
+
+- Implementation commit: `cdfc445`
+- Added OWNER-only role, customer company, explicit permission and ACTIVE/INACTIVE management.
+- Added revision/request claims so concurrent writes fail stale instead of overwriting access state.
+- Added database triggers preventing deactivation, demotion or role-assignment deletion of the final active OWNER.
+- Added mandatory reason and before/after Audit Log for every effective access change.
+- Bounded member rendering to 50 users per keyset page and scoped permission queries to visible users.
+- Migration: additive `0005_member_lifecycle_safety`; not applied to Production.
+- Verification: full tests 49/49, build PASS, lint PASS, public/SEO guards PASS and secret-pattern scan found no embedded credential value.
+- Deployment: source pushed to `main`; Production and protected Sites runtime unchanged.
+- Rollback: revert `cdfc445` before applying migration `0005`; after applying, use a reviewed forward migration and retain the last-owner triggers until an equivalent invariant replaces them.
+
 ## 2026-08-21 — Role and Permission Foundation
 
 - Implementation commit: `7b618cc`
