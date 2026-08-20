@@ -61,6 +61,13 @@ Node.js 22.13 or newer is required.
 - Images and documents: R2 (`FILES`).
 - Browser storage is limited to non-authoritative UI preferences and must not be used as the source of truth for business records.
 
+## In-app notifications
+
+- Notifications are derived from committed motorcycle status events; the UI does not create fake alerts.
+- Customers receive only same-company events. Internal recipients require OWNER or explicit `status:read` and the event actor is not notified about their own change.
+- Inbox and unread counts are server-side, recipient-scoped and indexed; read operations cannot target another user's notification.
+- LINE and email delivery are not enabled until provider credentials, consent, retry and escalation policy are approved.
+
 ## Z.com public website
 
 The cPanel-hosted public website is intentionally separate from the authenticated logistics application. Deploy it only from the reviewed staging clone at `/home/zptqqwps/nathee-deploy`; the deploy script creates a complete backup, verifies checksums, preserves unknown Production files, runs live checks, and restores the backup automatically on failure.

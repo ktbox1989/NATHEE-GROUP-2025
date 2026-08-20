@@ -5,7 +5,7 @@ Updated: 2026-08-21 (Asia/Bangkok)
 ## Source checkpoint
 
 - Branch: `main`
-- Latest verified implementation milestone: `cdfc445` — Audited Member Lifecycle
+- Latest verified implementation milestone: `bc10879` — Recipient-scoped In-app Notifications
 - Canonical repository: `ktbox1989/NATHEE-GROUP-2025`
 - Working rule: resolve the current checkpoint-document commit with `git rev-parse HEAD`; never infer Production deployment from source HEAD.
 
@@ -47,30 +47,39 @@ Updated: 2026-08-21 (Asia/Bangkok)
 - Member rendering is bounded to 50 records per keyset page; permissions are queried only for visible users.
 - Migration `0005_member_lifecycle_safety` is additive and remains unapplied in Production.
 
+### Recipient-scoped In-app Notifications (`bc10879`)
+
+- Motorcycle status events atomically create real notifications for active same-company customers, other OWNER identities and internal users explicitly granted `status:read`.
+- The event actor, inactive users, unauthorized staff and customers from other companies are excluded.
+- Recipient queries and read mutations always require the authenticated `recipient_user_id`; notification links are normalized local `/app/` paths.
+- Unique event/recipient idempotency keys prevent duplicate notifications; unread lookup and inbox rendering are indexed and bounded to 50 records per keyset page.
+- Private application metadata is `noindex`; LINE/Email delivery is intentionally not enabled without provider credentials and policy.
+- Migration `0006_in_app_notifications` is additive and remains unapplied in Production.
+
 ## Verified source gates
 
-- Full test suite: 49 passing
-- Authorization/unit tests: 33 passing
-- Render/schema/yard tests: 16 passing
+- Full test suite: 54 passing
+- Authorization/unit tests: 36 passing
+- Render/schema/notification/yard tests: 18 passing
 - Production Vinext build: PASS
 - ESLint: PASS
 - Public SEO and deployment architecture guards: PASS
-- Migration `0004` packaged in `dist/.openai/drizzle/`: PASS
+- Migrations through `0006` packaged in `dist/.openai/drizzle/`: PASS
 
 ## Open Owner gates
 
 - Approve application routing model: apex edge routes or an application subdomain.
 - Supply/configure Supabase Production values through a secure hosting channel.
-- Backup and apply migrations `0001`–`0005` to the protected D1 runtime.
+- Backup and apply migrations `0001`–`0006` to the protected D1 runtime.
 - Verify private R2 readiness.
 - Bootstrap the real OWNER identity and accept two-company customer isolation.
 - Add real company Gallery photographs and verified location/map data.
 
 ## Next autonomous work
 
-1. Add notification data model and in-app notification vertical slice without enabling external LINE/Email secrets.
-2. Expand logistics schema in dependency order: Trip/Truck, Container, Inspection/Damage, POD, documents and print center.
-3. Add bounded Company Search before active customer companies reach the 500-option management limit.
+1. Expand logistics schema in dependency order: Trip/Truck, Container, Inspection/Damage, POD, documents and print center.
+2. Add bounded Company Search before active customer companies reach the 500-option management limit.
+3. Design an external notification outbox only after LINE/Email provider, retry and consent policy are approved.
 4. Keep all new migrations local until Production backup/runtime gates are satisfied.
 
 ## Prohibited claims

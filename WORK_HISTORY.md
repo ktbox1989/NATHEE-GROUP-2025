@@ -1,5 +1,17 @@
 # NATHEE GROUP 2025 — Work History
 
+## 2026-08-21 — Recipient-scoped In-app Notifications
+
+- Implementation commit: `bc10879`
+- Added additive `notifications` schema with source-event foreign key, per-recipient idempotency and unread/chronological indexes.
+- Status changes now create notifications in the same atomic batch for authorized active recipients only.
+- Added bounded inbox, unread navigation count and recipient-scoped mark-read/open flow.
+- Added private application `noindex` metadata and fail-closed local-link normalization.
+- Tests prove cross-company exclusion, inactive/unauthorized exclusion, duplicate suppression, recipient-only reads and index selection.
+- Verification: full tests 54/54, build PASS, lint PASS, public/SEO guards PASS.
+- Deployment: source pushed to `main`; migration `0006` was not applied and Production remained unchanged.
+- Browser acceptance remains gated by the unapplied migrations and missing Production Auth environment; no fake browser PASS was claimed.
+
 ## 2026-08-21 — Audited Member Lifecycle
 
 - Implementation commit: `cdfc445`
