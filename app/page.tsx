@@ -1,18 +1,22 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { CmsPublicPage } from "@/components/cms-public-page";
+import { CmsPublicPage, PublicBrandIdentity } from "@/components/cms-public-page";
 import { getPublishedSitePage } from "@/lib/site-cms";
+import { getPublishedSiteSettings, type SiteSettings } from "@/lib/site-settings";
+import { serializeStructuredData, siteOrganizationSchema } from "@/lib/site-structured-data";
 
 export const dynamic = "force-dynamic";
 export async function generateMetadata(): Promise<Metadata> {
-  const state = await getPublishedSitePage("home");
+  const [state, settings] = await Promise.all([getPublishedSitePage("home"), getPublishedSiteSettings()]);
   const title = state.status === "PUBLISHED" ? state.content.seo.title : "NATHEE GROUP 2025 | Motorcycle Logistics";
   const description = state.status === "PUBLISHED" ? state.content.seo.description : "บริการขนส่งรถจักรยานยนต์ รับฝากรถ ลานสต๊อก โหลดรถ และเตรียมงานส่งออก พร้อมระบบติดตามสถานะ";
   return {
     title,
     description,
     alternates: { canonical: "https://natheegroup2025.com/" },
-    openGraph: { title, description, url: "https://natheegroup2025.com/", siteName: "NATHEE GROUP 2025", type: "website", locale: "th_TH" },
+    robots: { index: true, follow: true },
+    openGraph: { title, description, url: "https://natheegroup2025.com/", siteName: settings.brand.name, type: "website", locale: "th_TH" },
+    twitter: { card: "summary", title, description },
   };
 }
 
@@ -34,37 +38,32 @@ const workflow = [
 ];
 
 export default async function Home() {
-  const page = await getPublishedSitePage("home");
+  const [page, settings] = await Promise.all([getPublishedSitePage("home"), getPublishedSiteSettings()]);
   if (page.status === "PUBLISHED") return <CmsPublicPage content={page.content} slug="home" />;
-  return <LegacyHome />;
+  return <LegacyHome settings={settings} />;
 }
 
-function LegacyHome() {
+function LegacyHome({ settings }: { settings: SiteSettings }) {
   return (
     <main>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeStructuredData(siteOrganizationSchema(settings)) }} />
       <div className="topbar">
         <div className="shell topbar-inner">
           <span>ขนส่ง • รับฝาก • สต๊อก • โหลด • ส่งออก</span>
-          <Link href="/login">เข้าสู่ระบบลูกค้า</Link>
+          <Link href="/login">{settings.navigation.loginLabel}</Link>
         </div>
       </div>
 
       <nav className="nav" aria-label="เมนูหลัก">
         <div className="shell nav-inner">
-          <Link className="brand" href="#top" aria-label="NATHEE GROUP หน้าแรก">
-            <span className="brand-mark">NG</span>
-            <span className="brand-name">
-              NATHEE GROUP
-              <small>MOTORCYCLE LOGISTICS · 2025</small>
-            </span>
+          <Link className="brand" href="#top" aria-label={`${settings.brand.name} หน้าแรก`}>
+            <PublicBrandIdentity settings={settings} />
           </Link>
           <div className="nav-links">
-            <a href="#services">บริการ</a>
-            <a href="#workflow">ขั้นตอนการทำงาน</a>
-            <a href="#about">เกี่ยวกับเรา</a>
+            {settings.navigation.items.filter((item) => item.href !== "/").map((item) => <Link href={item.href} key={item.href}>{item.label}</Link>)}
           </div>
           <Link className="button button-small button-gradient" href="/login">
-            เข้าสู่ระบบ
+            {settings.navigation.loginLabel}
           </Link>
         </div>
       </nav>
@@ -86,7 +85,7 @@ function LegacyHome() {
             </p>
             <div className="hero-actions">
               <a className="button button-gradient" href="#services">ดูบริการของเรา</a>
-              <Link className="button button-glass" href="/login">เข้าสู่ระบบลูกค้า</Link>
+              <Link className="button button-glass" href="/login">{settings.navigation.loginLabel}</Link>
             </div>
             <div className="trust-row" aria-label="ความสามารถหลัก">
               <span>เว็บคอม + มือถือ</span><span>สถานะรายคัน</span><span>รูปและ Timeline</span>
@@ -160,8 +159,8 @@ function LegacyHome() {
 
       <footer>
         <div className="shell footer-inner">
-          <span>© 2026 บริษัท นทีกรุ๊ป2025 จำกัด</span>
-          <span>NATHEE GROUP · MOTORCYCLE LOGISTICS</span>
+          <span>{settings.footer.copyright}</span>
+          <span>{settings.footer.secondaryText}</span>
         </div>
       </footer>
     </main>

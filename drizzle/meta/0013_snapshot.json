@@ -1,0 +1,4874 @@
+{
+  "version": "6",
+  "dialect": "sqlite",
+  "id": "51424364-f865-4f7c-a5cb-28a39d4c36aa",
+  "prevId": "45e1ca86-75d7-4b83-b108-75e74af38604",
+  "tables": {
+    "audit_logs": {
+      "name": "audit_logs",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "actor_user_id": {
+          "name": "actor_user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "company_id": {
+          "name": "company_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "action": {
+          "name": "action",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "entity_type": {
+          "name": "entity_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "entity_id": {
+          "name": "entity_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "before_json": {
+          "name": "before_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "after_json": {
+          "name": "after_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      "indexes": {
+        "idx_audit_logs_entity_created": {
+          "name": "idx_audit_logs_entity_created",
+          "columns": [
+            "entity_type",
+            "entity_id",
+            "created_at"
+          ],
+          "isUnique": false
+        },
+        "idx_audit_logs_company_created": {
+          "name": "idx_audit_logs_company_created",
+          "columns": [
+            "company_id",
+            "created_at"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "audit_logs_actor_user_id_users_id_fk": {
+          "name": "audit_logs_actor_user_id_users_id_fk",
+          "tableFrom": "audit_logs",
+          "tableTo": "users",
+          "columnsFrom": [
+            "actor_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        },
+        "audit_logs_company_id_companies_id_fk": {
+          "name": "audit_logs_company_id_companies_id_fk",
+          "tableFrom": "audit_logs",
+          "tableTo": "companies",
+          "columnsFrom": [
+            "company_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "companies": {
+      "name": "companies",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "code": {
+          "name": "code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "legal_name": {
+          "name": "legal_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "display_name": {
+          "name": "display_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "tax_id": {
+          "name": "tax_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "contact_name": {
+          "name": "contact_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "contact_email": {
+          "name": "contact_email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "contact_phone": {
+          "name": "contact_phone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'ACTIVE'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      "indexes": {
+        "uq_companies_code": {
+          "name": "uq_companies_code",
+          "columns": [
+            "code"
+          ],
+          "isUnique": true
+        },
+        "idx_companies_status": {
+          "name": "idx_companies_status",
+          "columns": [
+            "status"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "ck_companies_status": {
+          "name": "ck_companies_status",
+          "value": "\"companies\".\"status\" IN ('ACTIVE', 'INACTIVE', 'ARCHIVED')"
+        }
+      }
+    },
+    "container_motorcycle_assignments": {
+      "name": "container_motorcycle_assignments",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "request_key": {
+          "name": "request_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "container_id": {
+          "name": "container_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "motorcycle_id": {
+          "name": "motorcycle_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "company_id": {
+          "name": "company_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "state": {
+          "name": "state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'ASSIGNED'"
+        },
+        "assigned_by": {
+          "name": "assigned_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "assigned_at": {
+          "name": "assigned_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "loaded_at": {
+          "name": "loaded_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "unloaded_at": {
+          "name": "unloaded_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "released_at": {
+          "name": "released_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "release_reason": {
+          "name": "release_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      "indexes": {
+        "uq_container_assignments_request_key": {
+          "name": "uq_container_assignments_request_key",
+          "columns": [
+            "request_key"
+          ],
+          "isUnique": true
+        },
+        "uq_container_assignments_motorcycle_active": {
+          "name": "uq_container_assignments_motorcycle_active",
+          "columns": [
+            "motorcycle_id"
+          ],
+          "isUnique": true,
+          "where": "\"container_motorcycle_assignments\".\"released_at\" IS NULL"
+        },
+        "idx_container_assignments_container_state": {
+          "name": "idx_container_assignments_container_state",
+          "columns": [
+            "container_id",
+            "state",
+            "assigned_at",
+            "id"
+          ],
+          "isUnique": false
+        },
+        "idx_container_assignments_company_active": {
+          "name": "idx_container_assignments_company_active",
+          "columns": [
+            "company_id",
+            "assigned_at"
+          ],
+          "isUnique": false,
+          "where": "\"container_motorcycle_assignments\".\"released_at\" IS NULL"
+        }
+      },
+      "foreignKeys": {
+        "container_motorcycle_assignments_container_id_shipping_containers_id_fk": {
+          "name": "container_motorcycle_assignments_container_id_shipping_containers_id_fk",
+          "tableFrom": "container_motorcycle_assignments",
+          "tableTo": "shipping_containers",
+          "columnsFrom": [
+            "container_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        },
+        "container_motorcycle_assignments_motorcycle_id_motorcycles_id_fk": {
+          "name": "container_motorcycle_assignments_motorcycle_id_motorcycles_id_fk",
+          "tableFrom": "container_motorcycle_assignments",
+          "tableTo": "motorcycles",
+          "columnsFrom": [
+            "motorcycle_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        },
+        "container_motorcycle_assignments_company_id_companies_id_fk": {
+          "name": "container_motorcycle_assignments_company_id_companies_id_fk",
+          "tableFrom": "container_motorcycle_assignments",
+          "tableTo": "companies",
+          "columnsFrom": [
+            "company_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        },
+        "container_motorcycle_assignments_assigned_by_users_id_fk": {
+          "name": "container_motorcycle_assignments_assigned_by_users_id_fk",
+          "tableFrom": "container_motorcycle_assignments",
+          "tableTo": "users",
+          "columnsFrom": [
+            "assigned_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "ck_container_assignments_state": {
+          "name": "ck_container_assignments_state",
+          "value": "\"container_motorcycle_assignments\".\"state\" IN ('ASSIGNED', 'LOADED', 'UNLOADED', 'RELEASED')"
+        },
+        "ck_container_assignments_release": {
+          "name": "ck_container_assignments_release",
+          "value": "(\"container_motorcycle_assignments\".\"state\" = 'RELEASED') = (\"container_motorcycle_assignments\".\"released_at\" IS NOT NULL)"
+        },
+        "ck_container_assignments_loaded": {
+          "name": "ck_container_assignments_loaded",
+          "value": "\"container_motorcycle_assignments\".\"state\" NOT IN ('LOADED', 'UNLOADED') OR \"container_motorcycle_assignments\".\"loaded_at\" IS NOT NULL"
+        },
+        "ck_container_assignments_unloaded": {
+          "name": "ck_container_assignments_unloaded",
+          "value": "\"container_motorcycle_assignments\".\"state\" <> 'UNLOADED' OR \"container_motorcycle_assignments\".\"unloaded_at\" IS NOT NULL"
+        },
+        "ck_container_assignments_time_order": {
+          "name": "ck_container_assignments_time_order",
+          "value": "\"container_motorcycle_assignments\".\"loaded_at\" IS NULL OR \"container_motorcycle_assignments\".\"loaded_at\" >= \"container_motorcycle_assignments\".\"assigned_at\""
+        },
+        "ck_container_assignments_unload_order": {
+          "name": "ck_container_assignments_unload_order",
+          "value": "\"container_motorcycle_assignments\".\"unloaded_at\" IS NULL OR (\"container_motorcycle_assignments\".\"loaded_at\" IS NOT NULL AND \"container_motorcycle_assignments\".\"unloaded_at\" >= \"container_motorcycle_assignments\".\"loaded_at\")"
+        },
+        "ck_container_assignments_release_reason": {
+          "name": "ck_container_assignments_release_reason",
+          "value": "\"container_motorcycle_assignments\".\"state\" <> 'RELEASED' OR length(\"container_motorcycle_assignments\".\"release_reason\") BETWEEN 3 AND 500"
+        }
+      }
+    },
+    "container_status_events": {
+      "name": "container_status_events",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "container_id": {
+          "name": "container_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "previous_status": {
+          "name": "previous_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "new_status": {
+          "name": "new_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      "indexes": {
+        "idx_container_status_events_container_created": {
+          "name": "idx_container_status_events_container_created",
+          "columns": [
+            "container_id",
+            "created_at"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "container_status_events_container_id_shipping_containers_id_fk": {
+          "name": "container_status_events_container_id_shipping_containers_id_fk",
+          "tableFrom": "container_status_events",
+          "tableTo": "shipping_containers",
+          "columnsFrom": [
+            "container_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        },
+        "container_status_events_created_by_users_id_fk": {
+          "name": "container_status_events_created_by_users_id_fk",
+          "tableFrom": "container_status_events",
+          "tableTo": "users",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "ck_container_status_events_previous": {
+          "name": "ck_container_status_events_previous",
+          "value": "\"container_status_events\".\"previous_status\" IS NULL OR \"container_status_events\".\"previous_status\" IN ('DRAFT', 'PLANNED', 'LOADING', 'SEALED', 'IN_TRANSIT', 'ARRIVED', 'UNLOADING', 'COMPLETED', 'CANCELLED')"
+        },
+        "ck_container_status_events_new": {
+          "name": "ck_container_status_events_new",
+          "value": "\"container_status_events\".\"new_status\" IN ('DRAFT', 'PLANNED', 'LOADING', 'SEALED', 'IN_TRANSIT', 'ARRIVED', 'UNLOADING', 'COMPLETED', 'CANCELLED')"
+        }
+      }
+    },
+    "gallery_categories": {
+      "name": "gallery_categories",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "slug": {
+          "name": "slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'ACTIVE'"
+        },
+        "sort_order": {
+          "name": "sort_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      "indexes": {
+        "uq_gallery_categories_slug": {
+          "name": "uq_gallery_categories_slug",
+          "columns": [
+            "slug"
+          ],
+          "isUnique": true
+        },
+        "idx_gallery_categories_status_sort": {
+          "name": "idx_gallery_categories_status_sort",
+          "columns": [
+            "status",
+            "sort_order",
+            "name"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "gallery_categories_created_by_users_id_fk": {
+          "name": "gallery_categories_created_by_users_id_fk",
+          "tableFrom": "gallery_categories",
+          "tableTo": "users",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "ck_gallery_categories_slug": {
+          "name": "ck_gallery_categories_slug",
+          "value": "length(\"gallery_categories\".\"slug\") BETWEEN 2 AND 80 AND \"gallery_categories\".\"slug\" NOT GLOB '*[^a-z0-9-]*'"
+        },
+        "ck_gallery_categories_name": {
+          "name": "ck_gallery_categories_name",
+          "value": "length(\"gallery_categories\".\"name\") BETWEEN 1 AND 120"
+        },
+        "ck_gallery_categories_status": {
+          "name": "ck_gallery_categories_status",
+          "value": "\"gallery_categories\".\"status\" IN ('ACTIVE', 'HIDDEN')"
+        },
+        "ck_gallery_categories_sort": {
+          "name": "ck_gallery_categories_sort",
+          "value": "\"gallery_categories\".\"sort_order\" >= 0"
+        }
+      }
+    },
+    "gallery_image_variants": {
+      "name": "gallery_image_variants",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "gallery_item_id": {
+          "name": "gallery_item_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "role": {
+          "name": "role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "storage_key": {
+          "name": "storage_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "content_type": {
+          "name": "content_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "width": {
+          "name": "width",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "height": {
+          "name": "height",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "byte_size": {
+          "name": "byte_size",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "checksum": {
+          "name": "checksum",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      "indexes": {
+        "uq_gallery_image_variants_storage_key": {
+          "name": "uq_gallery_image_variants_storage_key",
+          "columns": [
+            "storage_key"
+          ],
+          "isUnique": true
+        },
+        "uq_gallery_image_variants_item_role_type": {
+          "name": "uq_gallery_image_variants_item_role_type",
+          "columns": [
+            "gallery_item_id",
+            "role",
+            "content_type"
+          ],
+          "isUnique": true
+        },
+        "idx_gallery_image_variants_item_role": {
+          "name": "idx_gallery_image_variants_item_role",
+          "columns": [
+            "gallery_item_id",
+            "role"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "gallery_image_variants_gallery_item_id_gallery_items_id_fk": {
+          "name": "gallery_image_variants_gallery_item_id_gallery_items_id_fk",
+          "tableFrom": "gallery_image_variants",
+          "tableTo": "gallery_items",
+          "columnsFrom": [
+            "gallery_item_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "ck_gallery_image_variants_role": {
+          "name": "ck_gallery_image_variants_role",
+          "value": "\"gallery_image_variants\".\"role\" IN ('ORIGINAL', 'DISPLAY', 'THUMBNAIL')"
+        },
+        "ck_gallery_image_variants_content_type": {
+          "name": "ck_gallery_image_variants_content_type",
+          "value": "\"gallery_image_variants\".\"content_type\" IN ('image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/heic', 'image/heif')"
+        },
+        "ck_gallery_image_variants_size": {
+          "name": "ck_gallery_image_variants_size",
+          "value": "\"gallery_image_variants\".\"byte_size\" > 0"
+        },
+        "ck_gallery_image_variants_width": {
+          "name": "ck_gallery_image_variants_width",
+          "value": "\"gallery_image_variants\".\"width\" IS NULL OR \"gallery_image_variants\".\"width\" > 0"
+        },
+        "ck_gallery_image_variants_height": {
+          "name": "ck_gallery_image_variants_height",
+          "value": "\"gallery_image_variants\".\"height\" IS NULL OR \"gallery_image_variants\".\"height\" > 0"
+        },
+        "ck_gallery_image_variants_checksum": {
+          "name": "ck_gallery_image_variants_checksum",
+          "value": "length(\"gallery_image_variants\".\"checksum\") = 64 AND \"gallery_image_variants\".\"checksum\" NOT GLOB '*[^0-9a-f]*'"
+        }
+      }
+    },
+    "gallery_items": {
+      "name": "gallery_items",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "request_key": {
+          "name": "request_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "category_id": {
+          "name": "category_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "company_id": {
+          "name": "company_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "job_id": {
+          "name": "job_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "caption": {
+          "name": "caption",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "alt_text": {
+          "name": "alt_text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "taken_at": {
+          "name": "taken_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "location": {
+          "name": "location",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "public_job_reference": {
+          "name": "public_job_reference",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'DRAFT'"
+        },
+        "visibility": {
+          "name": "visibility",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'INTERNAL'"
+        },
+        "sort_order": {
+          "name": "sort_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "is_featured": {
+          "name": "is_featured",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "uploaded_by": {
+          "name": "uploaded_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "published_by": {
+          "name": "published_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "published_at": {
+          "name": "published_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "archived_at": {
+          "name": "archived_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      "indexes": {
+        "uq_gallery_items_request_key": {
+          "name": "uq_gallery_items_request_key",
+          "columns": [
+            "request_key"
+          ],
+          "isUnique": true
+        },
+        "idx_gallery_items_public_order": {
+          "name": "idx_gallery_items_public_order",
+          "columns": [
+            "visibility",
+            "status",
+            "is_featured",
+            "sort_order",
+            "created_at"
+          ],
+          "isUnique": false
+        },
+        "idx_gallery_items_category_order": {
+          "name": "idx_gallery_items_category_order",
+          "columns": [
+            "category_id",
+            "status",
+            "sort_order",
+            "created_at"
+          ],
+          "isUnique": false
+        },
+        "idx_gallery_items_company_job": {
+          "name": "idx_gallery_items_company_job",
+          "columns": [
+            "company_id",
+            "job_id",
+            "status",
+            "created_at"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "gallery_items_category_id_gallery_categories_id_fk": {
+          "name": "gallery_items_category_id_gallery_categories_id_fk",
+          "tableFrom": "gallery_items",
+          "tableTo": "gallery_categories",
+          "columnsFrom": [
+            "category_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        },
+        "gallery_items_company_id_companies_id_fk": {
+          "name": "gallery_items_company_id_companies_id_fk",
+          "tableFrom": "gallery_items",
+          "tableTo": "companies",
+          "columnsFrom": [
+            "company_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        },
+        "gallery_items_job_id_transport_jobs_id_fk": {
+          "name": "gallery_items_job_id_transport_jobs_id_fk",
+          "tableFrom": "gallery_items",
+          "tableTo": "transport_jobs",
+          "columnsFrom": [
+            "job_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        },
+        "gallery_items_uploaded_by_users_id_fk": {
+          "name": "gallery_items_uploaded_by_users_id_fk",
+          "tableFrom": "gallery_items",
+          "tableTo": "users",
+          "columnsFrom": [
+            "uploaded_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        },
+        "gallery_items_published_by_users_id_fk": {
+          "name": "gallery_items_published_by_users_id_fk",
+          "tableFrom": "gallery_items",
+          "tableTo": "users",
+          "columnsFrom": [
+            "published_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "ck_gallery_items_title": {
+          "name": "ck_gallery_items_title",
+          "value": "length(\"gallery_items\".\"title\") BETWEEN 1 AND 160"
+        },
+        "ck_gallery_items_alt": {
+          "name": "ck_gallery_items_alt",
+          "value": "length(\"gallery_items\".\"alt_text\") BETWEEN 3 AND 300"
+        },
+        "ck_gallery_items_location": {
+          "name": "ck_gallery_items_location",
+          "value": "\"gallery_items\".\"location\" IS NULL OR length(\"gallery_items\".\"location\") <= 200"
+        },
+        "ck_gallery_items_public_job_reference": {
+          "name": "ck_gallery_items_public_job_reference",
+          "value": "\"gallery_items\".\"public_job_reference\" IS NULL OR length(\"gallery_items\".\"public_job_reference\") <= 100"
+        },
+        "ck_gallery_items_status": {
+          "name": "ck_gallery_items_status",
+          "value": "\"gallery_items\".\"status\" IN ('DRAFT', 'PUBLISHED', 'HIDDEN', 'ARCHIVED')"
+        },
+        "ck_gallery_items_visibility": {
+          "name": "ck_gallery_items_visibility",
+          "value": "\"gallery_items\".\"visibility\" IN ('PUBLIC', 'CUSTOMER_JOB', 'INTERNAL')"
+        },
+        "ck_gallery_items_sort": {
+          "name": "ck_gallery_items_sort",
+          "value": "\"gallery_items\".\"sort_order\" >= 0"
+        },
+        "ck_gallery_items_featured": {
+          "name": "ck_gallery_items_featured",
+          "value": "\"gallery_items\".\"is_featured\" IN (0, 1)"
+        },
+        "ck_gallery_items_customer_scope": {
+          "name": "ck_gallery_items_customer_scope",
+          "value": "\"gallery_items\".\"visibility\" <> 'CUSTOMER_JOB' OR (\"gallery_items\".\"company_id\" IS NOT NULL AND \"gallery_items\".\"job_id\" IS NOT NULL)"
+        },
+        "ck_gallery_items_public_scope": {
+          "name": "ck_gallery_items_public_scope",
+          "value": "\"gallery_items\".\"visibility\" <> 'PUBLIC' OR (\"gallery_items\".\"company_id\" IS NULL AND \"gallery_items\".\"job_id\" IS NULL)"
+        },
+        "ck_gallery_items_published_actor": {
+          "name": "ck_gallery_items_published_actor",
+          "value": "\"gallery_items\".\"status\" <> 'PUBLISHED' OR (\"gallery_items\".\"published_by\" IS NOT NULL AND \"gallery_items\".\"published_at\" IS NOT NULL)"
+        }
+      }
+    },
+    "inspection_findings": {
+      "name": "inspection_findings",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "inspection_id": {
+          "name": "inspection_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "area": {
+          "name": "area",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "severity": {
+          "name": "severity",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "evidence_image_id": {
+          "name": "evidence_image_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      "indexes": {
+        "idx_inspection_findings_inspection_created": {
+          "name": "idx_inspection_findings_inspection_created",
+          "columns": [
+            "inspection_id",
+            "created_at",
+            "id"
+          ],
+          "isUnique": false
+        },
+        "idx_inspection_findings_evidence": {
+          "name": "idx_inspection_findings_evidence",
+          "columns": [
+            "evidence_image_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "inspection_findings_inspection_id_motorcycle_inspections_id_fk": {
+          "name": "inspection_findings_inspection_id_motorcycle_inspections_id_fk",
+          "tableFrom": "inspection_findings",
+          "tableTo": "motorcycle_inspections",
+          "columnsFrom": [
+            "inspection_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        },
+        "inspection_findings_evidence_image_id_motorcycle_images_id_fk": {
+          "name": "inspection_findings_evidence_image_id_motorcycle_images_id_fk",
+          "tableFrom": "inspection_findings",
+          "tableTo": "motorcycle_images",
+          "columnsFrom": [
+            "evidence_image_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        },
+        "inspection_findings_created_by_users_id_fk": {
+          "name": "inspection_findings_created_by_users_id_fk",
+          "tableFrom": "inspection_findings",
+          "tableTo": "users",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "ck_inspection_findings_area": {
+          "name": "ck_inspection_findings_area",
+          "value": "length(\"inspection_findings\".\"area\") BETWEEN 1 AND 100"
+        },
+        "ck_inspection_findings_severity": {
+          "name": "ck_inspection_findings_severity",
+          "value": "\"inspection_findings\".\"severity\" IN ('MINOR', 'MODERATE', 'MAJOR')"
+        },
+        "ck_inspection_findings_description": {
+          "name": "ck_inspection_findings_description",
+          "value": "length(\"inspection_findings\".\"description\") BETWEEN 3 AND 1000"
+        }
+      }
+    },
+    "motorcycle_images": {
+      "name": "motorcycle_images",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "motorcycle_id": {
+          "name": "motorcycle_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "company_id": {
+          "name": "company_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "storage_key": {
+          "name": "storage_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "category": {
+          "name": "category",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "content_type": {
+          "name": "content_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "byte_size": {
+          "name": "byte_size",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "checksum": {
+          "name": "checksum",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "uploaded_by": {
+          "name": "uploaded_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      "indexes": {
+        "uq_motorcycle_images_storage_key": {
+          "name": "uq_motorcycle_images_storage_key",
+          "columns": [
+            "storage_key"
+          ],
+          "isUnique": true
+        },
+        "idx_motorcycle_images_motorcycle_created": {
+          "name": "idx_motorcycle_images_motorcycle_created",
+          "columns": [
+            "motorcycle_id",
+            "created_at"
+          ],
+          "isUnique": false
+        },
+        "idx_motorcycle_images_company": {
+          "name": "idx_motorcycle_images_company",
+          "columns": [
+            "company_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "motorcycle_images_motorcycle_id_motorcycles_id_fk": {
+          "name": "motorcycle_images_motorcycle_id_motorcycles_id_fk",
+          "tableFrom": "motorcycle_images",
+          "tableTo": "motorcycles",
+          "columnsFrom": [
+            "motorcycle_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        },
+        "motorcycle_images_company_id_companies_id_fk": {
+          "name": "motorcycle_images_company_id_companies_id_fk",
+          "tableFrom": "motorcycle_images",
+          "tableTo": "companies",
+          "columnsFrom": [
+            "company_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        },
+        "motorcycle_images_uploaded_by_users_id_fk": {
+          "name": "motorcycle_images_uploaded_by_users_id_fk",
+          "tableFrom": "motorcycle_images",
+          "tableTo": "users",
+          "columnsFrom": [
+            "uploaded_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "ck_motorcycle_images_category": {
+          "name": "ck_motorcycle_images_category",
+          "value": "\"motorcycle_images\".\"category\" IN ('FRONT', 'REAR', 'LEFT', 'RIGHT', 'DAMAGE', 'DELIVERY', 'OTHER')"
+        },
+        "ck_motorcycle_images_size_positive": {
+          "name": "ck_motorcycle_images_size_positive",
+          "value": "\"motorcycle_images\".\"byte_size\" > 0"
+        }
+      }
+    },
+    "motorcycle_inspections": {
+      "name": "motorcycle_inspections",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "request_key": {
+          "name": "request_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "motorcycle_id": {
+          "name": "motorcycle_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "company_id": {
+          "name": "company_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "type": {
+          "name": "type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "result": {
+          "name": "result",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "odometer_km": {
+          "name": "odometer_km",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "fuel_level": {
+          "name": "fuel_level",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'UNKNOWN'"
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "inspected_by": {
+          "name": "inspected_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "inspected_at": {
+          "name": "inspected_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      "indexes": {
+        "uq_motorcycle_inspections_request_key": {
+          "name": "uq_motorcycle_inspections_request_key",
+          "columns": [
+            "request_key"
+          ],
+          "isUnique": true
+        },
+        "idx_motorcycle_inspections_motorcycle_type_at": {
+          "name": "idx_motorcycle_inspections_motorcycle_type_at",
+          "columns": [
+            "motorcycle_id",
+            "type",
+            "inspected_at",
+            "id"
+          ],
+          "isUnique": false
+        },
+        "idx_motorcycle_inspections_company_at": {
+          "name": "idx_motorcycle_inspections_company_at",
+          "columns": [
+            "company_id",
+            "inspected_at"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "motorcycle_inspections_motorcycle_id_motorcycles_id_fk": {
+          "name": "motorcycle_inspections_motorcycle_id_motorcycles_id_fk",
+          "tableFrom": "motorcycle_inspections",
+          "tableTo": "motorcycles",
+          "columnsFrom": [
+            "motorcycle_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        },
+        "motorcycle_inspections_company_id_companies_id_fk": {
+          "name": "motorcycle_inspections_company_id_companies_id_fk",
+          "tableFrom": "motorcycle_inspections",
+          "tableTo": "companies",
+          "columnsFrom": [
+            "company_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        },
+        "motorcycle_inspections_inspected_by_users_id_fk": {
+          "name": "motorcycle_inspections_inspected_by_users_id_fk",
+          "tableFrom": "motorcycle_inspections",
+          "tableTo": "users",
+          "columnsFrom": [
+            "inspected_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "ck_motorcycle_inspections_type": {
+          "name": "ck_motorcycle_inspections_type",
+          "value": "\"motorcycle_inspections\".\"type\" IN ('RECEIPT', 'PRE_LOAD', 'DELIVERY')"
+        },
+        "ck_motorcycle_inspections_result": {
+          "name": "ck_motorcycle_inspections_result",
+          "value": "\"motorcycle_inspections\".\"result\" IN ('PASS', 'ISSUE', 'DAMAGE')"
+        },
+        "ck_motorcycle_inspections_odometer": {
+          "name": "ck_motorcycle_inspections_odometer",
+          "value": "\"motorcycle_inspections\".\"odometer_km\" IS NULL OR \"motorcycle_inspections\".\"odometer_km\" BETWEEN 0 AND 10000000"
+        },
+        "ck_motorcycle_inspections_fuel": {
+          "name": "ck_motorcycle_inspections_fuel",
+          "value": "\"motorcycle_inspections\".\"fuel_level\" IN ('UNKNOWN', 'EMPTY', 'QUARTER', 'HALF', 'THREE_QUARTERS', 'FULL')"
+        },
+        "ck_motorcycle_inspections_notes": {
+          "name": "ck_motorcycle_inspections_notes",
+          "value": "\"motorcycle_inspections\".\"notes\" IS NULL OR length(\"motorcycle_inspections\".\"notes\") <= 2000"
+        }
+      }
+    },
+    "motorcycles": {
+      "name": "motorcycles",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "public_id": {
+          "name": "public_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "company_id": {
+          "name": "company_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "job_id": {
+          "name": "job_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "sequence_number": {
+          "name": "sequence_number",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "make": {
+          "name": "make",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "model": {
+          "name": "model",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "color": {
+          "name": "color",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "registration": {
+          "name": "registration",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "vin": {
+          "name": "vin",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "engine_number": {
+          "name": "engine_number",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "current_status": {
+          "name": "current_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'PENDING_RECEIPT'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      "indexes": {
+        "uq_motorcycles_public_id": {
+          "name": "uq_motorcycles_public_id",
+          "columns": [
+            "public_id"
+          ],
+          "isUnique": true
+        },
+        "uq_motorcycles_job_sequence": {
+          "name": "uq_motorcycles_job_sequence",
+          "columns": [
+            "job_id",
+            "sequence_number"
+          ],
+          "isUnique": true
+        },
+        "uq_motorcycles_vin": {
+          "name": "uq_motorcycles_vin",
+          "columns": [
+            "vin"
+          ],
+          "isUnique": true,
+          "where": "\"motorcycles\".\"vin\" IS NOT NULL AND \"motorcycles\".\"vin\" <> ''"
+        },
+        "uq_motorcycles_engine_number": {
+          "name": "uq_motorcycles_engine_number",
+          "columns": [
+            "engine_number"
+          ],
+          "isUnique": true,
+          "where": "\"motorcycles\".\"engine_number\" IS NOT NULL AND \"motorcycles\".\"engine_number\" <> ''"
+        },
+        "idx_motorcycles_company_status": {
+          "name": "idx_motorcycles_company_status",
+          "columns": [
+            "company_id",
+            "current_status"
+          ],
+          "isUnique": false
+        },
+        "idx_motorcycles_job": {
+          "name": "idx_motorcycles_job",
+          "columns": [
+            "job_id"
+          ],
+          "isUnique": false
+        },
+        "idx_motorcycles_registration": {
+          "name": "idx_motorcycles_registration",
+          "columns": [
+            "registration"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "motorcycles_company_id_companies_id_fk": {
+          "name": "motorcycles_company_id_companies_id_fk",
+          "tableFrom": "motorcycles",
+          "tableTo": "companies",
+          "columnsFrom": [
+            "company_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        },
+        "motorcycles_job_id_transport_jobs_id_fk": {
+          "name": "motorcycles_job_id_transport_jobs_id_fk",
+          "tableFrom": "motorcycles",
+          "tableTo": "transport_jobs",
+          "columnsFrom": [
+            "job_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "ck_motorcycles_sequence_positive": {
+          "name": "ck_motorcycles_sequence_positive",
+          "value": "\"motorcycles\".\"sequence_number\" > 0"
+        },
+        "ck_motorcycles_status": {
+          "name": "ck_motorcycles_status",
+          "value": "\"motorcycles\".\"current_status\" IN ('PENDING_RECEIPT', 'RECEIVED', 'INSPECTED', 'IN_YARD', 'SCHEDULED', 'LOADED', 'IN_TRANSIT', 'ARRIVED', 'DELIVERED', 'CLOSED', 'ISSUE', 'DAMAGED', 'WAITING_DOCUMENTS', 'CANCELLED')"
+        }
+      }
+    },
+    "notifications": {
+      "name": "notifications",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "idempotency_key": {
+          "name": "idempotency_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "recipient_user_id": {
+          "name": "recipient_user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "company_id": {
+          "name": "company_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "source_event_id": {
+          "name": "source_event_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "type": {
+          "name": "type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "severity": {
+          "name": "severity",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'INFO'"
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "body": {
+          "name": "body",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "href": {
+          "name": "href",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "read_at": {
+          "name": "read_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      "indexes": {
+        "uq_notifications_idempotency_key": {
+          "name": "uq_notifications_idempotency_key",
+          "columns": [
+            "idempotency_key"
+          ],
+          "isUnique": true
+        },
+        "idx_notifications_recipient_created": {
+          "name": "idx_notifications_recipient_created",
+          "columns": [
+            "recipient_user_id",
+            "created_at",
+            "id"
+          ],
+          "isUnique": false
+        },
+        "idx_notifications_recipient_unread": {
+          "name": "idx_notifications_recipient_unread",
+          "columns": [
+            "recipient_user_id",
+            "created_at"
+          ],
+          "isUnique": false,
+          "where": "\"notifications\".\"read_at\" IS NULL"
+        },
+        "idx_notifications_source_event": {
+          "name": "idx_notifications_source_event",
+          "columns": [
+            "source_event_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "notifications_recipient_user_id_users_id_fk": {
+          "name": "notifications_recipient_user_id_users_id_fk",
+          "tableFrom": "notifications",
+          "tableTo": "users",
+          "columnsFrom": [
+            "recipient_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        },
+        "notifications_company_id_companies_id_fk": {
+          "name": "notifications_company_id_companies_id_fk",
+          "tableFrom": "notifications",
+          "tableTo": "companies",
+          "columnsFrom": [
+            "company_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        },
+        "notifications_source_event_id_status_events_id_fk": {
+          "name": "notifications_source_event_id_status_events_id_fk",
+          "tableFrom": "notifications",
+          "tableTo": "status_events",
+          "columnsFrom": [
+            "source_event_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "ck_notifications_type": {
+          "name": "ck_notifications_type",
+          "value": "\"notifications\".\"type\" IN ('MOTORCYCLE_STATUS_CHANGED')"
+        },
+        "ck_notifications_severity": {
+          "name": "ck_notifications_severity",
+          "value": "\"notifications\".\"severity\" IN ('INFO', 'WARNING', 'CRITICAL')"
+        },
+        "ck_notifications_title": {
+          "name": "ck_notifications_title",
+          "value": "length(\"notifications\".\"title\") BETWEEN 1 AND 160"
+        },
+        "ck_notifications_body": {
+          "name": "ck_notifications_body",
+          "value": "length(\"notifications\".\"body\") BETWEEN 1 AND 500"
+        },
+        "ck_notifications_href": {
+          "name": "ck_notifications_href",
+          "value": "length(\"notifications\".\"href\") BETWEEN 6 AND 500 AND \"notifications\".\"href\" LIKE '/app/%'"
+        }
+      }
+    },
+    "proof_of_delivery_records": {
+      "name": "proof_of_delivery_records",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "request_key": {
+          "name": "request_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "motorcycle_id": {
+          "name": "motorcycle_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "company_id": {
+          "name": "company_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "recipient_name": {
+          "name": "recipient_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "recipient_phone": {
+          "name": "recipient_phone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "delivery_location": {
+          "name": "delivery_location",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "delivered_at": {
+          "name": "delivered_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "evidence_image_id": {
+          "name": "evidence_image_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "received_by": {
+          "name": "received_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'ACTIVE'"
+        },
+        "void_reason": {
+          "name": "void_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "voided_by": {
+          "name": "voided_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "voided_at": {
+          "name": "voided_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      "indexes": {
+        "uq_pod_records_request_key": {
+          "name": "uq_pod_records_request_key",
+          "columns": [
+            "request_key"
+          ],
+          "isUnique": true
+        },
+        "uq_pod_records_motorcycle_active": {
+          "name": "uq_pod_records_motorcycle_active",
+          "columns": [
+            "motorcycle_id"
+          ],
+          "isUnique": true,
+          "where": "\"proof_of_delivery_records\".\"status\" = 'ACTIVE'"
+        },
+        "idx_pod_records_motorcycle_created": {
+          "name": "idx_pod_records_motorcycle_created",
+          "columns": [
+            "motorcycle_id",
+            "created_at",
+            "id"
+          ],
+          "isUnique": false
+        },
+        "idx_pod_records_company_delivered": {
+          "name": "idx_pod_records_company_delivered",
+          "columns": [
+            "company_id",
+            "delivered_at"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "proof_of_delivery_records_motorcycle_id_motorcycles_id_fk": {
+          "name": "proof_of_delivery_records_motorcycle_id_motorcycles_id_fk",
+          "tableFrom": "proof_of_delivery_records",
+          "tableTo": "motorcycles",
+          "columnsFrom": [
+            "motorcycle_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        },
+        "proof_of_delivery_records_company_id_companies_id_fk": {
+          "name": "proof_of_delivery_records_company_id_companies_id_fk",
+          "tableFrom": "proof_of_delivery_records",
+          "tableTo": "companies",
+          "columnsFrom": [
+            "company_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        },
+        "proof_of_delivery_records_evidence_image_id_motorcycle_images_id_fk": {
+          "name": "proof_of_delivery_records_evidence_image_id_motorcycle_images_id_fk",
+          "tableFrom": "proof_of_delivery_records",
+          "tableTo": "motorcycle_images",
+          "columnsFrom": [
+            "evidence_image_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        },
+        "proof_of_delivery_records_received_by_users_id_fk": {
+          "name": "proof_of_delivery_records_received_by_users_id_fk",
+          "tableFrom": "proof_of_delivery_records",
+          "tableTo": "users",
+          "columnsFrom": [
+            "received_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        },
+        "proof_of_delivery_records_voided_by_users_id_fk": {
+          "name": "proof_of_delivery_records_voided_by_users_id_fk",
+          "tableFrom": "proof_of_delivery_records",
+          "tableTo": "users",
+          "columnsFrom": [
+            "voided_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "ck_pod_records_recipient": {
+          "name": "ck_pod_records_recipient",
+          "value": "length(\"proof_of_delivery_records\".\"recipient_name\") BETWEEN 1 AND 160"
+        },
+        "ck_pod_records_phone": {
+          "name": "ck_pod_records_phone",
+          "value": "\"proof_of_delivery_records\".\"recipient_phone\" IS NULL OR length(\"proof_of_delivery_records\".\"recipient_phone\") BETWEEN 6 AND 50"
+        },
+        "ck_pod_records_location": {
+          "name": "ck_pod_records_location",
+          "value": "length(\"proof_of_delivery_records\".\"delivery_location\") BETWEEN 2 AND 300"
+        },
+        "ck_pod_records_notes": {
+          "name": "ck_pod_records_notes",
+          "value": "\"proof_of_delivery_records\".\"notes\" IS NULL OR length(\"proof_of_delivery_records\".\"notes\") <= 2000"
+        },
+        "ck_pod_records_status": {
+          "name": "ck_pod_records_status",
+          "value": "\"proof_of_delivery_records\".\"status\" IN ('ACTIVE', 'VOIDED')"
+        },
+        "ck_pod_records_void": {
+          "name": "ck_pod_records_void",
+          "value": "(\"proof_of_delivery_records\".\"status\" = 'VOIDED') = (\"proof_of_delivery_records\".\"void_reason\" IS NOT NULL AND \"proof_of_delivery_records\".\"voided_by\" IS NOT NULL AND \"proof_of_delivery_records\".\"voided_at\" IS NOT NULL)"
+        }
+      }
+    },
+    "quote_requests": {
+      "name": "quote_requests",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "request_number": {
+          "name": "request_number",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "company_name": {
+          "name": "company_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "contact_name": {
+          "name": "contact_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "phone": {
+          "name": "phone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "line_id": {
+          "name": "line_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "origin": {
+          "name": "origin",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "destination": {
+          "name": "destination",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "quantity": {
+          "name": "quantity",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "vehicle_type": {
+          "name": "vehicle_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "desired_date": {
+          "name": "desired_date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "extras_json": {
+          "name": "extras_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'[]'"
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'NEW'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      "indexes": {
+        "uq_quote_requests_request_number": {
+          "name": "uq_quote_requests_request_number",
+          "columns": [
+            "request_number"
+          ],
+          "isUnique": true
+        },
+        "idx_quote_requests_status_created": {
+          "name": "idx_quote_requests_status_created",
+          "columns": [
+            "status",
+            "created_at"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "ck_quote_requests_quantity_positive": {
+          "name": "ck_quote_requests_quantity_positive",
+          "value": "\"quote_requests\".\"quantity\" > 0"
+        },
+        "ck_quote_requests_status": {
+          "name": "ck_quote_requests_status",
+          "value": "\"quote_requests\".\"status\" IN ('NEW', 'CONTACTED', 'QUOTED', 'ACCEPTED', 'REJECTED', 'CANCELLED')"
+        }
+      }
+    },
+    "sequence_counters": {
+      "name": "sequence_counters",
+      "columns": {
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "value": {
+          "name": "value",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "shipping_containers": {
+      "name": "shipping_containers",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "request_key": {
+          "name": "request_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "public_id": {
+          "name": "public_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "container_number": {
+          "name": "container_number",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "seal_number": {
+          "name": "seal_number",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "type": {
+          "name": "type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "capacity_motorcycles": {
+          "name": "capacity_motorcycles",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "port": {
+          "name": "port",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "country": {
+          "name": "country",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'DRAFT'"
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      "indexes": {
+        "uq_shipping_containers_request_key": {
+          "name": "uq_shipping_containers_request_key",
+          "columns": [
+            "request_key"
+          ],
+          "isUnique": true
+        },
+        "uq_shipping_containers_public_id": {
+          "name": "uq_shipping_containers_public_id",
+          "columns": [
+            "public_id"
+          ],
+          "isUnique": true
+        },
+        "uq_shipping_containers_number": {
+          "name": "uq_shipping_containers_number",
+          "columns": [
+            "container_number"
+          ],
+          "isUnique": true
+        },
+        "idx_shipping_containers_status_created": {
+          "name": "idx_shipping_containers_status_created",
+          "columns": [
+            "status",
+            "created_at",
+            "id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "shipping_containers_created_by_users_id_fk": {
+          "name": "shipping_containers_created_by_users_id_fk",
+          "tableFrom": "shipping_containers",
+          "tableTo": "users",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "ck_shipping_containers_number": {
+          "name": "ck_shipping_containers_number",
+          "value": "length(\"shipping_containers\".\"container_number\") = 11 AND \"shipping_containers\".\"container_number\" GLOB '[A-Z][A-Z][A-Z][UJZ][0-9][0-9][0-9][0-9][0-9][0-9][0-9]'"
+        },
+        "ck_shipping_containers_seal": {
+          "name": "ck_shipping_containers_seal",
+          "value": "\"shipping_containers\".\"seal_number\" IS NULL OR length(\"shipping_containers\".\"seal_number\") BETWEEN 2 AND 50"
+        },
+        "ck_shipping_containers_type": {
+          "name": "ck_shipping_containers_type",
+          "value": "\"shipping_containers\".\"type\" IN ('20FT', '40FT', '40HC')"
+        },
+        "ck_shipping_containers_capacity": {
+          "name": "ck_shipping_containers_capacity",
+          "value": "\"shipping_containers\".\"capacity_motorcycles\" IS NULL OR \"shipping_containers\".\"capacity_motorcycles\" BETWEEN 1 AND 1000"
+        },
+        "ck_shipping_containers_port": {
+          "name": "ck_shipping_containers_port",
+          "value": "length(\"shipping_containers\".\"port\") BETWEEN 2 AND 100"
+        },
+        "ck_shipping_containers_country": {
+          "name": "ck_shipping_containers_country",
+          "value": "length(\"shipping_containers\".\"country\") BETWEEN 2 AND 100"
+        },
+        "ck_shipping_containers_status": {
+          "name": "ck_shipping_containers_status",
+          "value": "\"shipping_containers\".\"status\" IN ('DRAFT', 'PLANNED', 'LOADING', 'SEALED', 'IN_TRANSIT', 'ARRIVED', 'UNLOADING', 'COMPLETED', 'CANCELLED')"
+        }
+      }
+    },
+    "site_page_publication_events": {
+      "name": "site_page_publication_events",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "request_key": {
+          "name": "request_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "page_id": {
+          "name": "page_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "revision_id": {
+          "name": "revision_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "action": {
+          "name": "action",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      "indexes": {
+        "uq_site_page_publication_request_key": {
+          "name": "uq_site_page_publication_request_key",
+          "columns": [
+            "request_key"
+          ],
+          "isUnique": true
+        },
+        "idx_site_page_publication_page_created": {
+          "name": "idx_site_page_publication_page_created",
+          "columns": [
+            "page_id",
+            "created_at",
+            "id"
+          ],
+          "isUnique": false
+        },
+        "idx_site_page_publication_revision": {
+          "name": "idx_site_page_publication_revision",
+          "columns": [
+            "revision_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "site_page_publication_events_page_id_site_pages_id_fk": {
+          "name": "site_page_publication_events_page_id_site_pages_id_fk",
+          "tableFrom": "site_page_publication_events",
+          "tableTo": "site_pages",
+          "columnsFrom": [
+            "page_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        },
+        "site_page_publication_events_revision_id_site_page_revisions_id_fk": {
+          "name": "site_page_publication_events_revision_id_site_page_revisions_id_fk",
+          "tableFrom": "site_page_publication_events",
+          "tableTo": "site_page_revisions",
+          "columnsFrom": [
+            "revision_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        },
+        "site_page_publication_events_created_by_users_id_fk": {
+          "name": "site_page_publication_events_created_by_users_id_fk",
+          "tableFrom": "site_page_publication_events",
+          "tableTo": "users",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "ck_site_page_publication_action": {
+          "name": "ck_site_page_publication_action",
+          "value": "\"site_page_publication_events\".\"action\" IN ('PUBLISH', 'HIDE')"
+        },
+        "ck_site_page_publication_revision": {
+          "name": "ck_site_page_publication_revision",
+          "value": "(\"site_page_publication_events\".\"action\" = 'PUBLISH' AND \"site_page_publication_events\".\"revision_id\" IS NOT NULL) OR (\"site_page_publication_events\".\"action\" = 'HIDE' AND \"site_page_publication_events\".\"revision_id\" IS NULL)"
+        },
+        "ck_site_page_publication_note": {
+          "name": "ck_site_page_publication_note",
+          "value": "\"site_page_publication_events\".\"note\" IS NULL OR length(\"site_page_publication_events\".\"note\") <= 500"
+        }
+      }
+    },
+    "site_page_revisions": {
+      "name": "site_page_revisions",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "request_key": {
+          "name": "request_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "page_id": {
+          "name": "page_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "content_json": {
+          "name": "content_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "content_hash": {
+          "name": "content_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "change_note": {
+          "name": "change_note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      "indexes": {
+        "uq_site_page_revisions_request_key": {
+          "name": "uq_site_page_revisions_request_key",
+          "columns": [
+            "request_key"
+          ],
+          "isUnique": true
+        },
+        "idx_site_page_revisions_page_created": {
+          "name": "idx_site_page_revisions_page_created",
+          "columns": [
+            "page_id",
+            "created_at",
+            "id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "site_page_revisions_page_id_site_pages_id_fk": {
+          "name": "site_page_revisions_page_id_site_pages_id_fk",
+          "tableFrom": "site_page_revisions",
+          "tableTo": "site_pages",
+          "columnsFrom": [
+            "page_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        },
+        "site_page_revisions_created_by_users_id_fk": {
+          "name": "site_page_revisions_created_by_users_id_fk",
+          "tableFrom": "site_page_revisions",
+          "tableTo": "users",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "ck_site_page_revisions_json": {
+          "name": "ck_site_page_revisions_json",
+          "value": "json_valid(\"site_page_revisions\".\"content_json\") AND length(\"site_page_revisions\".\"content_json\") BETWEEN 2 AND 50000"
+        },
+        "ck_site_page_revisions_hash": {
+          "name": "ck_site_page_revisions_hash",
+          "value": "length(\"site_page_revisions\".\"content_hash\") = 64 AND \"site_page_revisions\".\"content_hash\" NOT GLOB '*[^0-9a-f]*'"
+        },
+        "ck_site_page_revisions_note": {
+          "name": "ck_site_page_revisions_note",
+          "value": "\"site_page_revisions\".\"change_note\" IS NULL OR length(\"site_page_revisions\".\"change_note\") <= 500"
+        }
+      }
+    },
+    "site_pages": {
+      "name": "site_pages",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "slug": {
+          "name": "slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "display_name": {
+          "name": "display_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      "indexes": {
+        "uq_site_pages_slug": {
+          "name": "uq_site_pages_slug",
+          "columns": [
+            "slug"
+          ],
+          "isUnique": true
+        },
+        "idx_site_pages_updated": {
+          "name": "idx_site_pages_updated",
+          "columns": [
+            "updated_at",
+            "id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "site_pages_created_by_users_id_fk": {
+          "name": "site_pages_created_by_users_id_fk",
+          "tableFrom": "site_pages",
+          "tableTo": "users",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "ck_site_pages_slug": {
+          "name": "ck_site_pages_slug",
+          "value": "length(\"site_pages\".\"slug\") BETWEEN 2 AND 80 AND \"site_pages\".\"slug\" NOT GLOB '*[^a-z0-9-]*'"
+        },
+        "ck_site_pages_display_name": {
+          "name": "ck_site_pages_display_name",
+          "value": "length(\"site_pages\".\"display_name\") BETWEEN 1 AND 120"
+        }
+      }
+    },
+    "site_settings_publication_events": {
+      "name": "site_settings_publication_events",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "request_key": {
+          "name": "request_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "revision_id": {
+          "name": "revision_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      "indexes": {
+        "uq_site_settings_publication_request_key": {
+          "name": "uq_site_settings_publication_request_key",
+          "columns": [
+            "request_key"
+          ],
+          "isUnique": true
+        },
+        "idx_site_settings_publication_created": {
+          "name": "idx_site_settings_publication_created",
+          "columns": [
+            "created_at",
+            "id"
+          ],
+          "isUnique": false
+        },
+        "idx_site_settings_publication_revision": {
+          "name": "idx_site_settings_publication_revision",
+          "columns": [
+            "revision_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "site_settings_publication_events_revision_id_site_settings_revisions_id_fk": {
+          "name": "site_settings_publication_events_revision_id_site_settings_revisions_id_fk",
+          "tableFrom": "site_settings_publication_events",
+          "tableTo": "site_settings_revisions",
+          "columnsFrom": [
+            "revision_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        },
+        "site_settings_publication_events_created_by_users_id_fk": {
+          "name": "site_settings_publication_events_created_by_users_id_fk",
+          "tableFrom": "site_settings_publication_events",
+          "tableTo": "users",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "ck_site_settings_publication_note": {
+          "name": "ck_site_settings_publication_note",
+          "value": "\"site_settings_publication_events\".\"note\" IS NULL OR length(\"site_settings_publication_events\".\"note\") <= 500"
+        }
+      }
+    },
+    "site_settings_revisions": {
+      "name": "site_settings_revisions",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "request_key": {
+          "name": "request_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "settings_json": {
+          "name": "settings_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "settings_hash": {
+          "name": "settings_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "change_note": {
+          "name": "change_note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      "indexes": {
+        "uq_site_settings_revisions_request_key": {
+          "name": "uq_site_settings_revisions_request_key",
+          "columns": [
+            "request_key"
+          ],
+          "isUnique": true
+        },
+        "idx_site_settings_revisions_created": {
+          "name": "idx_site_settings_revisions_created",
+          "columns": [
+            "created_at",
+            "id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "site_settings_revisions_created_by_users_id_fk": {
+          "name": "site_settings_revisions_created_by_users_id_fk",
+          "tableFrom": "site_settings_revisions",
+          "tableTo": "users",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "ck_site_settings_revisions_json": {
+          "name": "ck_site_settings_revisions_json",
+          "value": "json_valid(\"site_settings_revisions\".\"settings_json\") AND length(\"site_settings_revisions\".\"settings_json\") BETWEEN 2 AND 20000"
+        },
+        "ck_site_settings_revisions_hash": {
+          "name": "ck_site_settings_revisions_hash",
+          "value": "length(\"site_settings_revisions\".\"settings_hash\") = 64 AND \"site_settings_revisions\".\"settings_hash\" NOT GLOB '*[^0-9a-f]*'"
+        },
+        "ck_site_settings_revisions_note": {
+          "name": "ck_site_settings_revisions_note",
+          "value": "\"site_settings_revisions\".\"change_note\" IS NULL OR length(\"site_settings_revisions\".\"change_note\") <= 500"
+        }
+      }
+    },
+    "status_events": {
+      "name": "status_events",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "motorcycle_id": {
+          "name": "motorcycle_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "company_id": {
+          "name": "company_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "previous_status": {
+          "name": "previous_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "new_status": {
+          "name": "new_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      "indexes": {
+        "idx_status_events_motorcycle_created": {
+          "name": "idx_status_events_motorcycle_created",
+          "columns": [
+            "motorcycle_id",
+            "created_at"
+          ],
+          "isUnique": false
+        },
+        "idx_status_events_company_created": {
+          "name": "idx_status_events_company_created",
+          "columns": [
+            "company_id",
+            "created_at"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "status_events_motorcycle_id_motorcycles_id_fk": {
+          "name": "status_events_motorcycle_id_motorcycles_id_fk",
+          "tableFrom": "status_events",
+          "tableTo": "motorcycles",
+          "columnsFrom": [
+            "motorcycle_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        },
+        "status_events_company_id_companies_id_fk": {
+          "name": "status_events_company_id_companies_id_fk",
+          "tableFrom": "status_events",
+          "tableTo": "companies",
+          "columnsFrom": [
+            "company_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        },
+        "status_events_created_by_users_id_fk": {
+          "name": "status_events_created_by_users_id_fk",
+          "tableFrom": "status_events",
+          "tableTo": "users",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "ck_status_events_previous_status": {
+          "name": "ck_status_events_previous_status",
+          "value": "\"status_events\".\"previous_status\" IS NULL OR \"status_events\".\"previous_status\" IN ('PENDING_RECEIPT', 'RECEIVED', 'INSPECTED', 'IN_YARD', 'SCHEDULED', 'LOADED', 'IN_TRANSIT', 'ARRIVED', 'DELIVERED', 'CLOSED', 'ISSUE', 'DAMAGED', 'WAITING_DOCUMENTS', 'CANCELLED')"
+        },
+        "ck_status_events_new_status": {
+          "name": "ck_status_events_new_status",
+          "value": "\"status_events\".\"new_status\" IN ('PENDING_RECEIPT', 'RECEIVED', 'INSPECTED', 'IN_YARD', 'SCHEDULED', 'LOADED', 'IN_TRANSIT', 'ARRIVED', 'DELIVERED', 'CLOSED', 'ISSUE', 'DAMAGED', 'WAITING_DOCUMENTS', 'CANCELLED')"
+        }
+      }
+    },
+    "transport_jobs": {
+      "name": "transport_jobs",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "job_number": {
+          "name": "job_number",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "company_id": {
+          "name": "company_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "origin": {
+          "name": "origin",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "destination": {
+          "name": "destination",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "planned_pickup_date": {
+          "name": "planned_pickup_date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "planned_delivery_date": {
+          "name": "planned_delivery_date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'DRAFT'"
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      "indexes": {
+        "uq_transport_jobs_job_number": {
+          "name": "uq_transport_jobs_job_number",
+          "columns": [
+            "job_number"
+          ],
+          "isUnique": true
+        },
+        "idx_transport_jobs_company_created": {
+          "name": "idx_transport_jobs_company_created",
+          "columns": [
+            "company_id",
+            "created_at"
+          ],
+          "isUnique": false
+        },
+        "idx_transport_jobs_status": {
+          "name": "idx_transport_jobs_status",
+          "columns": [
+            "status"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "transport_jobs_company_id_companies_id_fk": {
+          "name": "transport_jobs_company_id_companies_id_fk",
+          "tableFrom": "transport_jobs",
+          "tableTo": "companies",
+          "columnsFrom": [
+            "company_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        },
+        "transport_jobs_created_by_users_id_fk": {
+          "name": "transport_jobs_created_by_users_id_fk",
+          "tableFrom": "transport_jobs",
+          "tableTo": "users",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "ck_transport_jobs_status": {
+          "name": "ck_transport_jobs_status",
+          "value": "\"transport_jobs\".\"status\" IN ('DRAFT', 'OPEN', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED')"
+        }
+      }
+    },
+    "trip_motorcycle_assignments": {
+      "name": "trip_motorcycle_assignments",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "request_key": {
+          "name": "request_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "trip_id": {
+          "name": "trip_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "motorcycle_id": {
+          "name": "motorcycle_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "company_id": {
+          "name": "company_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "state": {
+          "name": "state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'ASSIGNED'"
+        },
+        "assigned_by": {
+          "name": "assigned_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "assigned_at": {
+          "name": "assigned_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "loaded_at": {
+          "name": "loaded_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "unloaded_at": {
+          "name": "unloaded_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "released_at": {
+          "name": "released_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "release_reason": {
+          "name": "release_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      "indexes": {
+        "uq_trip_assignments_request_key": {
+          "name": "uq_trip_assignments_request_key",
+          "columns": [
+            "request_key"
+          ],
+          "isUnique": true
+        },
+        "uq_trip_assignments_motorcycle_active": {
+          "name": "uq_trip_assignments_motorcycle_active",
+          "columns": [
+            "motorcycle_id"
+          ],
+          "isUnique": true,
+          "where": "\"trip_motorcycle_assignments\".\"released_at\" IS NULL"
+        },
+        "idx_trip_assignments_trip_state": {
+          "name": "idx_trip_assignments_trip_state",
+          "columns": [
+            "trip_id",
+            "state",
+            "assigned_at"
+          ],
+          "isUnique": false
+        },
+        "idx_trip_assignments_company_active": {
+          "name": "idx_trip_assignments_company_active",
+          "columns": [
+            "company_id",
+            "assigned_at"
+          ],
+          "isUnique": false,
+          "where": "\"trip_motorcycle_assignments\".\"released_at\" IS NULL"
+        }
+      },
+      "foreignKeys": {
+        "trip_motorcycle_assignments_trip_id_trips_id_fk": {
+          "name": "trip_motorcycle_assignments_trip_id_trips_id_fk",
+          "tableFrom": "trip_motorcycle_assignments",
+          "tableTo": "trips",
+          "columnsFrom": [
+            "trip_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        },
+        "trip_motorcycle_assignments_motorcycle_id_motorcycles_id_fk": {
+          "name": "trip_motorcycle_assignments_motorcycle_id_motorcycles_id_fk",
+          "tableFrom": "trip_motorcycle_assignments",
+          "tableTo": "motorcycles",
+          "columnsFrom": [
+            "motorcycle_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        },
+        "trip_motorcycle_assignments_company_id_companies_id_fk": {
+          "name": "trip_motorcycle_assignments_company_id_companies_id_fk",
+          "tableFrom": "trip_motorcycle_assignments",
+          "tableTo": "companies",
+          "columnsFrom": [
+            "company_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        },
+        "trip_motorcycle_assignments_assigned_by_users_id_fk": {
+          "name": "trip_motorcycle_assignments_assigned_by_users_id_fk",
+          "tableFrom": "trip_motorcycle_assignments",
+          "tableTo": "users",
+          "columnsFrom": [
+            "assigned_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "ck_trip_assignments_state": {
+          "name": "ck_trip_assignments_state",
+          "value": "\"trip_motorcycle_assignments\".\"state\" IN ('ASSIGNED', 'LOADED', 'UNLOADED', 'RELEASED')"
+        },
+        "ck_trip_assignments_release": {
+          "name": "ck_trip_assignments_release",
+          "value": "(\"trip_motorcycle_assignments\".\"state\" = 'RELEASED') = (\"trip_motorcycle_assignments\".\"released_at\" IS NOT NULL)"
+        },
+        "ck_trip_assignments_loaded": {
+          "name": "ck_trip_assignments_loaded",
+          "value": "\"trip_motorcycle_assignments\".\"state\" NOT IN ('LOADED', 'UNLOADED') OR \"trip_motorcycle_assignments\".\"loaded_at\" IS NOT NULL"
+        },
+        "ck_trip_assignments_unloaded": {
+          "name": "ck_trip_assignments_unloaded",
+          "value": "\"trip_motorcycle_assignments\".\"state\" <> 'UNLOADED' OR \"trip_motorcycle_assignments\".\"unloaded_at\" IS NOT NULL"
+        },
+        "ck_trip_assignments_time_order": {
+          "name": "ck_trip_assignments_time_order",
+          "value": "\"trip_motorcycle_assignments\".\"loaded_at\" IS NULL OR \"trip_motorcycle_assignments\".\"loaded_at\" >= \"trip_motorcycle_assignments\".\"assigned_at\""
+        },
+        "ck_trip_assignments_unload_order": {
+          "name": "ck_trip_assignments_unload_order",
+          "value": "\"trip_motorcycle_assignments\".\"unloaded_at\" IS NULL OR (\"trip_motorcycle_assignments\".\"loaded_at\" IS NOT NULL AND \"trip_motorcycle_assignments\".\"unloaded_at\" >= \"trip_motorcycle_assignments\".\"loaded_at\")"
+        },
+        "ck_trip_assignments_release_reason": {
+          "name": "ck_trip_assignments_release_reason",
+          "value": "\"trip_motorcycle_assignments\".\"state\" <> 'RELEASED' OR length(\"trip_motorcycle_assignments\".\"release_reason\") BETWEEN 3 AND 500"
+        }
+      }
+    },
+    "trip_status_events": {
+      "name": "trip_status_events",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "trip_id": {
+          "name": "trip_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "previous_status": {
+          "name": "previous_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "new_status": {
+          "name": "new_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      "indexes": {
+        "idx_trip_status_events_trip_created": {
+          "name": "idx_trip_status_events_trip_created",
+          "columns": [
+            "trip_id",
+            "created_at"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "trip_status_events_trip_id_trips_id_fk": {
+          "name": "trip_status_events_trip_id_trips_id_fk",
+          "tableFrom": "trip_status_events",
+          "tableTo": "trips",
+          "columnsFrom": [
+            "trip_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        },
+        "trip_status_events_created_by_users_id_fk": {
+          "name": "trip_status_events_created_by_users_id_fk",
+          "tableFrom": "trip_status_events",
+          "tableTo": "users",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "ck_trip_status_events_previous": {
+          "name": "ck_trip_status_events_previous",
+          "value": "\"trip_status_events\".\"previous_status\" IS NULL OR \"trip_status_events\".\"previous_status\" IN ('DRAFT', 'PLANNED', 'LOADING', 'IN_TRANSIT', 'ARRIVED', 'COMPLETED', 'CANCELLED')"
+        },
+        "ck_trip_status_events_new": {
+          "name": "ck_trip_status_events_new",
+          "value": "\"trip_status_events\".\"new_status\" IN ('DRAFT', 'PLANNED', 'LOADING', 'IN_TRANSIT', 'ARRIVED', 'COMPLETED', 'CANCELLED')"
+        }
+      }
+    },
+    "trips": {
+      "name": "trips",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "request_key": {
+          "name": "request_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "public_id": {
+          "name": "public_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "trip_number": {
+          "name": "trip_number",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "truck_id": {
+          "name": "truck_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "driver_user_id": {
+          "name": "driver_user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "origin": {
+          "name": "origin",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "destination": {
+          "name": "destination",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "planned_departure_at": {
+          "name": "planned_departure_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "planned_arrival_at": {
+          "name": "planned_arrival_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "actual_departure_at": {
+          "name": "actual_departure_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "actual_arrival_at": {
+          "name": "actual_arrival_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'DRAFT'"
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      "indexes": {
+        "uq_trips_request_key": {
+          "name": "uq_trips_request_key",
+          "columns": [
+            "request_key"
+          ],
+          "isUnique": true
+        },
+        "uq_trips_public_id": {
+          "name": "uq_trips_public_id",
+          "columns": [
+            "public_id"
+          ],
+          "isUnique": true
+        },
+        "uq_trips_trip_number": {
+          "name": "uq_trips_trip_number",
+          "columns": [
+            "trip_number"
+          ],
+          "isUnique": true
+        },
+        "idx_trips_status_planned": {
+          "name": "idx_trips_status_planned",
+          "columns": [
+            "status",
+            "planned_departure_at",
+            "id"
+          ],
+          "isUnique": false
+        },
+        "idx_trips_truck_status": {
+          "name": "idx_trips_truck_status",
+          "columns": [
+            "truck_id",
+            "status",
+            "planned_departure_at"
+          ],
+          "isUnique": false
+        },
+        "idx_trips_driver_status": {
+          "name": "idx_trips_driver_status",
+          "columns": [
+            "driver_user_id",
+            "status",
+            "planned_departure_at"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "trips_truck_id_trucks_id_fk": {
+          "name": "trips_truck_id_trucks_id_fk",
+          "tableFrom": "trips",
+          "tableTo": "trucks",
+          "columnsFrom": [
+            "truck_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        },
+        "trips_driver_user_id_users_id_fk": {
+          "name": "trips_driver_user_id_users_id_fk",
+          "tableFrom": "trips",
+          "tableTo": "users",
+          "columnsFrom": [
+            "driver_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        },
+        "trips_created_by_users_id_fk": {
+          "name": "trips_created_by_users_id_fk",
+          "tableFrom": "trips",
+          "tableTo": "users",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "ck_trips_status": {
+          "name": "ck_trips_status",
+          "value": "\"trips\".\"status\" IN ('DRAFT', 'PLANNED', 'LOADING', 'IN_TRANSIT', 'ARRIVED', 'COMPLETED', 'CANCELLED')"
+        },
+        "ck_trips_route": {
+          "name": "ck_trips_route",
+          "value": "length(\"trips\".\"origin\") BETWEEN 1 AND 200 AND length(\"trips\".\"destination\") BETWEEN 1 AND 200"
+        },
+        "ck_trips_planned_order": {
+          "name": "ck_trips_planned_order",
+          "value": "\"trips\".\"planned_arrival_at\" IS NULL OR \"trips\".\"planned_departure_at\" IS NULL OR \"trips\".\"planned_arrival_at\" >= \"trips\".\"planned_departure_at\""
+        },
+        "ck_trips_actual_order": {
+          "name": "ck_trips_actual_order",
+          "value": "\"trips\".\"actual_arrival_at\" IS NULL OR \"trips\".\"actual_departure_at\" IS NULL OR \"trips\".\"actual_arrival_at\" >= \"trips\".\"actual_departure_at\""
+        }
+      }
+    },
+    "trucks": {
+      "name": "trucks",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "request_key": {
+          "name": "request_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "public_id": {
+          "name": "public_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "code": {
+          "name": "code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "registration": {
+          "name": "registration",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "type": {
+          "name": "type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "capacity_motorcycles": {
+          "name": "capacity_motorcycles",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'ACTIVE'"
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      "indexes": {
+        "uq_trucks_request_key": {
+          "name": "uq_trucks_request_key",
+          "columns": [
+            "request_key"
+          ],
+          "isUnique": true
+        },
+        "uq_trucks_public_id": {
+          "name": "uq_trucks_public_id",
+          "columns": [
+            "public_id"
+          ],
+          "isUnique": true
+        },
+        "uq_trucks_code": {
+          "name": "uq_trucks_code",
+          "columns": [
+            "code"
+          ],
+          "isUnique": true
+        },
+        "uq_trucks_registration": {
+          "name": "uq_trucks_registration",
+          "columns": [
+            "registration"
+          ],
+          "isUnique": true,
+          "where": "\"trucks\".\"registration\" IS NOT NULL AND \"trucks\".\"registration\" <> ''"
+        },
+        "idx_trucks_status_code": {
+          "name": "idx_trucks_status_code",
+          "columns": [
+            "status",
+            "code"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "trucks_created_by_users_id_fk": {
+          "name": "trucks_created_by_users_id_fk",
+          "tableFrom": "trucks",
+          "tableTo": "users",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "ck_trucks_code": {
+          "name": "ck_trucks_code",
+          "value": "length(\"trucks\".\"code\") BETWEEN 2 AND 30 AND \"trucks\".\"code\" NOT GLOB '*[^A-Z0-9-]*'"
+        },
+        "ck_trucks_registration": {
+          "name": "ck_trucks_registration",
+          "value": "\"trucks\".\"registration\" IS NULL OR length(\"trucks\".\"registration\") BETWEEN 2 AND 30"
+        },
+        "ck_trucks_type": {
+          "name": "ck_trucks_type",
+          "value": "\"trucks\".\"type\" IN ('FOUR_WHEEL', 'SIX_WHEEL', 'OTHER')"
+        },
+        "ck_trucks_capacity": {
+          "name": "ck_trucks_capacity",
+          "value": "\"trucks\".\"capacity_motorcycles\" IS NULL OR \"trucks\".\"capacity_motorcycles\" BETWEEN 1 AND 1000"
+        },
+        "ck_trucks_status": {
+          "name": "ck_trucks_status",
+          "value": "\"trucks\".\"status\" IN ('ACTIVE', 'MAINTENANCE', 'INACTIVE')"
+        }
+      }
+    },
+    "user_permissions": {
+      "name": "user_permissions",
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "permission": {
+          "name": "permission",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "granted_by": {
+          "name": "granted_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      "indexes": {
+        "idx_user_permissions_user": {
+          "name": "idx_user_permissions_user",
+          "columns": [
+            "user_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "user_permissions_user_id_users_id_fk": {
+          "name": "user_permissions_user_id_users_id_fk",
+          "tableFrom": "user_permissions",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
+        },
+        "user_permissions_granted_by_users_id_fk": {
+          "name": "user_permissions_granted_by_users_id_fk",
+          "tableFrom": "user_permissions",
+          "tableTo": "users",
+          "columnsFrom": [
+            "granted_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {
+        "user_permissions_user_id_permission_pk": {
+          "columns": [
+            "user_id",
+            "permission"
+          ],
+          "name": "user_permissions_user_id_permission_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "ck_user_permissions_permission": {
+          "name": "ck_user_permissions_permission",
+          "value": "\"user_permissions\".\"permission\" IN ('companies:read', 'companies:write', 'jobs:read', 'jobs:write', 'motorcycles:read', 'motorcycles:write', 'images:read', 'images:write', 'status:read', 'status:write', 'yard:read', 'yard:write', 'documents:read', 'audit:read', 'gallery:read', 'gallery:write', 'gallery:publish', 'site:read', 'site:write', 'site:publish')"
+        }
+      }
+    },
+    "user_role_assignments": {
+      "name": "user_role_assignments",
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "role": {
+          "name": "role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "assigned_by": {
+          "name": "assigned_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      "indexes": {
+        "idx_user_role_assignments_role": {
+          "name": "idx_user_role_assignments_role",
+          "columns": [
+            "role"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "user_role_assignments_user_id_users_id_fk": {
+          "name": "user_role_assignments_user_id_users_id_fk",
+          "tableFrom": "user_role_assignments",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
+        },
+        "user_role_assignments_assigned_by_users_id_fk": {
+          "name": "user_role_assignments_assigned_by_users_id_fk",
+          "tableFrom": "user_role_assignments",
+          "tableTo": "users",
+          "columnsFrom": [
+            "assigned_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "ck_user_role_assignments_role": {
+          "name": "ck_user_role_assignments_role",
+          "value": "\"user_role_assignments\".\"role\" IN ('OWNER', 'ADMIN', 'STAFF', 'SALE', 'WAREHOUSE', 'CHECKER', 'DRIVER', 'ACCOUNTING', 'CUSTOMER_ADMIN', 'CUSTOMER_VIEWER')"
+        }
+      }
+    },
+    "users": {
+      "name": "users",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "external_auth_id": {
+          "name": "external_auth_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "username": {
+          "name": "username",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "display_name": {
+          "name": "display_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "role": {
+          "name": "role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "company_id": {
+          "name": "company_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'ACTIVE'"
+        },
+        "management_revision": {
+          "name": "management_revision",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "last_management_request_id": {
+          "name": "last_management_request_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      "indexes": {
+        "uq_users_external_auth_id": {
+          "name": "uq_users_external_auth_id",
+          "columns": [
+            "external_auth_id"
+          ],
+          "isUnique": true
+        },
+        "uq_users_email": {
+          "name": "uq_users_email",
+          "columns": [
+            "email"
+          ],
+          "isUnique": true
+        },
+        "uq_users_username": {
+          "name": "uq_users_username",
+          "columns": [
+            "username"
+          ],
+          "isUnique": true
+        },
+        "idx_users_company_role": {
+          "name": "idx_users_company_role",
+          "columns": [
+            "company_id",
+            "role"
+          ],
+          "isUnique": false
+        },
+        "idx_users_status": {
+          "name": "idx_users_status",
+          "columns": [
+            "status"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "users_company_id_companies_id_fk": {
+          "name": "users_company_id_companies_id_fk",
+          "tableFrom": "users",
+          "tableTo": "companies",
+          "columnsFrom": [
+            "company_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "ck_customer_requires_company": {
+          "name": "ck_customer_requires_company",
+          "value": "\"users\".\"role\" <> 'CUSTOMER' OR \"users\".\"company_id\" IS NOT NULL"
+        },
+        "ck_users_role": {
+          "name": "ck_users_role",
+          "value": "\"users\".\"role\" IN ('OWNER', 'STAFF', 'CUSTOMER')"
+        },
+        "ck_users_status": {
+          "name": "ck_users_status",
+          "value": "\"users\".\"status\" IN ('ACTIVE', 'INACTIVE', 'ARCHIVED')"
+        }
+      }
+    },
+    "yard_placements": {
+      "name": "yard_placements",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "request_key": {
+          "name": "request_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "motorcycle_id": {
+          "name": "motorcycle_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "company_id": {
+          "name": "company_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "yard_zone_id": {
+          "name": "yard_zone_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "entered_at": {
+          "name": "entered_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "exited_at": {
+          "name": "exited_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "placed_by": {
+          "name": "placed_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      "indexes": {
+        "uq_yard_placements_request_key": {
+          "name": "uq_yard_placements_request_key",
+          "columns": [
+            "request_key"
+          ],
+          "isUnique": true
+        },
+        "uq_yard_placements_motorcycle_active": {
+          "name": "uq_yard_placements_motorcycle_active",
+          "columns": [
+            "motorcycle_id"
+          ],
+          "isUnique": true,
+          "where": "\"yard_placements\".\"exited_at\" IS NULL"
+        },
+        "idx_yard_placements_zone_active": {
+          "name": "idx_yard_placements_zone_active",
+          "columns": [
+            "yard_zone_id",
+            "entered_at"
+          ],
+          "isUnique": false,
+          "where": "\"yard_placements\".\"exited_at\" IS NULL"
+        },
+        "idx_yard_placements_company_entered": {
+          "name": "idx_yard_placements_company_entered",
+          "columns": [
+            "company_id",
+            "entered_at"
+          ],
+          "isUnique": false
+        },
+        "idx_yard_placements_motorcycle_entered": {
+          "name": "idx_yard_placements_motorcycle_entered",
+          "columns": [
+            "motorcycle_id",
+            "entered_at"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "yard_placements_motorcycle_id_motorcycles_id_fk": {
+          "name": "yard_placements_motorcycle_id_motorcycles_id_fk",
+          "tableFrom": "yard_placements",
+          "tableTo": "motorcycles",
+          "columnsFrom": [
+            "motorcycle_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        },
+        "yard_placements_company_id_companies_id_fk": {
+          "name": "yard_placements_company_id_companies_id_fk",
+          "tableFrom": "yard_placements",
+          "tableTo": "companies",
+          "columnsFrom": [
+            "company_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        },
+        "yard_placements_yard_zone_id_yard_zones_id_fk": {
+          "name": "yard_placements_yard_zone_id_yard_zones_id_fk",
+          "tableFrom": "yard_placements",
+          "tableTo": "yard_zones",
+          "columnsFrom": [
+            "yard_zone_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        },
+        "yard_placements_placed_by_users_id_fk": {
+          "name": "yard_placements_placed_by_users_id_fk",
+          "tableFrom": "yard_placements",
+          "tableTo": "users",
+          "columnsFrom": [
+            "placed_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "ck_yard_placements_time_order": {
+          "name": "ck_yard_placements_time_order",
+          "value": "\"yard_placements\".\"exited_at\" IS NULL OR \"yard_placements\".\"exited_at\" >= \"yard_placements\".\"entered_at\""
+        }
+      }
+    },
+    "yard_zones": {
+      "name": "yard_zones",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "code": {
+          "name": "code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "capacity": {
+          "name": "capacity",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'ACTIVE'"
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      "indexes": {
+        "uq_yard_zones_code": {
+          "name": "uq_yard_zones_code",
+          "columns": [
+            "code"
+          ],
+          "isUnique": true
+        },
+        "idx_yard_zones_status_code": {
+          "name": "idx_yard_zones_status_code",
+          "columns": [
+            "status",
+            "code"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "yard_zones_created_by_users_id_fk": {
+          "name": "yard_zones_created_by_users_id_fk",
+          "tableFrom": "yard_zones",
+          "tableTo": "users",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "ck_yard_zones_code": {
+          "name": "ck_yard_zones_code",
+          "value": "length(\"yard_zones\".\"code\") BETWEEN 2 AND 30"
+        },
+        "ck_yard_zones_capacity": {
+          "name": "ck_yard_zones_capacity",
+          "value": "\"yard_zones\".\"capacity\" IS NULL OR \"yard_zones\".\"capacity\" > 0"
+        },
+        "ck_yard_zones_status": {
+          "name": "ck_yard_zones_status",
+          "value": "\"yard_zones\".\"status\" IN ('ACTIVE', 'INACTIVE')"
+        }
+      }
+    }
+  },
+  "views": {},
+  "enums": {},
+  "_meta": {
+    "schemas": {},
+    "tables": {},
+    "columns": {}
+  },
+  "internal": {
+    "indexes": {}
+  }
+}

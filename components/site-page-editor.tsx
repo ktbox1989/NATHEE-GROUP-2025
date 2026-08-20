@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, type FormEvent } from "react";
+import { browserSecureId } from "@/lib/browser-secure-id";
 import type { CmsPageContent, CmsSection, CmsSectionType } from "@/lib/site-cms";
 
 type MediaOption = { id: string; label: string };
@@ -21,7 +22,7 @@ export function SitePageEditor({ slug, initial, media, categories }: { slug: str
     if (!content.sections.length) { event.preventDefault(); return setMessage("ต้องมีอย่างน้อยหนึ่ง Section"); }
     try {
       if (payloadRef.current) payloadRef.current.value = JSON.stringify(content);
-      if (requestRef.current) requestRef.current.value = secureId("cms-save");
+      if (requestRef.current) requestRef.current.value = browserSecureId("cms-save");
       setMessage("กำลังบันทึก Revision ใหม่…");
     } catch {
       event.preventDefault(); setMessage("เบราว์เซอร์นี้สร้างรหัสคำขอที่ปลอดภัยไม่ได้ กรุณาใช้ Chrome, Edge หรือ Safari รุ่นใหม่");
@@ -33,7 +34,7 @@ export function SitePageEditor({ slug, initial, media, categories }: { slug: str
   }
 
   function addSection() {
-    const next: CmsSection = { id: secureId("section"), type: "CONTENT", enabled: true, eyebrow: "", heading: "Section ใหม่", body: "", imageItemId: "", primaryLabel: "", primaryHref: "", secondaryLabel: "", secondaryHref: "", galleryCategorySlug: "", galleryLimit: 12, items: [] };
+    const next: CmsSection = { id: browserSecureId("section"), type: "CONTENT", enabled: true, eyebrow: "", heading: "Section ใหม่", body: "", imageItemId: "", primaryLabel: "", primaryHref: "", secondaryLabel: "", secondaryHref: "", galleryCategorySlug: "", galleryLimit: 12, items: [] };
     setContent((current) => ({ ...current, sections: [...current.sections, next] }));
   }
 
@@ -71,12 +72,4 @@ export function SitePageEditor({ slug, initial, media, categories }: { slug: str
 
 function parseItems(value: string) {
   return value.split("\n").slice(0, 12).map((line) => { const [title, ...rest] = line.split("|"); return { title: title.trim().slice(0, 160), body: rest.join("|").trim().slice(0, 500) }; }).filter((item) => item.title);
-}
-
-function secureId(prefix: string): string {
-  if (typeof crypto.randomUUID === "function") return `${prefix}-${crypto.randomUUID()}`;
-  if (typeof crypto.getRandomValues !== "function") throw new Error("secure random unavailable");
-  const bytes = new Uint8Array(16); crypto.getRandomValues(bytes); bytes[6] = (bytes[6] & 0x0f) | 0x40; bytes[8] = (bytes[8] & 0x3f) | 0x80;
-  const hex = [...bytes].map((value) => value.toString(16).padStart(2, "0")).join("");
-  return `${prefix}-${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }

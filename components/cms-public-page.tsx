@@ -3,30 +3,30 @@ import Link from "next/link";
 import { and, asc, desc, eq } from "drizzle-orm";
 import { GalleryLightbox, type PublicGalleryItem } from "@/components/gallery-lightbox";
 import { galleryCategories, galleryItems } from "@/db/schema";
-import type { CmsPageContent, CmsSection, SitePageSlug } from "@/lib/site-cms";
+import { SITE_PAGE_DEFINITIONS, type CmsPageContent, type CmsSection, type SitePageSlug } from "@/lib/site-cms";
+import { getPublishedSiteSettings, type SiteSettings } from "@/lib/site-settings";
+import { serializeStructuredData, siteOrganizationSchema } from "@/lib/site-structured-data";
 
 export async function CmsPublicPage({ content, slug, preview = false }: { content: CmsPageContent; slug: SitePageSlug; preview?: boolean }) {
+  const settings = await getPublishedSiteSettings();
   return <main className="cms-public-page">
-    <script type="application/ld+json">{JSON.stringify(organizationSchema)}</script>
+    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeStructuredData(siteOrganizationSchema(settings)) }} />
     {preview && <div className="cms-preview-banner" role="status">ตัวอย่างฉบับร่าง — ยังไม่เผยแพร่</div>}
-    <PublicHeader active={slug} />
+    <PublicHeader active={slug} settings={settings} />
     {content.sections.filter((section) => section.enabled).map((section) => <CmsSectionView key={section.id} section={section} />)}
-    <PublicFooter />
+    <PublicFooter settings={settings} />
   </main>;
 }
 
-const organizationSchema = {
-  "@context": "https://schema.org",
-  "@type": "Organization",
-  name: "บริษัท นทีกรุ๊ป2025 จำกัด",
-  alternateName: "NATHEE GROUP 2025",
-  url: "https://natheegroup2025.com/",
-  telephone: ["+66-63-194-1191", "+66-85-680-2082"],
-};
-
-function PublicHeader({ active }: { active: SitePageSlug }) {
+async function PublicHeader({ active, settings }: { active: SitePageSlug; settings: SiteSettings }) {
   const servicePages: SitePageSlug[] = ["services", "motorcycle-transport", "international", "storage", "container-loading", "dealer-fleet", "quotation"];
-  return <header className="cms-site-header"><div className="shell cms-nav"><Link className="brand" href="/"><span className="brand-mark">NG</span><span className="brand-name">NATHEE GROUP<small>MOTORCYCLE LOGISTICS · 2025</small></span></Link><nav aria-label="เมนูหลัก"><Link className={active === "home" ? "active" : ""} href="/">หน้าแรก</Link><Link className={servicePages.includes(active) ? "active" : ""} href="/services">บริการ</Link><Link href="/gallery">ผลงาน</Link><Link className={active === "about" ? "active" : ""} href="/about">เกี่ยวกับเรา</Link><Link className={active === "contact" ? "active" : ""} href="/contact">ติดต่อ</Link><Link className="button button-small button-gradient" href="/login">เข้าสู่ระบบ</Link></nav></div></header>;
+  const activePath = SITE_PAGE_DEFINITIONS[active].path;
+  return <header className="cms-site-header"><div className="shell cms-nav"><Link className="brand" href="/" aria-label={`${settings.brand.name} หน้าแรก`}><PublicBrandIdentity settings={settings} /></Link><nav aria-label="เมนูหลัก">{settings.navigation.items.map((item) => <Link className={item.href === activePath || item.href === "/services" && servicePages.includes(active) ? "active" : ""} href={item.href} key={item.href}>{item.label}</Link>)}<Link className="button button-small button-gradient" href="/login">{settings.navigation.loginLabel}</Link></nav></div></header>;
+}
+
+export async function PublicBrandIdentity({ settings }: { settings: SiteSettings }) {
+  const logo = settings.brand.logoItemId ? await getPublicMedia(settings.brand.logoItemId) : null;
+  return <>{logo ? <span className="brand-mark cms-brand-logo"><img src={`/api/gallery/images/${logo.id}?role=thumbnail`} alt={logo.altText || settings.brand.name} decoding="async" /></span> : <span className="brand-mark">{settings.brand.abbreviation}</span>}<span className="brand-name">{settings.brand.name}<small>{settings.brand.tagline}</small></span></>;
 }
 
 async function CmsSectionView({ section }: { section: CmsSection }) {
@@ -55,14 +55,17 @@ async function GallerySection({ section }: { section: CmsSection }) {
 }
 
 async function PublicImage({ itemId, alt }: { itemId: string; alt: string }) {
-  let item: { id: string; altText: string } | undefined;
+  const item = await getPublicMedia(itemId);
+  return item ? <figure className="cms-section-image"><img src={`/api/gallery/images/${item.id}?role=display`} alt={item.altText || alt} loading="lazy" decoding="async" /></figure> : null;
+}
+
+async function getPublicMedia(itemId: string): Promise<{ id: string; altText: string } | null> {
   try {
     const { getDb } = await import("@/db");
-    item = await getDb().select({ id: galleryItems.id, altText: galleryItems.altText }).from(galleryItems).where(and(eq(galleryItems.id, itemId), eq(galleryItems.status, "PUBLISHED"), eq(galleryItems.visibility, "PUBLIC"))).get();
+    return await getDb().select({ id: galleryItems.id, altText: galleryItems.altText }).from(galleryItems).where(and(eq(galleryItems.id, itemId), eq(galleryItems.status, "PUBLISHED"), eq(galleryItems.visibility, "PUBLIC"))).get() ?? null;
   } catch {
-    item = undefined;
+    return null;
   }
-  return item ? <figure className="cms-section-image"><img src={`/api/gallery/images/${item.id}?role=display`} alt={item.altText || alt} loading="lazy" decoding="async" /></figure> : null;
 }
 
 function SectionHeading({ section, level = 2 }: { section: CmsSection; level?: 1 | 2 }) {
@@ -75,6 +78,6 @@ function Actions({ section }: { section: CmsSection }) {
   return <div className="hero-actions">{section.primaryHref && <Link className="button button-gradient" href={section.primaryHref}>{section.primaryLabel}</Link>}{section.secondaryHref && <Link className="button button-glass" href={section.secondaryHref}>{section.secondaryLabel}</Link>}</div>;
 }
 
-function PublicFooter() {
-  return <footer><div className="shell footer-inner"><span>© 2026 บริษัท นทีกรุ๊ป2025 จำกัด</span><span><a href="tel:0631941191">063-194-1191</a> · <a href="tel:0856802082">085-680-2082</a></span></div></footer>;
+function PublicFooter({ settings }: { settings: SiteSettings }) {
+  return <footer><div className="shell footer-inner"><span>{settings.footer.copyright}</span><span><a href={`tel:${settings.contact.primaryPhone}`}>{settings.contact.primaryPhone}</a>{settings.contact.secondaryPhone && <> · <a href={`tel:${settings.contact.secondaryPhone}`}>{settings.contact.secondaryPhone}</a></>}</span></div><div className="shell cms-footer-secondary">{settings.footer.secondaryText}</div></footer>;
 }

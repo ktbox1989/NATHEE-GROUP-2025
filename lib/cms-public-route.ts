@@ -6,11 +6,12 @@ import {
   type CmsPageContent,
   type SitePageSlug,
 } from "@/lib/site-cms";
+import { getPublishedSiteSettings } from "@/lib/site-settings";
 
 const productionOrigin = "https://natheegroup2025.com";
 
 export async function getManagedPageMetadata(slug: SitePageSlug): Promise<Metadata> {
-  const state = await getPublishedSitePage(slug);
+  const [state, settings] = await Promise.all([getPublishedSitePage(slug), getPublishedSiteSettings()]);
   const content = state.status === "PUBLISHED" ? state.content : DEFAULT_SITE_CONTENT[slug];
   const routePath = SITE_PAGE_DEFINITIONS[slug].path;
   const url = `${productionOrigin}${routePath === "/" ? "/" : `${routePath}/`}`;
@@ -24,10 +25,11 @@ export async function getManagedPageMetadata(slug: SitePageSlug): Promise<Metada
       title: content.seo.title,
       description: content.seo.description,
       url,
-      siteName: "NATHEE GROUP 2025",
+      siteName: settings.brand.name,
       type: "website",
       locale: "th_TH",
     },
+    twitter: { card: "summary", title: content.seo.title, description: content.seo.description },
   };
 }
 

@@ -6,7 +6,7 @@ runtime.
 
 ## 1. Platform resources
 
-- D1 binding `DB` exists and migrations `drizzle/0000` through `0012` have
+- D1 binding `DB` exists and migrations `drizzle/0000` through `0013` have
   each been applied exactly once in order. Verify the migration ledger before
   applying any missing file; never rerun the full chain blindly.
 - R2 binding `FILES` exists and is private.
@@ -88,6 +88,8 @@ The endpoint never returns credentials or connection strings.
 17. OWNER republishes the preceding revision; history remains append-only and the public page rolls back without deleting content.
 18. An approved staff account can batch-upload Gallery Drafts only with explicit Gallery permissions and cannot publish without `gallery:publish`.
 19. Anonymous access receives only `PUBLIC` + `PUBLISHED` Gallery media; Draft, internal and customer-job images remain inaccessible.
+20. OWNER saves and publishes global Site Settings, verifies shared brand/menu/phones/Footer and then republishes the preceding settings revision without deleting history.
+21. A configured logo is shown only while its Gallery item remains `PUBLIC` + `PUBLISHED`; hiding that item must fall back to the safe brand abbreviation.
 
 ## 6. Rollback
 

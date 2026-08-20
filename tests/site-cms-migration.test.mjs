@@ -109,3 +109,49 @@ test("site content operational lookups use bounded indexes", () => {
   assert.match(publications, /idx_site_page_publication_page_created/);
   db.close();
 });
+
+test("migration 0013 adds global settings without rewriting existing CMS data", () => {
+  const db = new DatabaseSync(":memory:");
+  db.exec("PRAGMA foreign_keys = ON");
+  const migrations = readdirSync(migrationDirectory).filter((entry) => entry.endsWith(".sql")).sort();
+  for (const name of migrations.filter((entry) => entry < "0013")) applyMigration(db, `${migrationDirectory}/${name}`);
+  db.exec(`
+    INSERT INTO users (id, external_auth_id, email, display_name, role)
+    VALUES ('owner-a', 'auth-owner-a', 'owner@example.test', 'Owner', 'OWNER');
+    INSERT INTO site_pages (id, slug, display_name, created_by)
+    VALUES ('site-page-home', 'home', 'หน้าแรก', 'owner-a');
+  `);
+  applyMigration(db, `${migrationDirectory}/${migrations.find((entry) => entry.startsWith("0013_"))}`);
+  assert.equal(db.prepare("SELECT COUNT(*) AS total FROM site_pages").get().total, 1);
+  assert.deepEqual(db.prepare("PRAGMA foreign_key_check").all(), []);
+  db.close();
+});
+
+test("global settings revisions and publication events are append-only", () => {
+  const db = createDatabase();
+  db.exec(`
+    INSERT INTO site_settings_revisions
+      (id, request_key, settings_json, settings_hash, created_by)
+    VALUES ('settings-r1', 'settings-request-r1', '{"version":1}', '${"d".repeat(64)}', 'owner-a');
+    INSERT INTO site_settings_publication_events
+      (id, request_key, revision_id, created_by)
+    VALUES ('settings-publish-1', 'settings-publish-request-1', 'settings-r1', 'owner-a');
+  `);
+  assert.throws(() => db.exec("UPDATE site_settings_revisions SET change_note = 'changed' WHERE id = 'settings-r1'"), /append-only/);
+  assert.throws(() => db.exec("DELETE FROM site_settings_revisions WHERE id = 'settings-r1'"), /cannot be deleted/);
+  assert.throws(() => db.exec("UPDATE site_settings_publication_events SET note = 'changed' WHERE id = 'settings-publish-1'"), /append-only/);
+  assert.throws(() => db.exec("DELETE FROM site_settings_publication_events WHERE id = 'settings-publish-1'"), /cannot be deleted/);
+  assert.throws(() => db.exec(`INSERT INTO site_settings_publication_events
+    (id, request_key, revision_id, created_by)
+    VALUES ('settings-publish-missing', 'settings-publish-request-missing', 'missing-r1', 'owner-a')`), /FOREIGN KEY/);
+  db.close();
+});
+
+test("global settings latest revision and publication lookups use bounded indexes", () => {
+  const db = createDatabase();
+  const revisions = db.prepare("EXPLAIN QUERY PLAN SELECT id FROM site_settings_revisions ORDER BY created_at DESC, id DESC LIMIT 20").all().map((row) => String(row.detail)).join(" ");
+  const publications = db.prepare("EXPLAIN QUERY PLAN SELECT revision_id FROM site_settings_publication_events ORDER BY created_at DESC, id DESC LIMIT 1").all().map((row) => String(row.detail)).join(" ");
+  assert.match(revisions, /idx_site_settings_revisions_created/);
+  assert.match(publications, /idx_site_settings_publication_created/);
+  db.close();
+});

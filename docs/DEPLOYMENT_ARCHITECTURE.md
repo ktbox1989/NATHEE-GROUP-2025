@@ -9,15 +9,15 @@ application, API, database, storage or authentication is deployed.
 | Component | Repository source | Verified Production path / URL | Status |
 | --- | --- | --- | --- |
 | Public static website | `public-site/` | `/home/zptqqwps/public_html/natheegroup2025.com` / `https://natheegroup2025.com/` | `PUBLIC_STATIC_LIVE` |
-| Public Gallery | `public-site/gallery/`, `public-site/assets/gallery.json` | `/home/zptqqwps/public_html/natheegroup2025.com/gallery` / `https://natheegroup2025.com/gallery/` | Live static manifest had zero photographs at audit time; repository now stages two Owner-approved real photographs pending guarded deployment |
+| Public Gallery | `public-site/gallery/`, `public-site/assets/gallery.json` | `/home/zptqqwps/public_html/natheegroup2025.com/gallery` / `https://natheegroup2025.com/gallery/` | Repository release manifest contains nine Owner-approved real photographs; live status still requires the guarded deploy/postcheck evidence for that exact commit |
 | Login/Auth frontend | `app/login/`, `app/api/auth/`, `app/auth/callback/` | No accepted canonical runtime. `https://natheegroup2025.com/login/` is only a noindex status page. | `LOGIN_STATIC_PLACEHOLDER` |
 | OWNER/STAFF/CUSTOMER application | `app/app/`, `app/portal/` | No accepted canonical runtime; `https://natheegroup2025.com/app` returned 404 | `FULL_APPLICATION_NOT_DEPLOYED` |
 | Backend/API | `app/api/`, `worker/` | No accepted canonical runtime; `https://natheegroup2025.com/api/health` returned 404 | `BACKEND_API_NOT_DEPLOYED` |
-| Database/migrations | `db/`, `drizzle/0000` through `0012` | A protected Sites D1 has the ten `0000` base tables, but no verified migration ledger and no `0001`–`0012` operational/authorization/CMS migrations | `DATABASE_NOT_PRODUCTION_VERIFIED` |
+| Database/migrations | `db/`, `drizzle/0000` through `0013` | A protected Sites D1 has the ten `0000` base tables, but no verified migration ledger and no `0001`–`0013` operational/authorization/CMS/settings migrations | `DATABASE_NOT_PRODUCTION_VERIFIED` |
 | QR / label printing | QR API, scanner, single and bounded-batch label pages in source | No Production URL because application runtime is absent | Source/build only |
 | Notifications | In-app notification table, recipient-scoped APIs and bounded inbox UI; no external provider adapter | No Production URL because application runtime is absent | `NOTIFICATIONS_SOURCE_ONLY`; LINE/email delivery remains pending |
 | Managed Gallery/Media Library | `app/app/gallery/`, Gallery APIs, migrations `0002`/`0003`, R2 metadata | None | Source/build only; migrations and R2 not Production-verified |
-| Site Content CMS | `app/app/site-content/`, Site Content APIs, migration `0012` | None | Source/build only; Auth, D1 migration and application routing are not Production-verified |
+| Site Content CMS and global settings | `app/app/site-content/`, `app/app/site-settings/`, related APIs, migrations `0012`–`0013` | None | Source/build only; Auth, D1 migrations and application routing are not Production-verified |
 
 The existing public website must remain available while the application runtime
 is activated. Unknown files in the Z.com Production root must remain untouched.
@@ -65,7 +65,7 @@ presence of Node or PHP on Z.com would not provide Cloudflare D1/R2 bindings.
    with real D1/R2 bindings.
 3. Keep the application private until `/api/health` returns HTTP 200 with
    `authentication`, `database`, and `storage` all `true`.
-4. Apply migrations `0000` through `0012` once, in order, with a migration
+4. Apply migrations `0000` through `0013` once, in order, with a migration
    ledger and pre-migration backup. Never copy or edit an applied migration.
 5. Configure Supabase Site URL and callback for the final public routing model,
    then create the real OWNER mapping. No demo account is allowed.
@@ -124,12 +124,12 @@ all three readiness checks are true. A public-site `DEPLOY_PASS` or
 - Application Production hostname/routing is not approved.
 - Supabase Production Auth values are absent from the current Sites runtime and
   its callback has not been runtime-verified.
-- D1 has only the ten base tables; migration ledger, `0001`–`0012` Yard,
-  Gallery, role, member, notification, trip, container, inspection/POD and Site Content changes plus R2 runtime readiness are
+- D1 has only the ten base tables; migration ledger, `0001`–`0013` Yard,
+  Gallery, role, member, notification, trip, container, inspection/POD, Site Content and global settings changes plus R2 runtime readiness are
   not verified.
 - Real OWNER mapping and CUSTOMER cross-company isolation are not accepted.
 - In-app notification creation/read flow is implemented locally; external LINE/email delivery, consent and provider retry policy remain pending.
-- Two Owner-approved Gallery photographs are present in repository source but are not Production evidence until the public-site deploy and live postcheck pass.
+- Nine Owner-approved Gallery photographs are present in repository source but are not Production evidence for the latest release until the public-site deploy and live postcheck pass.
 
 Until all applicable gates close, the exact accepted Production application
 path and URL are **none**. Reports may identify the protected Sites artifact

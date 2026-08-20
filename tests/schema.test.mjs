@@ -67,6 +67,8 @@ test("fresh migrations create every phase-one table", () => {
     "site_page_publication_events",
     "site_page_revisions",
     "site_pages",
+    "site_settings_publication_events",
+    "site_settings_revisions",
     "status_events",
     "transport_jobs",
     "trip_motorcycle_assignments",

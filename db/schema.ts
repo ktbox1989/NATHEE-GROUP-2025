@@ -833,6 +833,44 @@ export const sitePagePublicationEvents = sqliteTable(
   ],
 );
 
+export const siteSettingsRevisions = sqliteTable(
+  "site_settings_revisions",
+  {
+    id: text("id").primaryKey(),
+    requestKey: text("request_key").notNull(),
+    settingsJson: text("settings_json").notNull(),
+    settingsHash: text("settings_hash").notNull(),
+    changeNote: text("change_note"),
+    createdBy: text("created_by").notNull().references(() => users.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    uniqueIndex("uq_site_settings_revisions_request_key").on(table.requestKey),
+    index("idx_site_settings_revisions_created").on(table.createdAt, table.id),
+    check("ck_site_settings_revisions_json", sql`json_valid(${table.settingsJson}) AND length(${table.settingsJson}) BETWEEN 2 AND 20000`),
+    check("ck_site_settings_revisions_hash", sql`length(${table.settingsHash}) = 64 AND ${table.settingsHash} NOT GLOB '*[^0-9a-f]*'`),
+    check("ck_site_settings_revisions_note", sql`${table.changeNote} IS NULL OR length(${table.changeNote}) <= 500`),
+  ],
+);
+
+export const siteSettingsPublicationEvents = sqliteTable(
+  "site_settings_publication_events",
+  {
+    id: text("id").primaryKey(),
+    requestKey: text("request_key").notNull(),
+    revisionId: text("revision_id").notNull().references(() => siteSettingsRevisions.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    note: text("note"),
+    createdBy: text("created_by").notNull().references(() => users.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    uniqueIndex("uq_site_settings_publication_request_key").on(table.requestKey),
+    index("idx_site_settings_publication_created").on(table.createdAt, table.id),
+    index("idx_site_settings_publication_revision").on(table.revisionId),
+    check("ck_site_settings_publication_note", sql`${table.note} IS NULL OR length(${table.note}) <= 500`),
+  ],
+);
+
 export const statusEvents = sqliteTable(
   "status_events",
   {

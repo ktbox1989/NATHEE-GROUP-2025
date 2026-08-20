@@ -7,6 +7,13 @@ import {
   parseCmsPageContent,
   parseCmsPageContentJson,
 } from "../lib/site-cms-content.ts";
+import {
+  DEFAULT_SITE_SETTINGS,
+  parseSiteSettings,
+  parseSiteSettingsJson,
+  serializeSiteSettings,
+} from "../lib/site-settings-content.ts";
+import { serializeStructuredData, siteOrganizationSchema } from "../lib/site-structured-data.ts";
 
 test("every managed page default is valid structured content", () => {
   for (const [slug, content] of Object.entries(DEFAULT_SITE_CONTENT)) {
@@ -62,4 +69,52 @@ test("content text remains data and is not interpreted as raw HTML", () => {
   content.sections[0].heading = "<script>alert('xss')</script>";
   const parsed = parseCmsPageContent(content);
   assert.equal(parsed?.sections[0].heading, "<script>alert('xss')</script>");
+});
+
+test("global site settings default is valid and round-trips deterministically", () => {
+  assert.deepEqual(parseSiteSettings(DEFAULT_SITE_SETTINGS), DEFAULT_SITE_SETTINGS);
+  const serialized = serializeSiteSettings(DEFAULT_SITE_SETTINGS);
+  assert.deepEqual(parseSiteSettingsJson(serialized), DEFAULT_SITE_SETTINGS);
+  assert.equal(serializeSiteSettings(parseSiteSettingsJson(serialized)!), serialized);
+});
+
+test("global site settings reject unsafe, duplicate and private navigation", () => {
+  for (const href of ["https://attacker.example", "//attacker.example", "/api/health", "/app", "/auth/callback", "/UPPERCASE"]) {
+    const content = structuredClone(DEFAULT_SITE_SETTINGS);
+    content.navigation.items[1].href = href;
+    assert.equal(parseSiteSettings(content), null, href);
+  }
+
+  const duplicate = structuredClone(DEFAULT_SITE_SETTINGS);
+  duplicate.navigation.items[1].href = "/";
+  assert.equal(parseSiteSettings(duplicate), null);
+
+  const missingHome = structuredClone(DEFAULT_SITE_SETTINGS);
+  missingHome.navigation.items = missingHome.navigation.items.filter((item) => item.href !== "/");
+  assert.equal(parseSiteSettings(missingHome), null);
+});
+
+test("global site settings reject malformed contact and media identity", () => {
+  const invalidPhone = structuredClone(DEFAULT_SITE_SETTINGS);
+  invalidPhone.contact.primaryPhone = "โทรหาทีมงาน";
+  assert.equal(parseSiteSettings(invalidPhone), null);
+
+  const invalidLogo = structuredClone(DEFAULT_SITE_SETTINGS);
+  invalidLogo.brand.logoItemId = "../private-image";
+  assert.equal(parseSiteSettings(invalidLogo), null);
+
+  const tooManyLinks = structuredClone(DEFAULT_SITE_SETTINGS);
+  tooManyLinks.navigation.items = Array.from({ length: 9 }, (_, index) => ({ label: `เมนู ${index}`, href: index ? `/menu-${index}` : "/" }));
+  assert.equal(parseSiteSettings(tooManyLinks), null);
+});
+
+test("editable organization structured data cannot terminate its script element", () => {
+  const content = structuredClone(DEFAULT_SITE_SETTINGS);
+  content.brand.legalName = "บริษัท </script><script>alert(1)</script> จำกัด";
+  const parsed = parseSiteSettings(content);
+  assert.ok(parsed);
+  const json = serializeStructuredData(siteOrganizationSchema(parsed));
+  assert.doesNotMatch(json, /<\/script/i);
+  assert.match(json, /\\u003c\/script/);
+  assert.equal(JSON.parse(json).name, content.brand.legalName);
 });

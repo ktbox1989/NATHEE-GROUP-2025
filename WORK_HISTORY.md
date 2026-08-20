@@ -1,5 +1,16 @@
 # NATHEE GROUP 2025 — Work History
 
+## 2026-08-21 — Revisioned global Site Settings
+
+- Added a single authenticated settings surface for brand/legal name, abbreviation, tagline, optional published Gallery logo, verified phones, bounded public navigation, Login label and Footer.
+- Added migration `0013_wakeful_moon_knight` with immutable SHA-256 settings revisions, append-only publication events, request-key uniqueness, foreign keys, bounded lookup indexes and no-hard-delete/no-rewrite triggers.
+- Save and publish require same-origin authenticated `site:write`/`site:publish`, are idempotent under retry and commit a redacted Audit record in the same D1 batch.
+- Public rendering fails safely to verified defaults, rejects unsafe/private navigation destinations and falls back to the brand abbreviation when the configured logo is unavailable or no longer public.
+- Added responsive Header/Footer preview and reused one secure browser request-ID helper without weakening the cryptographic fallback.
+- Verification: full tests 106/106, parser/JSON-LD security/migration/index/append-only checks PASS, Vinext production build PASS, ESLint PASS, public SEO/deployment guards PASS, secret scan PASS and diff check PASS.
+- Deployment: source only. Migration `0013`, Auth, D1/R2 and dynamic settings were not deployed; the Z.com public website remains unaffected.
+- Rollback: revert this commit before applying `0013`. After apply, restore the reviewed D1 backup or use a forward migration; never delete revision/publication/Audit history.
+
 ## 2026-08-21 — Full textual public-page CMS coverage
 
 - Expanded the allowlisted Site Content CMS from four pages to all ten textual public pages: Home, Services, five service-detail pages, Quotation, About and Contact.
@@ -7,7 +18,7 @@
 - Centralized canonical metadata for managed pages, with INDEX/FOLLOW, canonical URL and Open Graph identity on every public textual route.
 - Kept Gallery as a separate Media Library and linked it from the Site Content dashboard, preserving category, Alt text, ordering, featured, visibility, responsive media and audit behavior.
 - Verification: CMS unit tests PASS, all ten defaults validate, all six new routes render without D1, canonical/robots checks PASS, Vinext production build PASS and ESLint PASS.
-- Deployment: source only. The Z.com static website remains unchanged; dynamic CMS routes still require the approved Auth, D1 migration `0012`, R2 and application-routing gates.
+- Deployment: source only. The Z.com static website remains unchanged; dynamic CMS routes still require the approved Auth, D1 migrations `0012`–`0013`, R2 and application-routing gates.
 - Rollback: revert this commit. No migration, Production data, public website file or media artifact is changed by this slice.
 
 ## 2026-08-21 — Responsive Owner media sizing
