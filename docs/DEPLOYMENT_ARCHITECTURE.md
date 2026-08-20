@@ -10,16 +10,35 @@ application, API, database, storage or authentication is deployed.
 | --- | --- | --- | --- |
 | Public static website | `public-site/` | `/home/zptqqwps/public_html/natheegroup2025.com` / `https://natheegroup2025.com/` | `PUBLIC_STATIC_LIVE` |
 | Public Gallery | `public-site/gallery/`, `public-site/assets/gallery.json` | `/home/zptqqwps/public_html/natheegroup2025.com/gallery` / `https://natheegroup2025.com/gallery/` | Live static manifest; zero published real photographs at audit time |
-| Login/Auth frontend | `app/login/`, `app/api/auth/`, `app/auth/callback/` | No runtime path or URL. `https://natheegroup2025.com/login/` is only a noindex status page. | `LOGIN_STATIC_PLACEHOLDER` |
-| OWNER/STAFF/CUSTOMER application | `app/app/`, `app/portal/` | None; `https://natheegroup2025.com/app` returned 404 | `FULL_APPLICATION_NOT_DEPLOYED` |
-| Backend/API | `app/api/`, `worker/` | None; `https://natheegroup2025.com/api/health` returned 404 | `BACKEND_API_NOT_DEPLOYED` |
-| Database/migrations | `db/`, `drizzle/0000` through `0003` | No verified Production D1 database or applied ledger | `DATABASE_NOT_PRODUCTION_VERIFIED` |
+| Login/Auth frontend | `app/login/`, `app/api/auth/`, `app/auth/callback/` | No accepted canonical runtime. `https://natheegroup2025.com/login/` is only a noindex status page. | `LOGIN_STATIC_PLACEHOLDER` |
+| OWNER/STAFF/CUSTOMER application | `app/app/`, `app/portal/` | No accepted canonical runtime; `https://natheegroup2025.com/app` returned 404 | `FULL_APPLICATION_NOT_DEPLOYED` |
+| Backend/API | `app/api/`, `worker/` | No accepted canonical runtime; `https://natheegroup2025.com/api/health` returned 404 | `BACKEND_API_NOT_DEPLOYED` |
+| Database/migrations | `db/`, `drizzle/0000` through `0003` | A protected Sites D1 has the ten `0000` base tables, but no verified migration ledger and no `0001` Yard or `0002`/`0003` Gallery tables | `DATABASE_NOT_PRODUCTION_VERIFIED` |
 | QR / label printing | QR API, scanner, single and bounded-batch label pages in source | No Production URL because application runtime is absent | Source/build only |
 | Notifications | No route, table, provider adapter or delivery worker found | None | `NOTIFICATIONS_MISSING` |
 | Managed Gallery/Media Library | `app/app/gallery/`, Gallery APIs, migrations `0002`/`0003`, R2 metadata | None | Source/build only; migrations and R2 not Production-verified |
 
 The existing public website must remain available while the application runtime
 is activated. Unknown files in the Z.com Production root must remain untouched.
+
+### Protected Sites artifact is not accepted Production
+
+Read-only Sites control-plane evidence found an active, custom-access deployment:
+
+```text
+URL:     https://nathee-group-2025-logistics.wise-goose-4247.chatgpt.site
+Version: 4
+Source:  9afd58deea335c616e1a0769500e7fa46148780f
+Access:  owner-only custom policy
+Environment variables configured: 0
+D1 tables: 10 base tables from migration 0000
+```
+
+This proves that a protected build artifact exists; it does not prove that the
+NATHEE application works. Supabase Auth is not configured in that runtime, the
+full migration chain is absent, and the canonical domain still returns 404 for
+`/app` and `/api/health`. Its classification is
+`PRIVATE_SITES_RUNTIME_NOT_ACCEPTED`, not Full Production.
 
 ## Runtime boundary
 
@@ -102,11 +121,14 @@ all three readiness checks are true. A public-site `DEPLOY_PASS` or
 
 - Z.com capability probe output has not yet been returned from the real shell.
 - Application Production hostname/routing is not approved.
-- Supabase Production Auth values and callback have not been runtime-verified.
-- D1/R2 Production bindings and migrations are not verified.
+- Supabase Production Auth values are absent from the current Sites runtime and
+  its callback has not been runtime-verified.
+- D1 has only the ten base tables; migration ledger, `0001` Yard,
+  `0002`/`0003` Gallery and R2 runtime readiness are not verified.
 - Real OWNER mapping and CUSTOMER cross-company isolation are not accepted.
 - Notification delivery has not been implemented.
 - No real public Gallery photograph is present in the static manifest.
 
-Until all applicable gates close, the exact deployed application path and URL
-are **none**, and reports must say so.
+Until all applicable gates close, the exact accepted Production application
+path and URL are **none**. Reports may identify the protected Sites artifact
+only when they also say it is not operationally accepted.

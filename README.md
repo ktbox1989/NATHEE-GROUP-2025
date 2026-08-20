@@ -67,4 +67,9 @@ The cPanel-hosted public website is intentionally separate from the authenticate
 
 `DEPLOY_PASS` from the Z.com script means only that the public static website was deployed. It is not evidence that Login, `/app`, `/api`, D1, R2, QR, Gallery management or notifications are running.
 
+A protected owner-only Sites Version 4 artifact exists, but it has no Supabase
+runtime environment and only the base D1 tables. It is not the accepted NATHEE
+Production application; see the deployment architecture for the evidence and
+remaining gates.
+
 See [the Z.com deployment runbook](./docs/ZCOM_DEPLOYMENT.md). Do not copy application source, credentials, databases, or private uploads into `public_html`.

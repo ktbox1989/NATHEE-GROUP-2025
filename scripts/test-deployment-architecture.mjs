@@ -47,6 +47,7 @@ for (const contract of [
   "FULL_APPLICATION_NOT_DEPLOYED",
   "BACKEND_API_NOT_DEPLOYED",
   "DATABASE_NOT_PRODUCTION_VERIFIED",
+  "PRIVATE_SITES_RUNTIME_NOT_ACCEPTED",
   "NOTIFICATIONS_MISSING",
 ]) {
   if (!architecture.includes(contract)) throw new Error(`Deployment status contract missing: ${contract}`);
