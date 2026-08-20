@@ -4,8 +4,9 @@ Updated: 2026-08-21 (Asia/Bangkok)
 
 ## Source checkpoint
 
-- Branch: `main`
-- Latest verified implementation milestone: Exact confirmed Auth identity mapping plus trusted Production origin and fail-closed runtime readiness (resolve the final commit with `git rev-parse HEAD`)
+- Review branch: `codex/nathee-media-owner-2`
+- Integration baseline: `3cfd65a176cba858c6fd5d76cab61df5c78093f8`
+- Latest verified implementation milestone: Responsive layout and public media-delivery optimization (`22a545435b8acede3f0541d69bf4ce77a434c8d1`)
 - Canonical repository: `ktbox1989/NATHEE-GROUP-2025`
 - Working rule: resolve the current checkpoint-document commit with `git rev-parse HEAD`; never infer Production deployment from source HEAD.
 
@@ -24,6 +25,18 @@ Updated: 2026-08-21 (Asia/Bangkok)
 - Full application Production acceptance: NOT PASSED
 
 ## Closed local milestones
+
+### Responsive layout and public media delivery (`22a5454`)
+
+- Added bounded fluid containers, responsive typography and gutters, mobile touch targets, overflow guards and collapsible public/authenticated navigation without changing the accepted premium visual identity.
+- Made Company, Job, Motorcycle, Yard and Audit tables usable as named keyboard-focusable scoped scroll regions; cards, filters, forms, dashboard grids and QR/Print surfaces retain their existing bounded responsive layouts.
+- Added intrinsic dimensions, aspect-ratio, `object-fit`, responsive `srcset`/`sizes`, lazy loading and lightbox-safe rendering for the real public motorcycle/truck/yard photographs without stretching portraits into landscape slots.
+- Generated JPEG/WebP/AVIF thumbnail and display variants for all nine real public Gallery photographs. The idempotent optimizer limits thumbnails to 640px and displays to 1600px and rejects oversized/non-beneficial variants.
+- Regression coverage validates structural contracts at 320, 375, 390, 768, 1024, 1366 and 1440px, five responsive data tables and all 54 responsive Gallery assets.
+- Verification: full tests 117/117 (68 unit + 49 integration), responsive/public guards PASS, Production build PASS, ESLint PASS, image-optimizer idempotency PASS and `git diff --check` PASS.
+- Browser screenshot acceptance remains pending because the bundled in-app browser service cannot start (`Trusted RPC dependency must resolve within a configured trusted code path`). This is recorded as an evidence blocker, not a visual PASS.
+- Remaining media risk: authenticated private evidence still downloads the original R2 object. A separate audited thumbnail/display variant contract is required before claiming private evidence byte optimization on mobile.
+- Deployment: source only. Z.com, Sites, Supabase, D1, R2, DNS and Production were not changed.
 
 ### Public website and deployment safety
 

@@ -1,5 +1,17 @@
 # NATHEE GROUP 2025 — Work History
 
+## 2026-08-21 — Responsive layout and real-photo delivery hardening
+
+- Preserved the current premium baseline while adding fluid max-width containers, responsive type/gutters, 44px mobile controls, overflow protection and accessible collapsible navigation to the public CMS and authenticated app shells.
+- Hardened responsive behavior for Home Hero, Services, Gallery/lightbox, Quotation, Contact, Login, dashboards, search/filter forms, QR/Print, Media Library and five dense operational tables. Tables now use bounded, labelled keyboard-focusable scroll regions rather than causing page-wide horizontal overflow.
+- Added intrinsic image dimensions and aspect ratios to prevent CLS, correct portrait/landscape crop behavior, lazy loading for non-critical media and responsive `srcset`/`sizes` for the public Gallery.
+- Generated 54 JPEG/WebP/AVIF thumbnail/display variants from the nine real Owner-supplied company photographs. The optimizer is idempotent, bounds mobile bytes and keeps factual Alt/caption metadata in the canonical manifest.
+- Verification: full tests 117/117 (68 unit + 49 integration), responsive contracts for 320/375/390/768/1024/1366/1440 PASS, public/SEO/deployment guards PASS, Production build PASS, ESLint PASS, optimizer idempotency PASS and `git diff --check` PASS.
+- Visual browser evidence is explicitly pending: the bundled browser service failed before connecting because its trusted RPC dependency could not resolve within a configured trusted code path. No screenshot PASS is claimed.
+- Remaining work: restore the approved browser runtime and capture the seven required viewports; separately design private R2 evidence thumbnail/display derivatives because authenticated evidence still serves the protected original object.
+- Deployment: source only. No Push, Z.com pull, Production deploy, Supabase/D1/R2 mutation or DNS change was performed.
+- Rollback: revert implementation commit `22a5454`; no Production or data rollback is required.
+
 ## 2026-08-21 — Exact confirmed Auth identity mapping
 
 - Removed the unused `pending:` email-based identity fallback and its unaudited `external_auth_id` rewrite from protected request resolution.
