@@ -5,6 +5,7 @@ import { isCanonicalProductionOriginConfigured } from "@/lib/app-origin";
 import { databaseObjectsReady, REQUIRED_DATABASE_OBJECTS, runtimeReadiness } from "@/lib/runtime-readiness";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { isTurnstileConfigured } from "@/lib/turnstile";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +16,7 @@ export async function GET() {
     canonicalOrigin: isCanonicalProductionOriginConfigured(),
     database: false,
     storage: false,
+    antiAbuse: isTurnstileConfigured(),
   };
 
   try {

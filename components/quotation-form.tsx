@@ -3,7 +3,7 @@
 import { useRef, useState, type FormEvent } from "react";
 import { browserSecureId } from "@/lib/browser-secure-id";
 
-export function QuotationForm() {
+export function QuotationForm({ siteKey }: { siteKey: string }) {
   const requestKey = useRef("");
   const [submitting, setSubmitting] = useState(false);
   const [clientError, setClientError] = useState("");
@@ -40,8 +40,10 @@ export function QuotationForm() {
       <label className="quotation-attachments" htmlFor="quotation-attachments">เอกสารประกอบ (ถ้ามี)<input id="quotation-attachments" name="attachments" type="file" multiple aria-describedby="quotation-attachments-help" accept=".pdf,.csv,.xlsx,.jpg,.jpeg,.png,.webp,.avif,.heic,.heif,application/pdf,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,image/jpeg,image/png,image/webp,image/avif,image/heic,image/heif" /><small id="quotation-attachments-help">สูงสุด 5 ไฟล์ ไฟล์ละไม่เกิน 8 MB รวมไม่เกิน 20 MB รองรับ PDF, CSV, Excel และรูปภาพ ไฟล์จะเก็บแบบ Private</small></label>
       <label className="quotation-notes">รายละเอียดเพิ่มเติม<textarea name="notes" maxLength={1500} rows={5} /></label>
       <label className="quotation-consent"><input type="checkbox" name="privacyConsent" value="yes" required /> ยินยอมให้บริษัทใช้ข้อมูลนี้เพื่อติดต่อกลับและประเมินงานตามคำขอนี้</label>
+      <div className="quotation-turnstile"><div className="cf-turnstile" data-sitekey={siteKey} data-action="quotation" data-theme="dark" data-size="flexible" /><noscript>กรุณาเปิด JavaScript เพื่อยืนยันความปลอดภัยก่อนส่งคำขอ</noscript></div>
       <button className="button button-gradient" type="submit" disabled={submitting}>{submitting ? "กำลังบันทึกคำขอ…" : "ส่งคำขอใบเสนอราคา"}</button>
       {clientError && <p className="form-error" role="alert">{clientError}</p>}
     </form>
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer />
   </div></section>;
 }

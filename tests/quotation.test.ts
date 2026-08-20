@@ -6,6 +6,13 @@ import {
   quotationAttachmentDisposition,
   safeAttachmentFilename,
 } from "../lib/quotation-attachments.ts";
+import {
+  QUOTATION_TURNSTILE_ACTION,
+  turnstileKeysReady,
+  turnstileRemoteIp,
+  validTurnstileVerification,
+  verifyTurnstile,
+} from "../lib/turnstile.ts";
 
 function validForm() {
   const form = new FormData();
@@ -103,4 +110,41 @@ test("quotation attachment bounds and filename headers fail closed", async () =>
   const disposition = quotationAttachmentDisposition("รายการรถ.csv");
   assert.match(disposition, /^attachment; filename="[_]+\.csv"; filename\*=UTF-8''/);
   assert.doesNotMatch(disposition, /[\r\n]/);
+});
+
+test("Turnstile configuration and response checks require exact hostname and action", () => {
+  const siteKey = "1x00000000000000000000AA";
+  const secretKey = `1x${"0".repeat(31)}AA`;
+  assert.equal(turnstileKeysReady(siteKey, secretKey), true);
+  assert.equal(turnstileKeysReady("turnstile_site_key_replace_me", secretKey), false);
+  assert.equal(validTurnstileVerification({ success: true, hostname: "natheegroup2025.com", action: QUOTATION_TURNSTILE_ACTION }, "natheegroup2025.com"), true);
+  assert.equal(validTurnstileVerification({ success: true, hostname: "attacker.invalid", action: QUOTATION_TURNSTILE_ACTION }, "natheegroup2025.com"), false);
+  assert.equal(validTurnstileVerification({ success: true, hostname: "natheegroup2025.com", action: "login" }, "natheegroup2025.com"), false);
+  assert.equal(turnstileRemoteIp(" 2001:db8::1 "), "2001:db8::1");
+  assert.equal(turnstileRemoteIp("forwarded-for: attacker"), null);
+});
+
+test("Turnstile Siteverify keeps the secret in POST body and retries fail-closed", async () => {
+  const bodies: string[] = [];
+  let calls = 0;
+  const fetcher = async (_input: string | URL | Request, init?: RequestInit) => {
+    calls += 1;
+    bodies.push(String(init?.body ?? ""));
+    if (calls === 1) return new Response("unavailable", { status: 503 });
+    return Response.json({ success: true, hostname: "natheegroup2025.com", action: QUOTATION_TURNSTILE_ACTION });
+  };
+  const result = await verifyTurnstile({
+    token: "verified-browser-token",
+    remoteIp: "203.0.113.10",
+    idempotencyKey: "123e4567-e89b-42d3-a456-426614174000",
+    expectedHostname: "natheegroup2025.com",
+    secretKey: `1x${"0".repeat(31)}AA`,
+    fetcher: fetcher as typeof fetch,
+  });
+  assert.equal(result, true);
+  assert.equal(calls, 2);
+  assert.equal(bodies[0], bodies[1]);
+  assert.match(bodies[0], /response=verified-browser-token/);
+  assert.match(bodies[0], /idempotency_key=123e4567-e89b-42d3-a456-426614174000/);
+  assert.equal(await verifyTurnstile({ token: "", remoteIp: null, idempotencyKey: "123e4567-e89b-42d3-a456-426614174000", expectedHostname: "natheegroup2025.com", secretKey: `1x${"0".repeat(31)}AA`, fetcher: fetcher as typeof fetch }), false);
 });

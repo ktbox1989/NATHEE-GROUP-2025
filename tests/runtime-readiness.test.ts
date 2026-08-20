@@ -9,19 +9,21 @@ test("runtime readiness passes only when every production service is ready", () 
     canonicalOrigin: true,
     database: true,
     storage: true,
+    antiAbuse: true,
   });
   assert.equal(ready.statusCode, 200);
   assert.equal(ready.payload.status, "healthy");
 });
 
 test("runtime readiness fails closed for every missing dependency", () => {
-  for (const missing of ["authentication", "adminAuthentication", "canonicalOrigin", "database", "storage"] as const) {
+  for (const missing of ["authentication", "adminAuthentication", "canonicalOrigin", "database", "storage", "antiAbuse"] as const) {
     const checks = {
       authentication: true,
       adminAuthentication: true,
       canonicalOrigin: true,
       database: true,
       storage: true,
+      antiAbuse: true,
       [missing]: false,
     };
     const result = runtimeReadiness(checks);

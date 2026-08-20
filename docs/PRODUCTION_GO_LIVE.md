@@ -22,6 +22,8 @@ Configure these values in the hosting environment, never in source control:
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
 - `SUPABASE_SECRET_KEY` as a server-only secret
+- `NEXT_PUBLIC_TURNSTILE_SITE_KEY` as the public widget key
+- `TURNSTILE_SECRET_KEY` as a server-only secret
 
 The publishable key is safe for the authentication client. A service-role key,
 database password, JWT signing secret, or private key must never be exposed as a
@@ -48,7 +50,7 @@ After deployment, request:
 GET /api/health
 ```
 
-Production is ready only when it returns HTTP 200 and all five checks are
+Production is ready only when it returns HTTP 200 and all six checks are
 `true`:
 
 - `authentication`
@@ -56,13 +58,14 @@ Production is ready only when it returns HTTP 200 and all five checks are
 - `canonicalOrigin`
 - `database`
 - `storage`
+- `antiAbuse`
 
 `authentication` validates the Supabase HTTPS URL and current publishable-key
 format. `adminAuthentication` independently validates that a server-only
 secret is configured. `canonicalOrigin` requires the exact canonical
 Production origin. `database` verifies representative tables, indexes and
 invariant triggers through migration `0016`, not merely that D1 answers a
-query. `storage` performs a read-only R2 metadata probe. The endpoint never
+query. `storage` performs a read-only R2 metadata probe. `antiAbuse` requires both validated Turnstile runtime keys. The endpoint never
 returns credentials or connection strings.
 
 ## 5. Acceptance flow

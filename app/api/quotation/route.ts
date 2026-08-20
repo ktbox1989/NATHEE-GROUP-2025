@@ -7,6 +7,8 @@ import { nextBusinessNumber } from "@/lib/business-numbers";
 import { parseQuotationForm } from "@/lib/quotation";
 import { prepareQuotationAttachments, QUOTATION_MAX_REQUEST_BYTES } from "@/lib/quotation-attachments";
 import { isSameOrigin } from "@/lib/same-origin";
+import { getAppOrigin } from "@/lib/app-origin";
+import { turnstileRemoteIp, verifyTurnstile } from "@/lib/turnstile";
 
 export async function POST(request: NextRequest) {
   if (!isSameOrigin(request)) return new NextResponse("Forbidden", { status: 403 });
@@ -20,6 +22,22 @@ export async function POST(request: NextRequest) {
   }
   const parsed = parseQuotationForm(form);
   if (!parsed.ok) return redirect(request, "error", parsed.error);
+  const db = getDb();
+  try {
+    const existing = await db.select({ requestNumber: quoteRequests.requestNumber }).from(quoteRequests).where(eq(quoteRequests.requestKey, parsed.value.requestKey)).get();
+    if (existing) return redirect(request, "submitted", existing.requestNumber);
+  } catch {
+    return redirect(request, "error", "save");
+  }
+  const appOrigin = getAppOrigin(request.url);
+  const token = typeof form.get("cf-turnstile-response") === "string" ? String(form.get("cf-turnstile-response")) : "";
+  const challengePassed = appOrigin ? await verifyTurnstile({
+    token,
+    remoteIp: turnstileRemoteIp(request.headers.get("cf-connecting-ip")),
+    idempotencyKey: parsed.value.requestKey.slice("quote-".length),
+    expectedHostname: new URL(appOrigin).hostname,
+  }) : false;
+  if (!challengePassed) return redirect(request, "error", "challenge");
   let attachmentResult;
   try {
     attachmentResult = await prepareQuotationAttachments(form);
@@ -28,12 +46,8 @@ export async function POST(request: NextRequest) {
   }
   if (!attachmentResult.ok) return redirect(request, "error", attachmentResult.error);
 
-  const db = getDb();
   const storedKeys: string[] = [];
   try {
-    const existing = await db.select({ requestNumber: quoteRequests.requestNumber }).from(quoteRequests).where(eq(quoteRequests.requestKey, parsed.value.requestKey)).get();
-    if (existing) return redirect(request, "submitted", existing.requestNumber);
-
     const id = crypto.randomUUID();
     const requestNumber = await nextBusinessNumber("QT");
     const consentAt = new Date().toISOString();

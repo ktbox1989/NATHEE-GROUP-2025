@@ -4,6 +4,7 @@ export type RuntimeChecks = {
   canonicalOrigin: boolean;
   database: boolean;
   storage: boolean;
+  antiAbuse: boolean;
 };
 
 export const REQUIRED_DATABASE_OBJECTS = [

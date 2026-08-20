@@ -604,7 +604,7 @@ footer { border-top: 1px solid var(--border); background: #050611; color: var(--
 .quotation-form input, .quotation-form select, .quotation-form textarea { width: 100%; min-height: 48px; border: 1px solid var(--border); border-radius: 12px; padding: 11px 13px; color: var(--text); background: rgba(3,6,18,.88); font: inherit; }
 .quotation-form textarea { min-height: 130px; resize: vertical; }
 .quotation-form input:focus-visible, .quotation-form select:focus-visible, .quotation-form textarea:focus-visible { outline: 3px solid rgba(91,108,255,.38); outline-offset: 2px; }
-.quotation-extras, .quotation-attachments, .quotation-notes, .quotation-consent, .quotation-form > button, .quotation-form > .form-error { grid-column: 1 / -1; }
+.quotation-extras, .quotation-attachments, .quotation-notes, .quotation-consent, .quotation-turnstile, .quotation-form > button, .quotation-form > .form-error { grid-column: 1 / -1; }
 .quotation-extras { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; padding: 16px; border: 1px solid var(--border); border-radius: 16px; }
 .quotation-extras legend { padding-inline: 6px; color: var(--muted); font-weight: 800; }
 .quotation-extras label, .quotation-consent { display: flex; gap: 10px; align-items: flex-start; color: var(--muted); line-height: 1.5; }
@@ -614,6 +614,7 @@ footer { border-top: 1px solid var(--border); background: #050611; color: var(--
 .quotation-attachment-list a { display: flex; min-height: 44px; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; overflow-wrap: anywhere; }
 .quotation-attachment-list small { flex: 0 0 auto; color: var(--muted); }
 .quotation-attachment-warning { margin: 0 0 10px; color: var(--muted); font-size: .84rem; line-height: 1.55; }
+.quotation-turnstile { min-height: 65px; overflow: hidden; }
 .quotation-honeypot { position: absolute !important; left: -10000px !important; width: 1px !important; height: 1px !important; overflow: hidden !important; }
 .quotation-result { padding-bottom: 0; }
 .quotation-result .app-panel { padding: 24px; }
@@ -812,7 +813,7 @@ footer { border-top: 1px solid var(--border); background: #050611; color: var(--
   .cms-section { padding-block: 66px; }
   .cms-feature-grid, .cms-contact-grid, .site-page-grid { grid-template-columns: 1fr; }
   .quotation-layout, .quotation-form { grid-template-columns: 1fr; }
-  .quotation-extras, .quotation-attachments, .quotation-notes, .quotation-consent, .quotation-form > button, .quotation-form > .form-error { grid-column: auto; }
+  .quotation-extras, .quotation-attachments, .quotation-notes, .quotation-consent, .quotation-turnstile, .quotation-form > button, .quotation-form > .form-error { grid-column: auto; }
   .quotation-admin-card dl { grid-template-columns: 1fr; }
   .quotation-admin-card > header, .quotation-status-form { align-items: stretch; flex-direction: column; }
   .quotation-status-form button, .quotation-status-form select { width: 100%; }

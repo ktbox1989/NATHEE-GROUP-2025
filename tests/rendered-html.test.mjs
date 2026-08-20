@@ -80,14 +80,36 @@ test("managed public pages fail safely without a D1 binding", async () => {
   }
 });
 
-test("quotation page exposes only the real durable submission path", async () => {
+test("quotation page fails closed until real anti-abuse configuration exists", async () => {
   const response = await render("/quotation");
   assert.equal(response.status, 200);
   const html = await response.text();
-  assert.match(html, /action="\/api\/quotation"/);
-  assert.match(html, /name="attachments"/);
-  assert.match(html, /multipart\/form-data/);
-  assert.match(html, /name="privacyConsent"/);
-  assert.match(html, /ออกเลขอ้างอิงเมื่อฐานข้อมูลรับข้อมูลสำเร็จเท่านั้น/);
+  assert.match(html, /ระบบออนไลน์ยังไม่เปิดรับคำขอ/);
+  assert.match(html, /063-194-1191/);
+  assert.doesNotMatch(html, /action="\/api\/quotation"/);
+  assert.doesNotMatch(html, /challenges\.cloudflare\.com\/turnstile/);
   assert.doesNotMatch(html, /ส่งสำเร็จ.*ตัวอย่าง|fake success/i);
+});
+
+test("quotation page exposes the durable form only with complete anti-abuse configuration", async () => {
+  const testSecretKey = `1x${"0".repeat(31)}AA`;
+  process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY = "1x00000000000000000000AA";
+  process.env.TURNSTILE_SECRET_KEY = testSecretKey;
+  try {
+    const response = await render("/quotation?configured=1");
+    assert.equal(response.status, 200);
+    const html = await response.text();
+    assert.match(html, /action="\/api\/quotation"/);
+    assert.match(html, /name="attachments"/);
+    assert.match(html, /multipart\/form-data/);
+    assert.match(html, /name="privacyConsent"/);
+    assert.match(html, /data-action="quotation"/);
+    assert.match(html, /challenges\.cloudflare\.com\/turnstile/);
+    assert.match(html, /ออกเลขอ้างอิงเมื่อฐานข้อมูลรับข้อมูลสำเร็จเท่านั้น/);
+    assert.doesNotMatch(html, /TURNSTILE_SECRET_KEY/);
+    assert.doesNotMatch(html, new RegExp(testSecretKey));
+  } finally {
+    delete process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+    delete process.env.TURNSTILE_SECRET_KEY;
+  }
 });
