@@ -1,0 +1,36 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { isSameOrigin } from "../lib/same-origin.ts";
+import { safeReturnTo } from "../lib/safe-return-to.ts";
+
+test("safe return paths preserve only local application URLs", () => {
+  assert.equal(safeReturnTo("/app/jobs?view=open"), "/app/jobs?view=open");
+  assert.equal(safeReturnTo("/portal#latest"), "/portal#latest");
+  assert.equal(safeReturnTo("https://attacker.invalid"), "/app");
+  assert.equal(safeReturnTo("//attacker.invalid"), "/app");
+  assert.equal(safeReturnTo("/\\attacker.invalid"), "/app");
+  assert.equal(safeReturnTo(null), "/app");
+});
+
+test("mutation origin checks accept same-origin browser posts only", () => {
+  const sameOrigin = new Request("https://system.nathee.example/api/jobs", {
+    method: "POST",
+    headers: { origin: "https://system.nathee.example" },
+  });
+  const crossOrigin = new Request("https://system.nathee.example/api/jobs", {
+    method: "POST",
+    headers: { origin: "https://attacker.invalid" },
+  });
+  const fetchMetadataFallback = new Request(
+    "https://system.nathee.example/api/jobs",
+    { method: "POST", headers: { "sec-fetch-site": "same-origin" } },
+  );
+  const headerless = new Request("https://system.nathee.example/api/jobs", {
+    method: "POST",
+  });
+
+  assert.equal(isSameOrigin(sameOrigin as never), true);
+  assert.equal(isSameOrigin(crossOrigin as never), false);
+  assert.equal(isSameOrigin(fetchMetadataFallback as never), true);
+  assert.equal(isSameOrigin(headerless as never), false);
+});
