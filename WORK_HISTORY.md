@@ -1,5 +1,16 @@
 # NATHEE GROUP 2025 — Work History
 
+## 2026-08-21 — Fail-closed Container Registry Foundation
+
+- Implementation commit: `7bd4bad`
+- Added additive migration `0009_container_registry` for shipping containers and append-only status events.
+- ISO 6346 container numbers are normalized and check-digit validated in the server path; database constraints preserve format, type, capacity, port/country bounds and unique identity.
+- Create is idempotent and atomically writes DRAFT, initial event and redacted Audit.
+- Database triggers reject identity rewrite, hard delete and all non-DRAFT lifecycle transitions until the vehicle-load assignment milestone provides readiness invariants.
+- Added internal-only responsive registry UI with bounded 50-record keyset pages and no fake manifest/status controls.
+- Verification: full tests 71/71, build PASS, lint PASS, public SEO/deployment guards PASS, scoped secret scan found no embedded credential value.
+- Deployment: source pushed to `main`; migration `0009` was not applied and Production remained unchanged.
+
 ## 2026-08-21 — Load Board Operational Context and Discovery
 
 - Commits: `bc90bb3`, `bc3e1f1`

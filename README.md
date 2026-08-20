@@ -81,6 +81,13 @@ Node.js 22.13 or newer is required.
 - Fleet/eligible-motorcycle discovery uses validated prefix input, field-specific indexed queries and bounded server merging; trip status filtering preserves keyset pagination.
 - Authorized internal users see the active trip context on motorcycle detail, while customer roles never receive the internal trip link/query.
 
+## Container operations
+
+- The local Container Registry accepts only ISO 6346 numbers whose owner/category format and check digit are valid.
+- It stores Seal, 20FT/40FT/40HC type, optional confirmed capacity, port and country through an idempotent audited D1 write.
+- Registry rows remain DRAFT and immutable until the next migration adds motorcycle assignments and load/Seal readiness. The current UI explicitly does not claim to be a Container Load Manifest.
+- Container records and events are retained; database triggers reject hard deletion and unguarded lifecycle changes.
+
 ## Z.com public website
 
 The cPanel-hosted public website is intentionally separate from the authenticated logistics application. Deploy it only from the reviewed staging clone at `/home/zptqqwps/nathee-deploy`; the deploy script creates a complete backup, verifies checksums, preserves unknown Production files, runs live checks, and restores the backup automatically on failure.

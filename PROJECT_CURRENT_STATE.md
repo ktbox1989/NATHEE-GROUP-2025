@@ -5,7 +5,7 @@ Updated: 2026-08-21 (Asia/Bangkok)
 ## Source checkpoint
 
 - Branch: `main`
-- Latest verified implementation milestone: `bc3e1f1` — Audited Load Board and Index-backed Discovery
+- Latest verified implementation milestone: `7bd4bad` — Fail-closed Container Registry Foundation
 - Canonical repository: `ktbox1989/NATHEE-GROUP-2025`
 - Working rule: resolve the current checkpoint-document commit with `git rev-parse HEAD`; never infer Production deployment from source HEAD.
 
@@ -77,31 +77,40 @@ Updated: 2026-08-21 (Asia/Bangkok)
 - Trip lists can be filtered by indexed lifecycle status without losing keyset bounds.
 - Migration `0008_trip_motorcycle_loads` upgrades an existing `0007` database without rewriting prior trips and remains unapplied in Production.
 
+### Fail-closed Container Registry Foundation (`7bd4bad`)
+
+- Added shipping-container records with ISO 6346 owner/category format and check-digit validation, unique opaque public identity, Seal, 20FT/40FT/40HC type, optional confirmed motorcycle capacity, port and destination country.
+- Create is request-key idempotent and commits the DRAFT record, initial status event and redacted Audit entry in one D1 batch.
+- Container identity/history cannot be hard-deleted or rewritten. Lifecycle advancement is deliberately blocked at the database until the next vehicle-assignment migration can enforce load, capacity, Seal and motorcycle-state readiness.
+- Added internal-only, responsive `/app/containers` registry with a 50-record keyset page and explicit warning that it is not yet a Container Load Manifest.
+- Migration `0009_container_registry` is additive and remains unapplied in Production.
+
 ## Verified source gates
 
-- Full test suite: 68 passing
-- Authorization/unit tests: 42 passing
-- Render/schema/notification/yard/trip-assignment/query-plan tests: 26 passing
+- Full test suite: 71 passing
+- Authorization/unit tests: 44 passing
+- Render/schema/notification/yard/trip/container/query-plan tests: 27 passing
 - Production Vinext build: PASS
 - ESLint: PASS
 - Public SEO and deployment architecture guards: PASS
-- Migrations through `0008` packaged in `dist/.openai/drizzle/`: PASS
+- Migrations through `0009` packaged in `dist/.openai/drizzle/`: PASS
 
 ## Open Owner gates
 
 - Approve application routing model: apex edge routes or an application subdomain.
 - Supply/configure Supabase Production values through a secure hosting channel.
-- Backup and apply migrations `0001`–`0008` to the protected D1 runtime.
+- Backup and apply migrations `0001`–`0009` to the protected D1 runtime.
 - Verify private R2 readiness.
 - Bootstrap the real OWNER identity and accept two-company customer isolation.
 - Add real company Gallery photographs and verified location/map data.
 
 ## Next autonomous work
 
-1. Continue dependency order: Container, Inspection/Damage, POD, documents and print center.
-2. Add bounded Company Search before management selector limits are reached.
-3. Replace the still-bounded 200-driver selector with an indexed driver lookup before large staff rollout.
-4. Keep all new migrations local until Production backup/runtime gates are satisfied.
+1. Add container/motorcycle assignments, capacity/Seal readiness and audited lifecycle before enabling any non-DRAFT container state.
+2. Continue dependency order: Inspection/Damage, POD, documents and print center.
+3. Add bounded Company Search before management selector limits are reached.
+4. Replace the still-bounded 200-driver selector with an indexed driver lookup before large staff rollout.
+5. Keep all new migrations local until Production backup/runtime gates are satisfied.
 
 ## Prohibited claims
 
