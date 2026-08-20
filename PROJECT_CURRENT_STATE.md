@@ -6,7 +6,7 @@ Updated: 2026-08-21 (Asia/Bangkok)
 
 - Review branch: `codex/nathee-media-owner-2`
 - Integration baseline: `3cfd65a176cba858c6fd5d76cab61df5c78093f8`
-- Latest verified implementation milestone: Private signed Proof of Delivery (`7a5bf0d47a3f0cffbdd22d979dcb5b4d7d73fb6e`)
+- Latest verified implementation milestone: Fail-closed Gallery batch uploads (`ab3c868681f2e14e9bb1a9f458c5df29de6d25e7`)
 - Canonical repository: `ktbox1989/NATHEE-GROUP-2025`
 - Working rule: resolve the current checkpoint-document commit with `git rev-parse HEAD`; never infer Production deployment from source HEAD.
 
@@ -25,6 +25,15 @@ Updated: 2026-08-21 (Asia/Bangkok)
 - Full application Production acceptance: NOT PASSED
 
 ## Closed local milestones
+
+### Fail-closed Gallery batch uploads (`ab3c868`)
+
+- Repaired a real false-success defect: XHR previously followed an API validation redirect to an HTML page and treated the resulting HTTP 200 as a completed Draft. The uploader now accepts success only from a complete JSON contract containing `ok=true`, the canonical Gallery item ID and duplicate state.
+- Each queued file receives one cryptographically secure request key that survives network-error retry. The API strictly validates that identity; duplicate and concurrent requests return the same canonical item instead of creating a second Draft.
+- The server bounds aggregate request size, rejects non-multipart uploads and returns explicit JSON errors for the client contract while preserving redirect behavior for non-XHR forms. A failed D1/race path best-effort removes only its own new R2 objects and checks the unique request key before reporting failure.
+- Added the same 80-million decoded-pixel safety ceiling used by private evidence processing, and centralized browser UUID generation with a secure `getRandomValues` fallback.
+- Verification: full tests 168/168 (103 unit + 65 integration), TypeScript PASS, ESLint PASS, Vinext Production build PASS, public SEO/Gallery/mobile/responsive/deployment guards PASS, false-success/identity regressions PASS, scoped secret scan PASS and `git diff --check` PASS.
+- No migration was added and Production remains unchanged. Real browser upload/R2 acceptance still requires the gated Auth/D1/R2 application runtime.
 
 ### Private signed Proof of Delivery (`7a5bf0d`)
 
@@ -247,8 +256,8 @@ Updated: 2026-08-21 (Asia/Bangkok)
 
 ## Verified source gates
 
-- Full test suite: 166 passing
-- Authorization/unit/CMS/settings/search/config/readiness/identity/quotation/Turnstile/image/POD-signature tests: 101 passing
+- Full test suite: 168 passing
+- Authorization/unit/CMS/settings/search/config/readiness/identity/quotation/Turnstile/image/POD-signature tests: 103 passing
 - Render/schema/notification/yard/trip/container/inspection/POD/CMS/settings/query-plan/migration tests: 65 passing
 - Production Vinext build: PASS
 - ESLint: PASS

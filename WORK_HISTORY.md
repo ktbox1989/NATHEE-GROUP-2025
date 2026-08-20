@@ -1,5 +1,15 @@
 # NATHEE GROUP 2025 — Work History
 
+## 2026-08-21 — Fail-closed Gallery batch uploads
+
+- Implementation commit: `ab3c868`
+- Fixed an evidence-backed false-success path where XHR followed validation-error redirects and accepted the resulting HTML HTTP 200 as a completed upload. Success now requires a complete server JSON acknowledgement with the canonical Gallery item ID.
+- Assigned one cryptographically secure idempotency identity per queued image and retained it across retries. The API validates the format, returns canonical duplicates and reconciles unique-key races after best-effort cleanup of only the losing attempt's R2 objects.
+- Added multipart/aggregate-byte guards, decoded-pixel bounds, explicit Auth/validation/server status codes and centralized secure browser UUID generation. Existing non-XHR redirects remain compatible.
+- Verification: full tests 168/168 (103 unit + 65 integration), TypeScript PASS, ESLint PASS, Vinext Production build PASS, public SEO/Gallery/mobile/responsive/deployment guards PASS, scoped secret scan PASS and `git diff --check` PASS.
+- Deployment: source only. No migration, Z.com file, Sites version, Auth setting, D1 row, R2 object, DNS or Production runtime changed.
+- Rollback: revert `ab3c868`; no database/object rollback is required. Do not remove successfully created Gallery Drafts when rolling back a client release.
+
 ## 2026-08-21 — Private signed Proof of Delivery
 
 - Implementation commit: `7a5bf0d`

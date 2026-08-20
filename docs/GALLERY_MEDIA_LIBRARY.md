@@ -26,7 +26,9 @@ Publishing and editing a currently published record require `gallery:publish`. A
 
 Each upload has an ORIGINAL, DISPLAY and THUMBNAIL variant in private R2. The browser prepares WebP and attempts AVIF when supported; the server independently validates file signature, type, byte limit and SHA-256 before recording metadata. A failed D1 batch triggers compensating deletion of newly written R2 objects.
 
-The admin batch uploader accepts at most 20 images at a time and processes them sequentially to bound browser memory and network pressure. Each image requires its own factual title and Alt text. A cancelled or partially failed batch never claims success: completed images remain Draft, the failed item is identified, and retry skips completed records.
+The admin batch uploader accepts at most 20 images at a time and processes them sequentially to bound browser memory and network pressure. Each image requires its own factual title and Alt text. Decoding stops above 80 million pixels. A cancelled or partially failed batch never claims success: completed images remain Draft, the failed item is identified, and retry skips completed records.
+
+Every queued image owns one secure `gallery-upload-<UUID>` request key for its entire retry lifetime. The API has a matching database unique index and returns the canonical row on duplicate/concurrent retry. The browser marks `DONE` only for HTTP 2xx JSON containing `ok=true`, a non-empty `galleryItemId` and a boolean duplicate flag; redirect HTML, incomplete JSON, Auth failure and validation failure remain visible errors. This prevents a followed redirect from fabricating a successful Draft.
 
 The read route negotiates AVIF/WebP with `Accept`, sends immutable-style public caching only for public/published items, and sends `private, no-store` for authorized private items.
 
