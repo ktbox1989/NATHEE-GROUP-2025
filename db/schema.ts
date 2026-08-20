@@ -21,6 +21,8 @@ export const STAFF_PERMISSIONS = [
   "images:write",
   "status:read",
   "status:write",
+  "yard:read",
+  "yard:write",
   "documents:read",
   "audit:read",
 ] as const;
@@ -65,6 +67,7 @@ export const QUOTE_STATUSES = [
   "REJECTED",
   "CANCELLED",
 ] as const;
+export const YARD_ZONE_STATUSES = ["ACTIVE", "INACTIVE"] as const;
 
 const createdAt = () =>
   text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`);
@@ -151,7 +154,7 @@ export const userPermissions = sqliteTable(
     index("idx_user_permissions_user").on(table.userId),
     check(
       "ck_user_permissions_permission",
-      sql`${table.permission} IN ('companies:read', 'companies:write', 'jobs:read', 'jobs:write', 'motorcycles:read', 'motorcycles:write', 'images:read', 'images:write', 'status:read', 'status:write', 'documents:read', 'audit:read')`,
+      sql`${table.permission} IN ('companies:read', 'companies:write', 'jobs:read', 'jobs:write', 'motorcycles:read', 'motorcycles:write', 'images:read', 'images:write', 'status:read', 'status:write', 'yard:read', 'yard:write', 'documents:read', 'audit:read')`,
     ),
   ],
 );
@@ -233,6 +236,69 @@ export const motorcycles = sqliteTable(
     check(
       "ck_motorcycles_status",
       sql`${table.currentStatus} IN ('PENDING_RECEIPT', 'RECEIVED', 'INSPECTED', 'IN_YARD', 'SCHEDULED', 'LOADED', 'IN_TRANSIT', 'ARRIVED', 'DELIVERED', 'CLOSED', 'ISSUE', 'DAMAGED', 'WAITING_DOCUMENTS', 'CANCELLED')`,
+    ),
+  ],
+);
+
+export const yardZones = sqliteTable(
+  "yard_zones",
+  {
+    id: text("id").primaryKey(),
+    code: text("code").notNull(),
+    name: text("name").notNull(),
+    description: text("description"),
+    capacity: integer("capacity"),
+    status: text("status", { enum: YARD_ZONE_STATUSES }).notNull().default("ACTIVE"),
+    createdBy: text("created_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    uniqueIndex("uq_yard_zones_code").on(table.code),
+    index("idx_yard_zones_status_code").on(table.status, table.code),
+    check("ck_yard_zones_code", sql`length(${table.code}) BETWEEN 2 AND 30`),
+    check("ck_yard_zones_capacity", sql`${table.capacity} IS NULL OR ${table.capacity} > 0`),
+    check("ck_yard_zones_status", sql`${table.status} IN ('ACTIVE', 'INACTIVE')`),
+  ],
+);
+
+export const yardPlacements = sqliteTable(
+  "yard_placements",
+  {
+    id: text("id").primaryKey(),
+    requestKey: text("request_key").notNull(),
+    motorcycleId: text("motorcycle_id")
+      .notNull()
+      .references(() => motorcycles.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    companyId: text("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    yardZoneId: text("yard_zone_id")
+      .notNull()
+      .references(() => yardZones.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    enteredAt: text("entered_at").notNull(),
+    exitedAt: text("exited_at"),
+    placedBy: text("placed_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    note: text("note"),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    uniqueIndex("uq_yard_placements_request_key").on(table.requestKey),
+    uniqueIndex("uq_yard_placements_motorcycle_active")
+      .on(table.motorcycleId)
+      .where(sql`${table.exitedAt} IS NULL`),
+    index("idx_yard_placements_zone_active")
+      .on(table.yardZoneId, table.enteredAt)
+      .where(sql`${table.exitedAt} IS NULL`),
+    index("idx_yard_placements_company_entered").on(table.companyId, table.enteredAt),
+    index("idx_yard_placements_motorcycle_entered").on(table.motorcycleId, table.enteredAt),
+    check(
+      "ck_yard_placements_time_order",
+      sql`${table.exitedAt} IS NULL OR ${table.exitedAt} >= ${table.enteredAt}`,
     ),
   ],
 );
@@ -362,3 +428,4 @@ export const auditLogs = sqliteTable(
 export type UserRole = (typeof USER_ROLES)[number];
 export type MotorcycleStatus = (typeof MOTORCYCLE_STATUSES)[number];
 export type ImageCategory = (typeof IMAGE_CATEGORIES)[number];
+export type YardZoneStatus = (typeof YARD_ZONE_STATUSES)[number];

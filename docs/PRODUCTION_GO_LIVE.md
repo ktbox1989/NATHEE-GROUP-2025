@@ -75,6 +75,13 @@ The endpoint never returns credentials or connection strings.
     single or batch label-printing pages.
 12. Batch printing renders at most 48 labels per page and the next-page link
     continues by motorcycle sequence without duplicates.
+13. OWNER creates a real yard zone, assigns a motorcycle, moves it once, and
+    records exit. Only one active placement exists at each step and every
+    operation has a matching audit entry.
+14. A full zone rejects a new placement without closing or changing the
+    motorcycle's existing placement. Repeating the same form submission does
+    not create duplicate active placements.
+15. CUSTOMER accounts cannot open yard operations or mutate yard placement.
 
 ## 6. Rollback
 

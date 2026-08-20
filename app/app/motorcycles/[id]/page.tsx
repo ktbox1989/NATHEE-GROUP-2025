@@ -1,13 +1,14 @@
 /* eslint-disable @next/next/no-img-element -- Private R2 images are served by an authenticated endpoint and must not pass through the public image optimizer. */
 import Link from "next/link";
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, isNull } from "drizzle-orm";
 import { notFound, redirect } from "next/navigation";
 import { getDb } from "@/db";
-import { companies, motorcycleImages, motorcycles, statusEvents, transportJobs, users } from "@/db/schema";
+import { companies, motorcycleImages, motorcycles, statusEvents, transportJobs, users, yardPlacements, yardZones } from "@/db/schema";
 import { can } from "@/lib/authorization";
 import { requireActor } from "@/lib/current-actor";
 import { motorcycleStatusLabels } from "@/lib/labels";
 import { allowedTransitions } from "@/lib/status-transitions";
+import { isYardPlacementAllowed, YARD_EXIT_VALUE } from "@/lib/yard";
 
 export const dynamic = "force-dynamic";
 
@@ -48,7 +49,9 @@ export default async function MotorcycleDetailPage({ params, searchParams }: Mot
   if (!record) notFound();
   if (!can(actor, "motorcycles:read", record.companyId)) redirect("/app");
 
-  const [images, events] = await Promise.all([
+  const canReadYard = can(actor, "yard:read");
+  const canUpdateYard = can(actor, "yard:write");
+  const [images, events, currentYard, activeZones] = await Promise.all([
     db
       .select()
       .from(motorcycleImages)
@@ -69,6 +72,29 @@ export default async function MotorcycleDetailPage({ params, searchParams }: Mot
       .where(eq(statusEvents.motorcycleId, id))
       .orderBy(asc(statusEvents.createdAt))
       .all(),
+    canReadYard
+      ? db
+          .select({
+            placementId: yardPlacements.id,
+            yardZoneId: yardPlacements.yardZoneId,
+            zoneCode: yardZones.code,
+            zoneName: yardZones.name,
+            enteredAt: yardPlacements.enteredAt,
+            note: yardPlacements.note,
+          })
+          .from(yardPlacements)
+          .innerJoin(yardZones, eq(yardZones.id, yardPlacements.yardZoneId))
+          .where(and(eq(yardPlacements.motorcycleId, id), isNull(yardPlacements.exitedAt)))
+          .get()
+      : Promise.resolve(undefined),
+    canUpdateYard
+      ? db
+          .select({ id: yardZones.id, code: yardZones.code, name: yardZones.name })
+          .from(yardZones)
+          .where(eq(yardZones.status, "ACTIVE"))
+          .orderBy(asc(yardZones.code))
+          .all()
+      : Promise.resolve([]),
   ]);
   const nextStatuses = allowedTransitions(record.currentStatus);
   const canUpdateStatus = can(actor, "status:write", record.companyId);
@@ -83,6 +109,7 @@ export default async function MotorcycleDetailPage({ params, searchParams }: Mot
       </div>
       {query.status === "updated" && <div className="form-message success page-message">อัปเดตสถานะเรียบร้อยแล้ว</div>}
       {query.status === "image_uploaded" && <div className="form-message success page-message">อัปโหลดรูปเรียบร้อยแล้ว</div>}
+      {query.status === "yard_updated" && <div className="form-message success page-message">อัปเดตตำแหน่งลานเรียบร้อยแล้ว</div>}
       {query.error && <div className="form-message error page-message">บันทึกไม่สำเร็จ กรุณาตรวจสอบข้อมูลและสิทธิ์</div>}
 
       <div className="record-detail-grid">
@@ -107,6 +134,45 @@ export default async function MotorcycleDetailPage({ params, searchParams }: Mot
           </form>
         )}
       </div>
+
+      {canReadYard && (
+        <section className="detail-section">
+          <div className="detail-section-head"><div><p>YARD LOCATION</p><h2>ตำแหน่งในลาน</h2></div><Link href="/app/yard">เปิดภาพรวมลาน →</Link></div>
+          <div className="record-detail-grid">
+            <article className="app-panel yard-current-card">
+              <span>ตำแหน่งปัจจุบัน</span>
+              {currentYard ? <><h3>{currentYard.zoneCode} · {currentYard.zoneName}</h3><p>เข้าพื้นที่ {formatThaiDateTime(currentYard.enteredAt)}</p><small>{currentYard.note || "ไม่มีหมายเหตุ"}</small></> : <><h3>อยู่นอกลาน</h3><p>ยังไม่มีตำแหน่งลานที่ active</p></>}
+            </article>
+            {canUpdateYard && (
+              <div className="yard-action-stack">
+                {activeZones.some((zone) => zone.id !== currentYard?.yardZoneId) && isYardPlacementAllowed(record.currentStatus) ? (
+                  <form className="app-panel status-form yard-form" action={`/api/motorcycles/${id}/yard`} method="post">
+                    <h2>{currentYard ? "ย้ายโซน" : "นำรถเข้าลาน"}</h2>
+                    <input type="hidden" name="expectedPlacementId" value={currentYard?.placementId ?? "none"} />
+                    <input type="hidden" name="requestKey" value={crypto.randomUUID()} />
+                    <div className="field"><label htmlFor="destinationZoneId">โซนปลายทาง</label><select id="destinationZoneId" name="destinationZoneId" required><option value="">เลือกโซน</option>{activeZones.filter((zone) => zone.id !== currentYard?.yardZoneId).map((zone) => <option key={zone.id} value={zone.id}>{zone.code} · {zone.name}</option>)}</select></div>
+                    <div className="field"><label htmlFor="yardNote">หมายเหตุ</label><textarea id="yardNote" name="note" rows={2} maxLength={500} /></div>
+                    <button className="button button-gradient" type="submit">บันทึกตำแหน่ง</button>
+                  </form>
+                ) : !isYardPlacementAllowed(record.currentStatus) ? (
+                  <div className="app-panel yard-action-note">สถานะรถปัจจุบันไม่อนุญาตให้นำเข้าหรือย้ายลาน</div>
+                ) : (
+                  <div className="app-panel yard-action-note">ยังไม่มีโซน active อื่นสำหรับบันทึกตำแหน่ง</div>
+                )}
+                {currentYard && (
+                  <form className="app-panel yard-exit-form" action={`/api/motorcycles/${id}/yard`} method="post">
+                    <input type="hidden" name="destinationZoneId" value={YARD_EXIT_VALUE} />
+                    <input type="hidden" name="expectedPlacementId" value={currentYard.placementId} />
+                    <input type="hidden" name="requestKey" value={crypto.randomUUID()} />
+                    <div className="field"><label htmlFor="yardExitNote">หมายเหตุนำออกจากลาน</label><input id="yardExitNote" name="note" maxLength={500} /></div>
+                    <button className="button button-glass" type="submit">บันทึกออกจากลาน</button>
+                  </form>
+                )}
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       <section className="detail-section">
         <div className="detail-section-head"><div><p>IMAGES</p><h2>รูปภาพรถ</h2></div></div>

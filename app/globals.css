@@ -240,6 +240,34 @@ footer { border-top: 1px solid var(--border); background: #050611; color: var(--
 .vehicle-label-copy small { display: block; margin-top: 7px; overflow-wrap: anywhere; color: #6b7280; font-family: var(--font-mono); font-size: 6.5px; }
 .batch-navigation { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 18px; padding: 14px 16px; border: 1px solid var(--border); border-radius: 14px; color: var(--muted); font-size: 12px; }
 
+.yard-zone-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 13px; margin-bottom: 8px; }
+.yard-zone-card { position: relative; min-height: 190px; padding: 18px; overflow: hidden; }
+.yard-zone-card::before { position: absolute; top: 0; right: 0; left: 0; height: 2px; background: var(--gradient); content: ""; }
+.yard-zone-card.full::before { background: #f59e0b; }
+.yard-zone-card > div { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.yard-zone-card > div > span:first-child { color: #c4b5fd; font-family: var(--font-mono); font-size: 11px; font-weight: 700; letter-spacing: .08em; }
+.yard-zone-card h2 { margin-top: 14px; font-family: var(--font-display); font-size: 17px; font-weight: 600; }
+.yard-zone-card p { min-height: 38px; margin-top: 4px; color: var(--muted); font-size: 11.5px; }
+.yard-zone-card strong { display: block; margin-top: 14px; font-family: var(--font-display); font-size: 27px; }
+.yard-zone-card strong small { color: var(--muted); font-size: 11px; font-weight: 400; }
+.yard-zone-card em { display: inline-flex; margin-top: 5px; color: #fbbf24; font-size: 10px; font-style: normal; }
+.yard-zone-status-form { margin-top: 10px; }
+.yard-zone-status-form button { min-height: 32px; padding: 5px 10px; border: 1px solid var(--border); border-radius: 999px; background: rgba(255,255,255,.035); color: #c9cef5; cursor: pointer; font-size: 10px; }
+.yard-zone-status-form button:hover { border-color: var(--border-strong); color: #fff; }
+.yard-empty { grid-column: 1 / -1; }
+.yard-current-card { min-height: 210px; padding: 22px; }
+.yard-current-card > span { color: #8f86c9; font-family: var(--font-mono); font-size: 9px; letter-spacing: .14em; }
+.yard-current-card h3 { margin-top: 22px; font-family: var(--font-display); font-size: 25px; font-weight: 620; }
+.yard-current-card p { margin-top: 5px; color: #c9cef5; font-size: 13px; }
+.yard-current-card small { display: block; margin-top: 16px; color: var(--muted); }
+.yard-action-stack { display: grid; gap: 12px; }
+.yard-form { height: fit-content; }
+.yard-exit-form { padding: 18px; }
+.yard-exit-form .field { margin-bottom: 10px; }
+.yard-exit-form input { width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 11px; outline: none; background: rgba(255,255,255,.04); color: var(--text); }
+.yard-exit-form .button { width: 100%; }
+.yard-action-note { padding: 22px; color: var(--muted); font-size: 12.5px; }
+
 .login-page { position: relative; display: grid; min-height: 100vh; place-items: center; overflow: hidden; padding: 24px; }
 .login-card { position: relative; z-index: 1; width: min(100%, 430px); padding: 38px 34px; border: 1px solid var(--border); border-radius: 24px; background: rgba(255,255,255,.045); box-shadow: 0 30px 90px -20px rgba(0,0,0,.7); backdrop-filter: blur(20px); }
 .login-card::before { position: absolute; top: 0; right: 26px; left: 26px; height: 2px; border-radius: 2px; background: var(--gradient); content: ""; }
@@ -287,6 +315,7 @@ footer { border-top: 1px solid var(--border); background: #050611; color: var(--
   .qr-scan-grid { grid-template-columns: 1fr; }
   .scan-result dl { grid-template-columns: repeat(2, minmax(0,1fr)); }
   .label-sheet { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .yard-zone-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
 }
 
 @media (max-width: 600px) {
@@ -330,6 +359,7 @@ footer { border-top: 1px solid var(--border); background: #050611; color: var(--
   .qr-camera-card, .qr-manual-card, .scan-result { padding: 16px; }
   .qr-video-frame, .qr-video-frame video { min-height: 240px; }
   .batch-navigation { align-items: stretch; flex-direction: column; }
+  .yard-zone-grid { grid-template-columns: 1fr; }
 }
 
 @media print {

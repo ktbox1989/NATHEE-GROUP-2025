@@ -9,6 +9,8 @@ export const PERMISSIONS = [
   "images:write",
   "status:read",
   "status:write",
+  "yard:read",
+  "yard:write",
   "documents:read",
   "audit:read",
 ] as const;

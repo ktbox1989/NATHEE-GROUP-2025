@@ -6,6 +6,7 @@ test("owner has access to every company and capability", () => {
   const owner = { userId: "owner-1", role: "OWNER" as const, companyId: null };
   assert.equal(can(owner, "companies:write", "company-b"), true);
   assert.equal(can(owner, "audit:read"), true);
+  assert.equal(can(owner, "yard:write"), true);
 });
 
 test("staff access requires an explicit capability", () => {
@@ -13,10 +14,12 @@ test("staff access requires an explicit capability", () => {
     userId: "staff-1",
     role: "STAFF" as const,
     companyId: null,
-    permissions: ["jobs:read"] as const,
+    permissions: ["jobs:read", "yard:read"] as const,
   };
   assert.equal(can(staff, "jobs:read", "company-a"), true);
   assert.equal(can(staff, "jobs:write", "company-a"), false);
+  assert.equal(can(staff, "yard:read"), true);
+  assert.equal(can(staff, "yard:write"), false);
 });
 
 test("customer can read only records owned by its company", () => {
@@ -29,6 +32,7 @@ test("customer can read only records owned by its company", () => {
   assert.equal(can(customer, "motorcycles:read", "company-b"), false);
   assert.equal(can(customer, "motorcycles:write", "company-a"), false);
   assert.equal(can(customer, "motorcycles:read"), false);
+  assert.equal(can(customer, "yard:read", "company-a"), false);
 });
 
 test("a denied operation throws a generic authorization error", () => {
