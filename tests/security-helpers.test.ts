@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { validateBoundedMultipartRequest } from "../lib/bounded-multipart.ts";
 import { isSameOrigin } from "../lib/same-origin.ts";
 import { safeReturnTo } from "../lib/safe-return-to.ts";
 
@@ -47,4 +48,15 @@ test("production mutations require the configured canonical host and reject Host
   assert.equal(isSameOrigin(canonical as never, "https://natheegroup2025.com", "production"), true);
   assert.equal(isSameOrigin(spoofed as never, "https://natheegroup2025.com", "production"), false);
   assert.equal(isSameOrigin(canonical as never, undefined, "production"), false);
+});
+
+test("multipart uploads require a real boundary and a bounded explicit byte length", () => {
+  assert.deepEqual(validateBoundedMultipartRequest("multipart/form-data; boundary=abc123", "1024", 2048), { ok: true, contentLength: 1024 });
+  assert.deepEqual(validateBoundedMultipartRequest('multipart/form-data; boundary="quoted-boundary"', "2048", 2048), { ok: true, contentLength: 2048 });
+  assert.deepEqual(validateBoundedMultipartRequest("application/json", "100", 2048), { ok: false, error: "unsupported_media_type", status: 415 });
+  assert.deepEqual(validateBoundedMultipartRequest("multipart/form-data", "100", 2048), { ok: false, error: "unsupported_media_type", status: 415 });
+  assert.deepEqual(validateBoundedMultipartRequest("multipart/form-data; boundary=abc", null, 2048), { ok: false, error: "length_required", status: 411 });
+  assert.deepEqual(validateBoundedMultipartRequest("multipart/form-data; boundary=abc", "0", 2048), { ok: false, error: "length_required", status: 411 });
+  assert.deepEqual(validateBoundedMultipartRequest("multipart/form-data; boundary=abc", "12.5", 2048), { ok: false, error: "length_required", status: 411 });
+  assert.deepEqual(validateBoundedMultipartRequest("multipart/form-data; boundary=abc", "2049", 2048), { ok: false, error: "request_too_large", status: 413 });
 });

@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { NextResponse, type NextRequest } from "next/server";
 import { getDb } from "@/db";
 import { auditLogs, quoteRequestAttachments, quoteRequests } from "@/db/schema";
+import { validateBoundedMultipartRequest } from "@/lib/bounded-multipart";
 import { nextBusinessNumber } from "@/lib/business-numbers";
 import { parseQuotationForm } from "@/lib/quotation";
 import { prepareQuotationAttachments, QUOTATION_MAX_REQUEST_BYTES } from "@/lib/quotation-attachments";
@@ -12,8 +13,8 @@ import { turnstileRemoteIp, verifyTurnstile } from "@/lib/turnstile";
 
 export async function POST(request: NextRequest) {
   if (!isSameOrigin(request)) return new NextResponse("Forbidden", { status: 403 });
-  const declaredLength = Number(request.headers.get("content-length"));
-  if (Number.isFinite(declaredLength) && declaredLength > QUOTATION_MAX_REQUEST_BYTES) return redirect(request, "error", "file_size");
+  const requestBounds = validateBoundedMultipartRequest(request.headers.get("content-type"), request.headers.get("content-length"), QUOTATION_MAX_REQUEST_BYTES);
+  if (!requestBounds.ok) return redirect(request, "error", requestBounds.error === "request_too_large" ? "file_size" : "invalid");
   let form: FormData;
   try {
     form = await request.formData();

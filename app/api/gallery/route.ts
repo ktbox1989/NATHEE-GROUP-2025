@@ -6,6 +6,7 @@ import { auditLogs, galleryCategories, galleryImageVariants, galleryItems, trans
 import type { GalleryVariantRole, GalleryVisibility } from "@/db/schema";
 import { makeAuditRecord } from "@/lib/audit";
 import { can } from "@/lib/authorization";
+import { validateBoundedMultipartRequest } from "@/lib/bounded-multipart";
 import { getCurrentActor } from "@/lib/current-actor";
 import { boundedText, GALLERY_MAX_ORIGINAL_BYTES, GALLERY_MAX_VARIANT_BYTES, galleryVisibilities, isGalleryUploadRequestKey, parseGallerySortOrder, parsePositiveDimension } from "@/lib/gallery";
 import { hasExpectedImageSignature, imageDimensionsMatchClaim, readImageDimensions, sha256Hex, SUPPORTED_IMAGE_TYPES } from "@/lib/image-validation";
@@ -16,13 +17,11 @@ const MAX_REQUEST_BYTES = 42 * 1024 * 1024;
 
 export async function POST(request: NextRequest) {
   if (!isSameOrigin(request)) return respondError(request, "forbidden", 403);
-  if (!request.headers.get("content-type")?.toLowerCase().startsWith("multipart/form-data;")) return respondError(request, "unsupported_media_type", 415);
+  const requestBounds = validateBoundedMultipartRequest(request.headers.get("content-type"), request.headers.get("content-length"), MAX_REQUEST_BYTES);
+  if (!requestBounds.ok) return respondError(request, requestBounds.error, requestBounds.status, `/app/gallery?error=${requestBounds.error}`);
   const actor = await getCurrentActor();
   if (!actor) return respondError(request, "not_authorized", 401, "/login?error=not_authorized");
   if (!can(actor, "gallery:write")) return respondError(request, "forbidden", 403, "/app?error=forbidden");
-  const contentLength = Number(request.headers.get("content-length") ?? 0);
-  if (Number.isFinite(contentLength) && contentLength > MAX_REQUEST_BYTES) return respondError(request, "request_too_large", 413, "/app/gallery?error=request_too_large");
-
   const form = await request.formData();
   const requestKey = boundedText(form.get("requestKey"), 100);
   const categoryId = boundedText(form.get("categoryId"), 80);

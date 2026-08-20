@@ -28,3 +28,15 @@ test("image mutation routes report cleanup uncertainty instead of throwing or cl
   assert.match(evidence, /image_cleanup/);
   assert.doesNotMatch(evidence, /await Promise\.all\(storedKeys\.map/);
 });
+
+test("every heavy multipart route uses the shared fail-closed request bound", async () => {
+  for (const route of [
+    "app/api/gallery/route.ts",
+    "app/api/motorcycles/[id]/images/route.ts",
+    "app/api/motorcycles/[id]/pod/route.ts",
+    "app/api/motorcycles/imports/route.ts",
+    "app/api/quotation/route.ts",
+  ]) {
+    assert.match(await readFile(route, "utf8"), /validateBoundedMultipartRequest\(/, route);
+  }
+});

@@ -6,6 +6,7 @@ import { auditLogs, motorcycleImages, motorcycleImageVariants, motorcycles } fro
 import type { ImageCategory, MotorcycleImageVariantRole } from "@/db/schema";
 import { makeAuditRecord } from "@/lib/audit";
 import { can } from "@/lib/authorization";
+import { validateBoundedMultipartRequest } from "@/lib/bounded-multipart";
 import { getCurrentActor } from "@/lib/current-actor";
 import { hasExpectedImageSignature, imageDimensionsMatchClaim, readImageDimensions, sha256Hex, SUPPORTED_IMAGE_TYPES } from "@/lib/image-validation";
 import {
@@ -35,15 +36,14 @@ type PreparedVariant = {
 
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   if (!isSameOrigin(request)) return respondError(request, "forbidden", 403);
+  const requestBounds = validateBoundedMultipartRequest(request.headers.get("content-type"), request.headers.get("content-length"), MAX_REQUEST_BYTES);
+  if (!requestBounds.ok) return respondError(request, requestBounds.error, requestBounds.status);
   const actor = await getCurrentActor();
   if (!actor) return respondError(request, "not_authorized", 401, "/login?error=not_authorized");
   const { id } = await context.params;
   const db = getDb();
   const motorcycle = await db.select({ id: motorcycles.id, companyId: motorcycles.companyId }).from(motorcycles).where(eq(motorcycles.id, id)).get();
   if (!motorcycle || !can(actor, "images:write", motorcycle.companyId)) return respondError(request, "forbidden", 403, "/app/motorcycles?error=forbidden");
-  const contentLength = Number(request.headers.get("content-length") ?? 0);
-  if (Number.isFinite(contentLength) && contentLength > MAX_REQUEST_BYTES) return respondError(request, "request_too_large", 413, `/app/motorcycles/${id}?error=image`);
-
   const form = await request.formData();
   const requestKey = String(form.get("requestKey") ?? "").trim();
   const file = form.get("image");

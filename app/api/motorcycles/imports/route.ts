@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getD1, getDb } from "@/db";
 import { motorcycleImportBatches, transportJobs } from "@/db/schema";
 import { can, isInternalRole } from "@/lib/authorization";
+import { validateBoundedMultipartRequest } from "@/lib/bounded-multipart";
 import { getCurrentActor } from "@/lib/current-actor";
 import { MOTORCYCLE_IMPORT_MAX_REQUEST_BYTES, prepareMotorcycleImport } from "@/lib/motorcycle-import";
 import { isSameOrigin } from "@/lib/same-origin";
@@ -12,8 +13,8 @@ export async function POST(request: NextRequest) {
   if (!isSameOrigin(request)) return new NextResponse("Forbidden", { status: 403 });
   const actor = await getCurrentActor();
   if (!actor) return NextResponse.redirect(new URL("/login?error=not_authorized", request.url), 303);
-  const contentLength = Number(request.headers.get("content-length"));
-  if (!request.headers.get("content-type")?.toLowerCase().startsWith("multipart/form-data;") || !Number.isSafeInteger(contentLength) || contentLength < 1 || contentLength > MOTORCYCLE_IMPORT_MAX_REQUEST_BYTES) return redirect(request, "invalid_request");
+  const requestBounds = validateBoundedMultipartRequest(request.headers.get("content-type"), request.headers.get("content-length"), MOTORCYCLE_IMPORT_MAX_REQUEST_BYTES);
+  if (!requestBounds.ok) return redirect(request, "invalid_request");
   const form = await request.formData();
   const requestKey = String(form.get("requestKey") ?? "");
   const jobId = String(form.get("jobId") ?? "");

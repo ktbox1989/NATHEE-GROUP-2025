@@ -5,6 +5,7 @@ import { getDb } from "@/db";
 import { auditLogs, motorcycleImages, motorcycles, proofOfDeliveryRecords, proofOfDeliverySignatures } from "@/db/schema";
 import { makeAuditRecord } from "@/lib/audit";
 import { can, isInternalRole } from "@/lib/authorization";
+import { validateBoundedMultipartRequest } from "@/lib/bounded-multipart";
 import { getCurrentActor } from "@/lib/current-actor";
 import { hasExpectedImageSignature, sha256Hex } from "@/lib/image-validation";
 import { canCreateProofOfDelivery, isReasonableRecordedTime, normalizeInspectionText } from "@/lib/inspections";
@@ -16,16 +17,14 @@ const MAX_REQUEST_BYTES = 2 * 1024 * 1024;
 
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   if (!isSameOrigin(request)) return respondError(request, "forbidden", 403);
-  if (!request.headers.get("content-type")?.toLowerCase().startsWith("multipart/form-data;")) return respondError(request, "unsupported_media_type", 415);
+  const requestBounds = validateBoundedMultipartRequest(request.headers.get("content-type"), request.headers.get("content-length"), MAX_REQUEST_BYTES);
+  if (!requestBounds.ok) return respondError(request, requestBounds.error, requestBounds.status);
   const actor = await getCurrentActor();
   if (!actor) return respondError(request, "not_authorized", 401, "/login?error=not_authorized");
   const { id: motorcycleId } = await context.params;
   const db = getDb();
   const motorcycle = await db.select({ id: motorcycles.id, companyId: motorcycles.companyId, status: motorcycles.currentStatus }).from(motorcycles).where(eq(motorcycles.id, motorcycleId)).get();
   if (!motorcycle || !isInternalRole(actor.role) || !can(actor, "status:write", motorcycle.companyId) || !can(actor, "images:read", motorcycle.companyId)) return respondError(request, "forbidden", 403, "/app/motorcycles?error=forbidden");
-  const contentLength = Number(request.headers.get("content-length") ?? 0);
-  if (Number.isFinite(contentLength) && contentLength > MAX_REQUEST_BYTES) return respondError(request, "request_too_large", 413, `/app/motorcycles/${motorcycleId}?error=invalid_pod`);
-
   const form = await request.formData();
   const requestKey = String(form.get("requestKey") ?? "");
   const recipientName = normalizeInspectionText(String(form.get("recipientName") ?? ""), { max: 160 });
