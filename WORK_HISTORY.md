@@ -1,5 +1,15 @@
 # NATHEE GROUP 2025 — Work History
 
+## 2026-08-21 — Private signed Proof of Delivery
+
+- Implementation commit: `7a5bf0d`
+- Added touch/mouse recipient signature capture to the real POD form with explicit attestation, progress, cancel, error and idempotent retry behavior. It never stores the signature in browser storage or displays success before the server confirms D1 and R2.
+- The server validates PNG signature bytes, actual IHDR dimensions, byte bounds and SHA-256, then stores the object privately. Reads repeat `documents:read` company authorization and return `private, no-store`.
+- Migration `0021_zippy_impossible_man` preserves legacy unsigned PODs while requiring a signature flag for every new POD, a matching immutable signature row before `DELIVERED`, and no hard delete. Migration tests prove legacy preservation, cross-company rejection, malformed metadata rejection and indexed retrieval.
+- Verification: full tests 166/166 (101 unit + 65 integration), TypeScript PASS, ESLint PASS, Vinext Production build PASS, public SEO/Gallery/mobile/responsive/deployment guards PASS, scoped secret scan PASS and `git diff --check` PASS.
+- Deployment: source only. No Z.com file, Sites version, Supabase value, D1 migration/row, R2 object, DNS or Production runtime changed. Real signed-POD browser/R2 acceptance remains gated by Auth and the full application runtime.
+- Rollback: before applying `0021`, revert `7a5bf0d`. After apply, retain POD/signature history and use a reviewed forward migration or restore the pre-migration D1 backup; never delete private evidence to roll back client code.
+
 ## 2026-08-21 — Private motorcycle evidence derivatives
 
 - Implementation commit: `0f3f182`

@@ -6,7 +6,7 @@ runtime.
 
 ## 1. Platform resources
 
-- D1 binding `DB` exists and migrations `drizzle/0000` through `0020` have
+- D1 binding `DB` exists and migrations `drizzle/0000` through `0021` have
   each been applied exactly once in order. Verify the migration ledger before
   applying any missing file; never rerun the full chain blindly.
 - R2 binding `FILES` exists and is private.
@@ -64,7 +64,7 @@ Production is ready only when it returns HTTP 200 and all six checks are
 format. `adminAuthentication` independently validates that a server-only
 secret is configured. `canonicalOrigin` requires the exact canonical
 Production origin. `database` verifies representative tables, indexes and
-invariant triggers through migration `0020`, not merely that D1 answers a
+invariant triggers through migration `0021`, not merely that D1 answers a
 query. `storage` performs a read-only R2 metadata probe. `antiAbuse` requires both validated Turnstile runtime keys. The endpoint never
 returns credentials or connection strings.
 
@@ -109,6 +109,7 @@ returns credentials or connection strings.
 22. A configured logo is shown only while its Gallery item remains `PUBLIC` + `PUBLISHED`; hiding that item must fall back to the safe brand abbreviation.
 23. Submit one quotation with verified PDF/CSV evidence. The request and attachment metadata must commit once, private R2 checksums must match, non-OWNER access must return not-found, and every successful Owner download must add an Audit record.
 24. Repeat the same quotation request key and verify no second request, metadata row or orphaned R2 object is created. Test an invalid signature and oversized payload and verify neither a request nor object is retained.
+25. At `ARRIVED`, authorized staff selects a real `DELIVERY` image and captures the recipient signature on mobile. Verify one private R2 PNG, matching SHA-256 metadata, one active POD and Audit; only then may `DELIVERED` commit. Retry the same request key and verify no duplicate POD/object. Confirm a different company cannot read the signature and the print view labels an old unsigned POD honestly.
 
 ## 6. Rollback
 

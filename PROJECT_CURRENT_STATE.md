@@ -6,7 +6,7 @@ Updated: 2026-08-21 (Asia/Bangkok)
 
 - Review branch: `codex/nathee-media-owner-2`
 - Integration baseline: `3cfd65a176cba858c6fd5d76cab61df5c78093f8`
-- Latest verified implementation milestone: Private motorcycle evidence display/thumbnail derivatives (`0f3f1829068dda7ded0d7256cc36846cc2180d50`)
+- Latest verified implementation milestone: Private signed Proof of Delivery (`7a5bf0d47a3f0cffbdd22d979dcb5b4d7d73fb6e`)
 - Canonical repository: `ktbox1989/NATHEE-GROUP-2025`
 - Working rule: resolve the current checkpoint-document commit with `git rev-parse HEAD`; never infer Production deployment from source HEAD.
 
@@ -25,6 +25,15 @@ Updated: 2026-08-21 (Asia/Bangkok)
 - Full application Production acceptance: NOT PASSED
 
 ## Closed local milestones
+
+### Private signed Proof of Delivery (`7a5bf0d`)
+
+- New POD creation captures the real recipient, time, location, same-motorcycle `DELIVERY` photograph and a recipient signature in one fail-closed flow. The browser shows upload progress/cancel/retry states and uses cryptographically secure UUID request identities without relying on `crypto.randomUUID` availability alone.
+- Signature PNG bytes are checked server-side for MIME signature, actual IHDR dimensions, size and SHA-256 before being written to private R2. D1 commits POD, immutable signature metadata and a redacted Audit entry atomically; a failed or concurrency-losing write compensating-deletes only its newly created R2 object.
+- Additive migration `0021_zippy_impossible_man` leaves every legacy POD unchanged with `signature_required=0`. It requires all new POD rows to declare signed evidence, prevents signed POD delivery until the matching signature row exists and makes signature metadata immutable/non-deletable.
+- Authorized detail and print views show the private signature; legacy unsigned records are labelled honestly. A new record missing its signature is visibly invalid and cannot move the motorcycle to `DELIVERED`.
+- Verification: full tests 166/166 (101 unit + 65 integration), TypeScript PASS, ESLint PASS, Vinext Production build PASS, public SEO/Gallery/mobile/responsive/deployment guards PASS, migration preservation/integrity/immutability/query-plan checks PASS, scoped secret scan PASS and `git diff --check` PASS.
+- Production remains unchanged. Browser acceptance of real pen/touch input and private R2 retrieval requires the gated application runtime, Auth/Owner mapping and migration `0021`; no D1 row, R2 object, Z.com file or Production setting was changed.
 
 ### Private motorcycle evidence derivatives (`0f3f182`)
 
@@ -226,7 +235,7 @@ Updated: 2026-08-21 (Asia/Bangkok)
 - Added a single allowlisted application-origin contract. Production accepts only `https://natheegroup2025.com`; private `*.chatgpt.site` previews and localhost are explicit non-Production cases.
 - Password recovery, invitations and the Auth callback no longer derive sensitive redirect destinations from the request Host. Same-origin mutation checks now reject Host-spoofed requests and a Production runtime without `APP_ORIGIN` fails closed.
 - Supabase public/admin configuration rejects placeholders, malformed URLs, secret/public key confusion and values outside the approved `sb_publishable_...` / `sb_secret_...` contract.
-- `/api/health` now requires six independent checks: public Auth, admin Auth, canonical origin, required D1 tables/indexes/triggers through migration `0020`, a read-only R2 metadata probe and anti-abuse readiness. A bare database connection or binding name can no longer claim Production readiness.
+- `/api/health` now requires six independent checks: public Auth, admin Auth, canonical origin, required D1 tables/indexes/triggers through migration `0021`, a read-only R2 metadata probe and anti-abuse readiness. A bare database connection or binding name can no longer claim Production readiness.
 - This is source-only. No Supabase value, D1 migration, R2 object, Sites version, DNS record or Z.com Production file was changed.
 
 ### Exact confirmed Auth identity mapping
@@ -238,26 +247,26 @@ Updated: 2026-08-21 (Asia/Bangkok)
 
 ## Verified source gates
 
-- Full test suite: 160 passing
-- Authorization/unit/CMS/settings/search/config/readiness/identity/quotation/Turnstile/image-variant tests: 96 passing
-- Render/schema/notification/yard/trip/container/inspection/POD/CMS/settings/query-plan/migration tests: 64 passing
+- Full test suite: 166 passing
+- Authorization/unit/CMS/settings/search/config/readiness/identity/quotation/Turnstile/image/POD-signature tests: 101 passing
+- Render/schema/notification/yard/trip/container/inspection/POD/CMS/settings/query-plan/migration tests: 65 passing
 - Production Vinext build: PASS
 - ESLint: PASS
 - Public SEO and deployment architecture guards: PASS
-- Migrations through `0020` packaged in `dist/.openai/drizzle/`: PASS
+- Migrations through `0021` packaged in `dist/.openai/drizzle/`: PASS
 
 ## Open Owner gates
 
 - Approve application routing model: apex edge routes or an application subdomain.
 - Supply/configure Supabase Production values through a secure hosting channel.
-- Backup and apply migrations `0001`–`0020` to the protected D1 runtime.
+- Backup and apply migrations `0001`–`0021` to the protected D1 runtime.
 - Verify private R2 readiness.
 - Bootstrap the real OWNER identity and accept two-company customer isolation.
 - Supply/configure Turnstile Production keys through the secure hosting channel, approve untrusted-file/malware handling, and add verified location/map data when supplied.
 
 ## Next autonomous work
 
-1. Close the Production activation gates: canonical app route, Supabase environment/callback, D1 backup+ledger+migrations `0001`–`0020`, R2 readiness, real OWNER mapping and approved quotation anti-abuse/untrusted-file controls.
+1. Close the Production activation gates: canonical app route, Supabase environment/callback, D1 backup+ledger+migrations `0001`–`0021`, R2 readiness, real OWNER mapping and approved quotation anti-abuse/untrusted-file controls.
 2. Run real browser acceptance for OWNER and two isolated customer companies before exposing `/app` publicly.
 3. Configure external LINE/email notification providers only after credentials, consent, retry and escalation policy are approved.
 4. Keep all new migrations unapplied until the Production backup/runtime gates are satisfied.
