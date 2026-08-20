@@ -1,5 +1,15 @@
 # NATHEE GROUP 2025 — Work History
 
+## 2026-08-21 — Trusted Production Auth origin and truthful runtime readiness
+
+- Centralized the allowed application-origin contract and removed request-Host trust from password recovery, invitations, callback redirects and mutation checks. Production now fails closed without the exact canonical origin.
+- Added strict Supabase public/admin configuration validation without exposing values, including rejection of placeholders, malformed URLs and public/secret key confusion.
+- Upgraded `/api/health` from presence checks to five real gates: public Auth, admin Auth, canonical origin, representative D1 tables/indexes/invariant triggers through `0014`, and a read-only R2 metadata probe.
+- Added regression tests for Host spoofing, missing Production origin, callback origin selection, key validation and incomplete database objects.
+- Verification: full tests 115/115 (66 unit + 49 integration), Vinext Production build PASS, ESLint PASS and no secret value added to source.
+- Deployment: source only. Z.com public files, protected Sites runtime, Supabase, D1, R2, DNS and Production were not changed.
+- Rollback: revert this commit. No database row, Storage object, Auth identity or Production file requires rollback.
+
 ## 2026-08-21 — Bounded Company, Job and Driver directories
 
 - Replaced unbounded Company/Job reads and the 200-user Driver preload with 50-record pages and safe indexed prefix search over Company code/name and active Driver name/email.

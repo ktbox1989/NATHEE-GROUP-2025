@@ -25,7 +25,7 @@ for (const forbidden of ["/dev/fd", "rsync", "<("]) {
 if (!probe.includes("ZCOM_FULL_APP_COMPATIBILITY=NOT_PROVEN")) throw new Error("Runtime probe must fail closed for application compatibility");
 
 const productionAudit = await read("scripts/audit-production-components.sh");
-for (const check of ["authentication", "database", "storage"]) {
+for (const check of ["authentication", "adminAuthentication", "canonicalOrigin", "database", "storage"]) {
   if (!productionAudit.includes(`"${check}"`)) throw new Error(`Application runtime audit is missing ${check}`);
 }
 

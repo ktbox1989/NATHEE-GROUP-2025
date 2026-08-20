@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { buildAuthCallbackUrl, getAppOrigin } from "@/lib/app-origin";
 import { getSupabaseConfig } from "@/lib/supabase/config";
 import { isSameOrigin } from "@/lib/same-origin";
 import { createSupabaseRouteClient } from "@/lib/supabase/route";
@@ -7,8 +8,10 @@ export async function POST(request: NextRequest) {
   if (!isSameOrigin(request)) return new NextResponse("Forbidden", { status: 403 });
   const formData = await request.formData();
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const appOrigin = getAppOrigin(request.url);
+  const callbackUrl = buildAuthCallbackUrl("/reset-password", request.url);
 
-  if (!getSupabaseConfig()) {
+  if (!getSupabaseConfig() || !appOrigin || !callbackUrl) {
     return NextResponse.redirect(
       new URL("/forgot-password?error=config", request.url),
       303,
@@ -22,9 +25,6 @@ export async function POST(request: NextRequest) {
   }
 
   const { client, applyAuthCookies } = createSupabaseRouteClient(request);
-  const callbackUrl = new URL("/auth/callback", request.url);
-  callbackUrl.searchParams.set("next", "/reset-password");
-
   await client.auth.resetPasswordForEmail(email, {
     redirectTo: callbackUrl.toString(),
   });
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
   // address exists in the authentication provider.
   return applyAuthCookies(
     NextResponse.redirect(
-      new URL("/forgot-password?sent=1", request.url),
+      new URL("/forgot-password?sent=1", appOrigin),
       303,
     ),
   );

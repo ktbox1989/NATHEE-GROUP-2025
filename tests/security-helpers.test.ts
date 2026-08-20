@@ -34,3 +34,17 @@ test("mutation origin checks accept same-origin browser posts only", () => {
   assert.equal(isSameOrigin(fetchMetadataFallback as never), true);
   assert.equal(isSameOrigin(headerless as never), false);
 });
+
+test("production mutations require the configured canonical host and reject Host spoofing", () => {
+  const canonical = new Request("https://natheegroup2025.com/api/jobs", {
+    method: "POST",
+    headers: { origin: "https://natheegroup2025.com" },
+  });
+  const spoofed = new Request("https://attacker.invalid/api/jobs", {
+    method: "POST",
+    headers: { origin: "https://attacker.invalid", "sec-fetch-site": "same-origin" },
+  });
+  assert.equal(isSameOrigin(canonical as never, "https://natheegroup2025.com", "production"), true);
+  assert.equal(isSameOrigin(spoofed as never, "https://natheegroup2025.com", "production"), false);
+  assert.equal(isSameOrigin(canonical as never, undefined, "production"), false);
+});

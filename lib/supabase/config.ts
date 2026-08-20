@@ -3,13 +3,24 @@ export type SupabaseConfig = {
   publishableKey: string;
 };
 
-export function getSupabaseConfig(): SupabaseConfig | null {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-  const publishableKey =
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim();
+export function parseSupabaseConfig(urlValue: string | undefined, keyValue: string | undefined): SupabaseConfig | null {
+  const rawUrl = urlValue?.trim();
+  const publishableKey = keyValue?.trim();
+  if (!rawUrl || !publishableKey || !/^sb_publishable_[A-Za-z0-9_-]{16,}$/.test(publishableKey)) return null;
+  try {
+    const url = new URL(rawUrl);
+    if (url.protocol !== "https:" || url.username || url.password || url.search || url.hash || url.pathname !== "/") return null;
+    return { url: url.origin, publishableKey };
+  } catch {
+    return null;
+  }
+}
 
-  if (!url || !publishableKey) return null;
-  return { url, publishableKey };
+export function getSupabaseConfig(): SupabaseConfig | null {
+  return parseSupabaseConfig(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+  );
 }
 
 export function requireSupabaseConfig(): SupabaseConfig {

@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getDb } from "@/db";
 import { auditLogs, companies, userPermissions, userRoleAssignments, users, USER_ROLES } from "@/db/schema";
 import type { UserRole } from "@/db/schema";
+import { buildAuthCallbackUrl } from "@/lib/app-origin";
 import { makeAuditRecord } from "@/lib/audit";
 import { isCustomerRole, legacyRoleFor, PERMISSIONS, usesExplicitPermissions } from "@/lib/authorization";
 import type { Permission } from "@/lib/authorization";
@@ -43,8 +44,8 @@ export async function POST(request: NextRequest) {
   let authUserId: string;
   try {
     admin = createSupabaseAdminClient();
-    const redirectTo = new URL("/auth/callback", request.url);
-    redirectTo.searchParams.set("next", "/reset-password");
+    const redirectTo = buildAuthCallbackUrl("/reset-password", request.url);
+    if (!redirectTo) throw new Error("Application origin is not configured");
     const { data, error } = await admin.auth.admin.inviteUserByEmail(email, {
       redirectTo: redirectTo.toString(),
       data: { display_name: displayName },

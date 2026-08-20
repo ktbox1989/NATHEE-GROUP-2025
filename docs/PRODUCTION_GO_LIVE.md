@@ -18,6 +18,7 @@ runtime.
 
 Configure these values in the hosting environment, never in source control:
 
+- `APP_ORIGIN=https://natheegroup2025.com`
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
 - `SUPABASE_SECRET_KEY` as a server-only secret
@@ -47,14 +48,22 @@ After deployment, request:
 GET /api/health
 ```
 
-Production is ready only when it returns HTTP 200 and all three checks are
+Production is ready only when it returns HTTP 200 and all five checks are
 `true`:
 
 - `authentication`
+- `adminAuthentication`
+- `canonicalOrigin`
 - `database`
 - `storage`
 
-The endpoint never returns credentials or connection strings.
+`authentication` validates the Supabase HTTPS URL and current publishable-key
+format. `adminAuthentication` independently validates that a server-only
+secret is configured. `canonicalOrigin` requires the exact canonical
+Production origin. `database` verifies representative tables, indexes and
+invariant triggers through migration `0014`, not merely that D1 answers a
+query. `storage` performs a read-only R2 metadata probe. The endpoint never
+returns credentials or connection strings.
 
 ## 5. Acceptance flow
 

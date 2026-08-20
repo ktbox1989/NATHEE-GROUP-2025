@@ -64,7 +64,8 @@ presence of Node or PHP on Z.com would not provide Cloudflare D1/R2 bindings.
 2. Deploy the full Worker artifact to a Cloudflare-compatible Sites runtime
    with real D1/R2 bindings.
 3. Keep the application private until `/api/health` returns HTTP 200 with
-   `authentication`, `database`, and `storage` all `true`.
+   `authentication`, `adminAuthentication`, `canonicalOrigin`, `database`, and
+   `storage` all `true`.
 4. Apply migrations `0000` through `0014` once, in order, with a migration
    ledger and pre-migration backup. Never copy or edit an applied migration.
 5. Configure Supabase Site URL and callback for the final public routing model,
@@ -115,7 +116,10 @@ NATHEE_APP_BASE_URL='https://OWNER_APPROVED_APP_HOST' bash scripts/audit-product
 ```
 
 The script claims the full application only when `/api/health` returns 200 and
-all three readiness checks are true. A public-site `DEPLOY_PASS` or
+all five readiness checks are true. Authentication values must pass strict
+format validation, the origin must be the canonical Production origin, D1 must
+contain the required objects through migration `0014`, and R2 must answer a
+read-only metadata probe. A public-site `DEPLOY_PASS` or
 `PRODUCTION_POSTCHECK_PASS` continues to cover only the static component.
 
 ## Activation gates still open

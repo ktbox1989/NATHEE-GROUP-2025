@@ -5,7 +5,7 @@ Updated: 2026-08-21 (Asia/Bangkok)
 ## Source checkpoint
 
 - Branch: `main`
-- Latest verified implementation milestone: Bounded Company, Job and Driver directories plus revisioned global Site Settings (resolve the final commit with `git rev-parse HEAD`)
+- Latest verified implementation milestone: Trusted Production Auth origin and fail-closed runtime readiness, after bounded Company/Job/Driver directories and revisioned global Site Settings (resolve the final commit with `git rev-parse HEAD`)
 - Canonical repository: `ktbox1989/NATHEE-GROUP-2025`
 - Working rule: resolve the current checkpoint-document commit with `git rev-parse HEAD`; never infer Production deployment from source HEAD.
 
@@ -136,10 +136,18 @@ Updated: 2026-08-21 (Asia/Bangkok)
 - Wildcards, control characters, one-character scans and oversized search terms fail closed. Multiple indexed prefix queries are merged and deduplicated without an unbounded OR scan.
 - Migration `0014_past_sphinx` adds only the seven indexes proven by these real queries. Upgrade tests preserve pre-existing Company, Job and User counts, and query-plan tests verify bounded index use. It remains unapplied in Production.
 
+### Trusted Production Auth origin and runtime readiness
+
+- Added a single allowlisted application-origin contract. Production accepts only `https://natheegroup2025.com`; private `*.chatgpt.site` previews and localhost are explicit non-Production cases.
+- Password recovery, invitations and the Auth callback no longer derive sensitive redirect destinations from the request Host. Same-origin mutation checks now reject Host-spoofed requests and a Production runtime without `APP_ORIGIN` fails closed.
+- Supabase public/admin configuration rejects placeholders, malformed URLs, secret/public key confusion and values outside the approved `sb_publishable_...` / `sb_secret_...` contract.
+- `/api/health` now requires five independent checks: public Auth, admin Auth, canonical origin, required D1 tables/indexes/triggers through migration `0014`, and a read-only R2 metadata probe. A bare database connection or binding name can no longer claim Production readiness.
+- This is source-only. No Supabase value, D1 migration, R2 object, Sites version, DNS record or Z.com Production file was changed.
+
 ## Verified source gates
 
-- Full test suite: 110 passing
-- Authorization/unit/CMS/settings/search parser tests: 61 passing
+- Full test suite: 115 passing
+- Authorization/unit/CMS/settings/search/config/readiness tests: 66 passing
 - Render/schema/notification/yard/trip/container/inspection/POD/CMS/settings/query-plan tests: 49 passing
 - Production Vinext build: PASS
 - ESLint: PASS

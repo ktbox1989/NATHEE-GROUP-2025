@@ -15,11 +15,21 @@ Email/password must be enabled. Configure the sender name and email template bef
 
 Copy `.env.example` to `.env.local` for local work and replace the examples with the project values:
 
+- `APP_ORIGIN`: trusted application origin. Production must be exactly `https://natheegroup2025.com`; an exact HTTPS `*.chatgpt.site` origin may be used only for a private preview, and localhost is allowed only outside Production
 - `NEXT_PUBLIC_SUPABASE_URL`: Project URL
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`: publishable key used by server-side auth clients
 - `SUPABASE_SECRET_KEY`: secret server key used only for owner-controlled invitations
 
-The secret key must be stored as a hosting secret. It must never be prefixed with `NEXT_PUBLIC_`, committed to Git, shown in HTML, or sent to a browser.
+The runtime accepts the current Supabase `sb_publishable_...` and
+`sb_secret_...` key formats and rejects placeholders, malformed values and a
+secret key in the public-key slot. The secret key must be stored as a hosting
+secret. It must never be prefixed with `NEXT_PUBLIC_`, committed to Git, shown
+in HTML, or sent to a browser.
+
+Password-reset and invitation callbacks are constructed only from the trusted
+`APP_ORIGIN`. They never inherit the request `Host` header. A Production runtime
+without a valid trusted origin fails closed instead of sending an authentication
+link to an untrusted origin.
 
 ## 3. Apply the database migration and storage bindings
 

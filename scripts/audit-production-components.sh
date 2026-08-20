@@ -53,6 +53,8 @@ trap 'rm -f "$health_file"' EXIT
 health_status="$(curl --silent --show-error --output "$health_file" --write-out '%{http_code}' "$APP_BASE_URL/api/health")"
 [[ "$health_status" == "200" ]] || fail "application health is not ready (status=$health_status)"
 grep -Eq '"authentication"[[:space:]]*:[[:space:]]*true' "$health_file" || fail "authentication readiness is false"
+grep -Eq '"adminAuthentication"[[:space:]]*:[[:space:]]*true' "$health_file" || fail "admin authentication readiness is false"
+grep -Eq '"canonicalOrigin"[[:space:]]*:[[:space:]]*true' "$health_file" || fail "canonical origin readiness is false"
 grep -Eq '"database"[[:space:]]*:[[:space:]]*true' "$health_file" || fail "database readiness is false"
 grep -Eq '"storage"[[:space:]]*:[[:space:]]*true' "$health_file" || fail "storage readiness is false"
 
