@@ -87,6 +87,8 @@ export const GALLERY_CATEGORY_STATUSES = ["ACTIVE", "HIDDEN"] as const;
 export const GALLERY_ITEM_STATUSES = ["DRAFT", "PUBLISHED", "HIDDEN", "ARCHIVED"] as const;
 export const GALLERY_VISIBILITIES = ["PUBLIC", "CUSTOMER_JOB", "INTERNAL"] as const;
 export const GALLERY_VARIANT_ROLES = ["ORIGINAL", "DISPLAY", "THUMBNAIL"] as const;
+export const NOTIFICATION_TYPES = ["MOTORCYCLE_STATUS_CHANGED"] as const;
+export const NOTIFICATION_SEVERITIES = ["INFO", "WARNING", "CRITICAL"] as const;
 
 const createdAt = () =>
   text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`);
@@ -505,6 +507,43 @@ export const statusEvents = sqliteTable(
   ],
 );
 
+export const notifications = sqliteTable(
+  "notifications",
+  {
+    id: text("id").primaryKey(),
+    idempotencyKey: text("idempotency_key").notNull(),
+    recipientUserId: text("recipient_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    companyId: text("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    sourceEventId: text("source_event_id")
+      .notNull()
+      .references(() => statusEvents.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    type: text("type", { enum: NOTIFICATION_TYPES }).notNull(),
+    severity: text("severity", { enum: NOTIFICATION_SEVERITIES }).notNull().default("INFO"),
+    title: text("title").notNull(),
+    body: text("body").notNull(),
+    href: text("href").notNull(),
+    readAt: text("read_at"),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    uniqueIndex("uq_notifications_idempotency_key").on(table.idempotencyKey),
+    index("idx_notifications_recipient_created").on(table.recipientUserId, table.createdAt, table.id),
+    index("idx_notifications_recipient_unread")
+      .on(table.recipientUserId, table.createdAt)
+      .where(sql`${table.readAt} IS NULL`),
+    index("idx_notifications_source_event").on(table.sourceEventId),
+    check("ck_notifications_type", sql`${table.type} IN ('MOTORCYCLE_STATUS_CHANGED')`),
+    check("ck_notifications_severity", sql`${table.severity} IN ('INFO', 'WARNING', 'CRITICAL')`),
+    check("ck_notifications_title", sql`length(${table.title}) BETWEEN 1 AND 160`),
+    check("ck_notifications_body", sql`length(${table.body}) BETWEEN 1 AND 500`),
+    check("ck_notifications_href", sql`length(${table.href}) BETWEEN 6 AND 500 AND ${table.href} LIKE '/app/%'`),
+  ],
+);
+
 export const quoteRequests = sqliteTable(
   "quote_requests",
   {
@@ -571,3 +610,5 @@ export type YardZoneStatus = (typeof YARD_ZONE_STATUSES)[number];
 export type GalleryItemStatus = (typeof GALLERY_ITEM_STATUSES)[number];
 export type GalleryVisibility = (typeof GALLERY_VISIBILITIES)[number];
 export type GalleryVariantRole = (typeof GALLERY_VARIANT_ROLES)[number];
+export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
+export type NotificationSeverity = (typeof NOTIFICATION_SEVERITIES)[number];

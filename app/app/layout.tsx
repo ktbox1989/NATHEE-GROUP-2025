@@ -1,11 +1,19 @@
 import Link from "next/link";
+import { and, count, eq, isNull } from "drizzle-orm";
+import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { AppNav, type AppNavItem } from "@/components/app-nav";
+import { getDb } from "@/db";
+import { notifications } from "@/db/schema";
 import { can, isCustomerRole } from "@/lib/authorization";
 import { requireActor } from "@/lib/current-actor";
 import { roleLabels } from "@/lib/labels";
 
 export const dynamic = "force-dynamic";
+export const metadata: Metadata = {
+  title: "NATHEE SYSTEM",
+  robots: { index: false, follow: false },
+};
 
 export default async function OperationsLayout({
   children,
@@ -15,6 +23,13 @@ export default async function OperationsLayout({
   const actor = await requireActor("/app");
   const policyCompany = isCustomerRole(actor.role) ? actor.companyId : undefined;
   const items: AppNavItem[] = [{ href: "/app", label: "Dashboard", icon: "📊" }];
+  const unreadRow = await getDb()
+    .select({ total: count() })
+    .from(notifications)
+    .where(and(eq(notifications.recipientUserId, actor.userId), isNull(notifications.readAt)))
+    .get();
+  const unreadCount = Number(unreadRow?.total ?? 0);
+  items.push({ href: "/app/notifications", label: `การแจ้งเตือน${unreadCount ? ` (${Math.min(unreadCount, 99)}${unreadCount > 99 ? "+" : ""})` : ""}`, icon: "🔔" });
 
   if (can(actor, "companies:read", policyCompany)) {
     items.push({ href: "/app/companies", label: "บริษัทลูกค้า", icon: "🏢" });

@@ -5,6 +5,8 @@ import { MOTORCYCLE_STATUSES, motorcycles } from "@/db/schema";
 import type { MotorcycleStatus } from "@/db/schema";
 import { can } from "@/lib/authorization";
 import { getCurrentActor } from "@/lib/current-actor";
+import { STATUS_NOTIFICATION_INSERT_SQL } from "@/lib/notification-sql";
+import { statusNotificationContent } from "@/lib/notifications";
 import { isSameOrigin } from "@/lib/same-origin";
 import { canTransition } from "@/lib/status-transitions";
 
@@ -33,6 +35,11 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   const now = new Date().toISOString();
   const eventId = crypto.randomUUID();
   const auditId = crypto.randomUUID();
+  const notification = statusNotificationContent({
+    motorcycleId: motorcycle.id,
+    publicId: motorcycle.publicId,
+    newStatus,
+  });
   try {
     const d1 = getD1();
     const results = await d1.batch([
@@ -49,6 +56,15 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         WHERE id = ? AND current_status = ?
           AND EXISTS (SELECT 1 FROM status_events WHERE id = ?)
       `).bind(newStatus, now, id, motorcycle.currentStatus, eventId),
+      d1.prepare(STATUS_NOTIFICATION_INSERT_SQL).bind(
+        eventId,
+        notification.severity,
+        notification.title,
+        notification.body,
+        notification.href,
+        now,
+        eventId,
+      ),
       d1.prepare(`
         INSERT INTO audit_logs
           (id, actor_user_id, company_id, action, entity_type, entity_id,
