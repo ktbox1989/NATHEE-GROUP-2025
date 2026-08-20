@@ -96,6 +96,11 @@ export const TRIP_ASSIGNMENT_STATES = ["ASSIGNED", "LOADED", "UNLOADED", "RELEAS
 export const CONTAINER_TYPES = ["20FT", "40FT", "40HC"] as const;
 export const CONTAINER_STATUSES = ["DRAFT", "PLANNED", "LOADING", "SEALED", "IN_TRANSIT", "ARRIVED", "UNLOADING", "COMPLETED", "CANCELLED"] as const;
 export const CONTAINER_ASSIGNMENT_STATES = ["ASSIGNED", "LOADED", "UNLOADED", "RELEASED"] as const;
+export const INSPECTION_TYPES = ["RECEIPT", "PRE_LOAD", "DELIVERY"] as const;
+export const INSPECTION_RESULTS = ["PASS", "ISSUE", "DAMAGE"] as const;
+export const DAMAGE_SEVERITIES = ["MINOR", "MODERATE", "MAJOR"] as const;
+export const FUEL_LEVELS = ["UNKNOWN", "EMPTY", "QUARTER", "HALF", "THREE_QUARTERS", "FULL"] as const;
+export const POD_STATUSES = ["ACTIVE", "VOIDED"] as const;
 
 const createdAt = () =>
   text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`);
@@ -586,6 +591,89 @@ export const motorcycleImages = sqliteTable(
   ],
 );
 
+export const motorcycleInspections = sqliteTable(
+  "motorcycle_inspections",
+  {
+    id: text("id").primaryKey(),
+    requestKey: text("request_key").notNull(),
+    motorcycleId: text("motorcycle_id").notNull().references(() => motorcycles.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    companyId: text("company_id").notNull().references(() => companies.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    type: text("type", { enum: INSPECTION_TYPES }).notNull(),
+    result: text("result", { enum: INSPECTION_RESULTS }).notNull(),
+    odometerKm: integer("odometer_km"),
+    fuelLevel: text("fuel_level", { enum: FUEL_LEVELS }).notNull().default("UNKNOWN"),
+    notes: text("notes"),
+    inspectedBy: text("inspected_by").notNull().references(() => users.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    inspectedAt: text("inspected_at").notNull(),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    uniqueIndex("uq_motorcycle_inspections_request_key").on(table.requestKey),
+    index("idx_motorcycle_inspections_motorcycle_type_at").on(table.motorcycleId, table.type, table.inspectedAt, table.id),
+    index("idx_motorcycle_inspections_company_at").on(table.companyId, table.inspectedAt),
+    check("ck_motorcycle_inspections_type", sql`${table.type} IN ('RECEIPT', 'PRE_LOAD', 'DELIVERY')`),
+    check("ck_motorcycle_inspections_result", sql`${table.result} IN ('PASS', 'ISSUE', 'DAMAGE')`),
+    check("ck_motorcycle_inspections_odometer", sql`${table.odometerKm} IS NULL OR ${table.odometerKm} BETWEEN 0 AND 10000000`),
+    check("ck_motorcycle_inspections_fuel", sql`${table.fuelLevel} IN ('UNKNOWN', 'EMPTY', 'QUARTER', 'HALF', 'THREE_QUARTERS', 'FULL')`),
+    check("ck_motorcycle_inspections_notes", sql`${table.notes} IS NULL OR length(${table.notes}) <= 2000`),
+  ],
+);
+
+export const inspectionFindings = sqliteTable(
+  "inspection_findings",
+  {
+    id: text("id").primaryKey(),
+    inspectionId: text("inspection_id").notNull().references(() => motorcycleInspections.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    area: text("area").notNull(),
+    severity: text("severity", { enum: DAMAGE_SEVERITIES }).notNull(),
+    description: text("description").notNull(),
+    evidenceImageId: text("evidence_image_id").references(() => motorcycleImages.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    createdBy: text("created_by").notNull().references(() => users.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    index("idx_inspection_findings_inspection_created").on(table.inspectionId, table.createdAt, table.id),
+    index("idx_inspection_findings_evidence").on(table.evidenceImageId),
+    check("ck_inspection_findings_area", sql`length(${table.area}) BETWEEN 1 AND 100`),
+    check("ck_inspection_findings_severity", sql`${table.severity} IN ('MINOR', 'MODERATE', 'MAJOR')`),
+    check("ck_inspection_findings_description", sql`length(${table.description}) BETWEEN 3 AND 1000`),
+  ],
+);
+
+export const proofOfDeliveryRecords = sqliteTable(
+  "proof_of_delivery_records",
+  {
+    id: text("id").primaryKey(),
+    requestKey: text("request_key").notNull(),
+    motorcycleId: text("motorcycle_id").notNull().references(() => motorcycles.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    companyId: text("company_id").notNull().references(() => companies.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    recipientName: text("recipient_name").notNull(),
+    recipientPhone: text("recipient_phone"),
+    deliveryLocation: text("delivery_location").notNull(),
+    deliveredAt: text("delivered_at").notNull(),
+    evidenceImageId: text("evidence_image_id").notNull().references(() => motorcycleImages.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    notes: text("notes"),
+    receivedBy: text("received_by").notNull().references(() => users.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    status: text("status", { enum: POD_STATUSES }).notNull().default("ACTIVE"),
+    voidReason: text("void_reason"),
+    voidedBy: text("voided_by").references(() => users.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    voidedAt: text("voided_at"),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    uniqueIndex("uq_pod_records_request_key").on(table.requestKey),
+    uniqueIndex("uq_pod_records_motorcycle_active").on(table.motorcycleId).where(sql`${table.status} = 'ACTIVE'`),
+    index("idx_pod_records_motorcycle_created").on(table.motorcycleId, table.createdAt, table.id),
+    index("idx_pod_records_company_delivered").on(table.companyId, table.deliveredAt),
+    check("ck_pod_records_recipient", sql`length(${table.recipientName}) BETWEEN 1 AND 160`),
+    check("ck_pod_records_phone", sql`${table.recipientPhone} IS NULL OR length(${table.recipientPhone}) BETWEEN 6 AND 50`),
+    check("ck_pod_records_location", sql`length(${table.deliveryLocation}) BETWEEN 2 AND 300`),
+    check("ck_pod_records_notes", sql`${table.notes} IS NULL OR length(${table.notes}) <= 2000`),
+    check("ck_pod_records_status", sql`${table.status} IN ('ACTIVE', 'VOIDED')`),
+    check("ck_pod_records_void", sql`(${table.status} = 'VOIDED') = (${table.voidReason} IS NOT NULL AND ${table.voidedBy} IS NOT NULL AND ${table.voidedAt} IS NOT NULL)`),
+  ],
+);
+
 export const galleryCategories = sqliteTable(
   "gallery_categories",
   {
@@ -824,3 +912,8 @@ export type TripAssignmentState = (typeof TRIP_ASSIGNMENT_STATES)[number];
 export type ContainerType = (typeof CONTAINER_TYPES)[number];
 export type ContainerStatus = (typeof CONTAINER_STATUSES)[number];
 export type ContainerAssignmentState = (typeof CONTAINER_ASSIGNMENT_STATES)[number];
+export type InspectionType = (typeof INSPECTION_TYPES)[number];
+export type InspectionResult = (typeof INSPECTION_RESULTS)[number];
+export type DamageSeverity = (typeof DAMAGE_SEVERITIES)[number];
+export type FuelLevel = (typeof FUEL_LEVELS)[number];
+export type PodStatus = (typeof POD_STATUSES)[number];

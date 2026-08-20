@@ -140,6 +140,14 @@ test("container lifecycle requires Seal, load evidence and matching motorcycle s
   assert.throws(() => db.exec("UPDATE shipping_containers SET status = 'COMPLETED' WHERE id = 'container-a'"), /readiness/);
 
   db.exec("UPDATE container_motorcycle_assignments SET state = 'UNLOADED', unloaded_at = '2026-08-21T10:00:00.000Z' WHERE id = 'assignment-a'");
+  db.exec(`
+    INSERT INTO motorcycle_images
+      (id, motorcycle_id, company_id, storage_key, category, content_type, byte_size, checksum, uploaded_by)
+    VALUES ('delivery-container-a', 'motorcycle-a', 'company-a', 'delivery-container-a.jpg', 'DELIVERY', 'image/jpeg', 100, '${"e".repeat(64)}', 'owner-a');
+    INSERT INTO proof_of_delivery_records
+      (id, request_key, motorcycle_id, company_id, recipient_name, delivery_location, delivered_at, evidence_image_id, received_by)
+    VALUES ('pod-container-a', '0198f708-44a3-7ef7-8d4f-4f477922be01', 'motorcycle-a', 'company-a', 'ผู้รับ', 'Japan', '2026-08-21T10:05:00.000Z', 'delivery-container-a', 'owner-a');
+  `);
   db.exec("UPDATE motorcycles SET current_status = 'DELIVERED' WHERE id = 'motorcycle-a'");
   db.exec("UPDATE shipping_containers SET status = 'COMPLETED' WHERE id = 'container-a'");
   db.exec("UPDATE container_motorcycle_assignments SET state = 'RELEASED', released_at = '2026-08-21T10:10:00.000Z', release_reason = 'CONTAINER_COMPLETED' WHERE id = 'assignment-a'");

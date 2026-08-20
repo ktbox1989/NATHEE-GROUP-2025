@@ -3,9 +3,30 @@ import Link from "next/link";
 import { and, asc, desc, eq, isNull } from "drizzle-orm";
 import { notFound, redirect } from "next/navigation";
 import { getDb } from "@/db";
-import { companies, motorcycleImages, motorcycles, statusEvents, transportJobs, tripMotorcycleAssignments, trips, trucks, users, yardPlacements, yardZones } from "@/db/schema";
+import {
+  companies,
+  containerMotorcycleAssignments,
+  inspectionFindings,
+  motorcycleImages,
+  motorcycleInspections,
+  motorcycles,
+  proofOfDeliveryRecords,
+  shippingContainers,
+  statusEvents,
+  transportJobs,
+  tripMotorcycleAssignments,
+  trips,
+  trucks,
+  users,
+  yardPlacements,
+  yardZones,
+  FUEL_LEVELS,
+  INSPECTION_RESULTS,
+  INSPECTION_TYPES,
+} from "@/db/schema";
 import { can, isCustomerRole, isInternalRole } from "@/lib/authorization";
 import { requireActor } from "@/lib/current-actor";
+import { inspectionTypeAllowedForStatus, maskPhone } from "@/lib/inspections";
 import { motorcycleStatusLabels } from "@/lib/labels";
 import { allowedTransitions } from "@/lib/status-transitions";
 import { isYardPlacementAllowed, YARD_EXIT_VALUE } from "@/lib/yard";
@@ -51,7 +72,9 @@ export default async function MotorcycleDetailPage({ params, searchParams }: Mot
 
   const canReadYard = can(actor, "yard:read");
   const canUpdateYard = can(actor, "yard:write");
-  const [images, events, currentYard, activeZones, activeTrip] = await Promise.all([
+  const canReadInspection = can(actor, "status:read", record.companyId);
+  const canReadDocuments = can(actor, "documents:read", record.companyId);
+  const [images, events, currentYard, activeZones, activeTrip, activeContainer, inspections, findings, podRecords] = await Promise.all([
     db
       .select()
       .from(motorcycleImages)
@@ -71,6 +94,7 @@ export default async function MotorcycleDetailPage({ params, searchParams }: Mot
       .innerJoin(users, eq(users.id, statusEvents.createdBy))
       .where(eq(statusEvents.motorcycleId, id))
       .orderBy(asc(statusEvents.createdAt))
+      .limit(100)
       .all(),
     canReadYard
       ? db
@@ -112,17 +136,103 @@ export default async function MotorcycleDetailPage({ params, searchParams }: Mot
           .where(and(eq(tripMotorcycleAssignments.motorcycleId, id), isNull(tripMotorcycleAssignments.releasedAt)))
           .get()
       : Promise.resolve(undefined),
+    isInternalRole(actor.role) && can(actor, "jobs:read")
+      ? db
+          .select({
+            assignmentState: containerMotorcycleAssignments.state,
+            containerId: shippingContainers.id,
+            containerNumber: shippingContainers.containerNumber,
+            containerStatus: shippingContainers.status,
+            port: shippingContainers.port,
+            country: shippingContainers.country,
+            sealNumber: shippingContainers.sealNumber,
+          })
+          .from(containerMotorcycleAssignments)
+          .innerJoin(shippingContainers, eq(shippingContainers.id, containerMotorcycleAssignments.containerId))
+          .where(and(eq(containerMotorcycleAssignments.motorcycleId, id), isNull(containerMotorcycleAssignments.releasedAt)))
+          .get()
+      : Promise.resolve(undefined),
+    canReadInspection
+      ? db
+          .select({
+            id: motorcycleInspections.id,
+            type: motorcycleInspections.type,
+            result: motorcycleInspections.result,
+            odometerKm: motorcycleInspections.odometerKm,
+            fuelLevel: motorcycleInspections.fuelLevel,
+            notes: motorcycleInspections.notes,
+            inspectedAt: motorcycleInspections.inspectedAt,
+            inspectorName: users.displayName,
+          })
+          .from(motorcycleInspections)
+          .innerJoin(users, eq(users.id, motorcycleInspections.inspectedBy))
+          .where(eq(motorcycleInspections.motorcycleId, id))
+          .orderBy(desc(motorcycleInspections.inspectedAt), desc(motorcycleInspections.id))
+          .limit(50)
+          .all()
+      : Promise.resolve([]),
+    canReadInspection
+      ? db
+          .select({
+            id: inspectionFindings.id,
+            inspectionId: inspectionFindings.inspectionId,
+            area: inspectionFindings.area,
+            severity: inspectionFindings.severity,
+            description: inspectionFindings.description,
+            evidenceImageId: inspectionFindings.evidenceImageId,
+            createdAt: inspectionFindings.createdAt,
+          })
+          .from(inspectionFindings)
+          .innerJoin(motorcycleInspections, eq(motorcycleInspections.id, inspectionFindings.inspectionId))
+          .where(eq(motorcycleInspections.motorcycleId, id))
+          .orderBy(desc(inspectionFindings.createdAt), desc(inspectionFindings.id))
+          .limit(100)
+          .all()
+      : Promise.resolve([]),
+    canReadDocuments
+      ? db
+          .select({
+            id: proofOfDeliveryRecords.id,
+            recipientName: proofOfDeliveryRecords.recipientName,
+            recipientPhone: proofOfDeliveryRecords.recipientPhone,
+            deliveryLocation: proofOfDeliveryRecords.deliveryLocation,
+            deliveredAt: proofOfDeliveryRecords.deliveredAt,
+            evidenceImageId: proofOfDeliveryRecords.evidenceImageId,
+            notes: proofOfDeliveryRecords.notes,
+            status: proofOfDeliveryRecords.status,
+            voidReason: proofOfDeliveryRecords.voidReason,
+            createdAt: proofOfDeliveryRecords.createdAt,
+            receiverName: users.displayName,
+          })
+          .from(proofOfDeliveryRecords)
+          .innerJoin(users, eq(users.id, proofOfDeliveryRecords.receivedBy))
+          .where(eq(proofOfDeliveryRecords.motorcycleId, id))
+          .orderBy(desc(proofOfDeliveryRecords.createdAt), desc(proofOfDeliveryRecords.id))
+          .limit(20)
+          .all()
+      : Promise.resolve([]),
   ]);
-  const nextStatuses = allowedTransitions(record.currentStatus);
   const canUpdateStatus = can(actor, "status:write", record.companyId);
   const canUpload = can(actor, "images:write", record.companyId);
   const canPrintLabel = can(actor, "motorcycles:write", record.companyId);
+  const canInspect = canUpdateStatus;
+  const canManagePod = isInternalRole(actor.role) && canUpdateStatus && can(actor, "images:read", record.companyId);
+  const activePod = podRecords.find((pod) => pod.status === "ACTIVE");
+  const hasPassedReceiptInspection = inspections.some((inspection) => inspection.type === "RECEIPT" && inspection.result === "PASS");
+  const nextStatuses = allowedTransitions(record.currentStatus).filter((status) => {
+    if (status === "INSPECTED") return hasPassedReceiptInspection;
+    if (status === "DELIVERED") return Boolean(activePod);
+    return true;
+  });
+  const damageImages = images.filter((image) => image.category === "DAMAGE");
+  const deliveryImages = images.filter((image) => image.category === "DELIVERY");
+  const allowedInspectionTypes = INSPECTION_TYPES.filter((type) => inspectionTypeAllowedForStatus(type, record.currentStatus));
 
   return (
     <>
       <div className="app-page-head">
         <div><p>{record.jobNumber}</p><h1>รถคันที่ {record.sequenceNumber}</h1><span>{record.companyName}</span></div>
-        <div className="app-page-actions"><Link href="/app/motorcycles">← กลับรายการรถ</Link>{canPrintLabel && <Link href={`/app/motorcycles/${record.id}/label`}>พิมพ์ฉลาก QR</Link>}</div>
+        <div className="app-page-actions"><Link href="/app/motorcycles">← กลับรายการรถ</Link>{canReadDocuments && <Link href={`/app/motorcycles/${record.id}/documents`}>เอกสาร / PDF</Link>}{canPrintLabel && <Link href={`/app/motorcycles/${record.id}/label`}>พิมพ์ฉลาก QR</Link>}</div>
       </div>
 
       {activeTrip && (
@@ -135,9 +245,26 @@ export default async function MotorcycleDetailPage({ params, searchParams }: Mot
           </article>
         </section>
       )}
+      {activeContainer && (
+        <section className="detail-section">
+          <div className="detail-section-head"><div><p>ACTIVE CONTAINER</p><h2>ตู้ที่รถคันนี้สังกัดอยู่</h2></div><Link href={`/app/containers/${activeContainer.containerId}`}>เปิด Load Manifest →</Link></div>
+          <article className="app-panel motorcycle-trip-context">
+            <div><span>{activeContainer.containerNumber} · Seal {activeContainer.sealNumber || "ยังไม่ระบุ"}</span><h3>{activeContainer.port} → {activeContainer.country}</h3></div>
+            <dl><div><dt>สถานะตู้</dt><dd>{containerStatusLabel(activeContainer.containerStatus)}</dd></div><div><dt>สถานะในตู้</dt><dd>{containerAssignmentStateLabel(activeContainer.assignmentState)}</dd></div></dl>
+            <p>สถานะรถและสถานะ Load Manifest ถูกตรวจแยกกัน เพื่อให้การโหลด/นำลงมี Audit ครบและไม่เกิดการข้ามขั้นตอน</p>
+          </article>
+        </section>
+      )}
       {query.status === "updated" && <div className="form-message success page-message">อัปเดตสถานะเรียบร้อยแล้ว</div>}
       {query.status === "image_uploaded" && <div className="form-message success page-message">อัปโหลดรูปเรียบร้อยแล้ว</div>}
       {query.status === "yard_updated" && <div className="form-message success page-message">อัปเดตตำแหน่งลานเรียบร้อยแล้ว</div>}
+      {query.status === "inspection_created" && <div className="form-message success page-message">บันทึกผลตรวจสภาพและ Audit แล้ว</div>}
+      {query.status === "inspection_exists" && <div className="login-notice page-message">คำขอนี้บันทึกผลตรวจแล้ว ระบบไม่สร้างข้อมูลซ้ำ</div>}
+      {query.status === "finding_created" && <div className="form-message success page-message">เพิ่มรายการความเสียหายแล้ว</div>}
+      {query.status === "finding_exists" && <div className="login-notice page-message">คำขอนี้เพิ่มรายการความเสียหายแล้ว</div>}
+      {query.status === "pod_created" && <div className="form-message success page-message">บันทึกหลักฐานส่งมอบแล้ว</div>}
+      {query.status === "pod_exists" && <div className="login-notice page-message">คำขอนี้บันทึกหลักฐานส่งมอบแล้ว</div>}
+      {query.status === "pod_voided" && <div className="form-message success page-message">ยกเลิกหลักฐานฉบับเดิมโดยเก็บประวัติแล้ว</div>}
       {query.error && <div className="form-message error page-message">บันทึกไม่สำเร็จ กรุณาตรวจสอบข้อมูลและสิทธิ์</div>}
 
       <div className="record-detail-grid">
@@ -162,6 +289,9 @@ export default async function MotorcycleDetailPage({ params, searchParams }: Mot
           </form>
         )}
       </div>
+
+      {canUpdateStatus && allowedTransitions(record.currentStatus).includes("INSPECTED") && !hasPassedReceiptInspection && <div className="login-notice page-message">ต้องบันทึกผลตรวจรับรถเป็น “ผ่าน” ก่อน ระบบจึงจะอนุญาตสถานะตรวจสภาพแล้ว</div>}
+      {canUpdateStatus && allowedTransitions(record.currentStatus).includes("DELIVERED") && !activePod && <div className="login-notice page-message">ต้องมีหลักฐานส่งมอบที่ active พร้อมรูป DELIVERY ก่อน ระบบจึงจะอนุญาตสถานะส่งมอบแล้ว</div>}
 
       {canReadYard && (
         <section className="detail-section">
@@ -216,6 +346,68 @@ export default async function MotorcycleDetailPage({ params, searchParams }: Mot
         ))}</div> : <div className="app-panel app-empty"><div>📷</div><h2>ยังไม่มีรูปภาพ</h2><p>พนักงานสามารถอัปโหลดรูปจากมือถือได้โดยตรง</p></div>}
       </section>
 
+      {canReadInspection && (
+        <section className="detail-section">
+          <div className="detail-section-head"><div><p>INSPECTION & DAMAGE</p><h2>ตรวจสภาพและรายการความเสียหาย</h2></div><span>ล่าสุด 50 ใบตรวจ · 100 รายการตรวจพบ</span></div>
+          {canInspect && allowedInspectionTypes.length > 0 && (
+            <form className="record-form inspection-form" action={`/api/motorcycles/${id}/inspections`} method="post">
+              <input type="hidden" name="requestKey" value={crypto.randomUUID()} />
+              <div className="field"><label htmlFor="inspectionType">ประเภทการตรวจ *</label><select id="inspectionType" name="type" required>{allowedInspectionTypes.map((type) => <option key={type} value={type}>{inspectionTypeLabel(type)}</option>)}</select></div>
+              <div className="field"><label htmlFor="inspectionResult">ผลตรวจ *</label><select id="inspectionResult" name="result" required>{INSPECTION_RESULTS.map((result) => <option key={result} value={result}>{inspectionResultLabel(result)}</option>)}</select></div>
+              <div className="field"><label htmlFor="inspectedAt">วันเวลาตรวจ (เวลาไทย) *</label><input id="inspectedAt" name="inspectedAt" type="datetime-local" defaultValue={datetimeLocalNowBangkok()} required /></div>
+              <div className="field"><label htmlFor="odometerKm">เลขไมล์ (กม.)</label><input id="odometerKm" name="odometerKm" type="number" min={0} max={10000000} inputMode="numeric" /></div>
+              <div className="field"><label htmlFor="fuelLevel">ระดับน้ำมัน</label><select id="fuelLevel" name="fuelLevel" defaultValue="UNKNOWN">{FUEL_LEVELS.map((level) => <option key={level} value={level}>{fuelLevelLabel(level)}</option>)}</select></div>
+              <div className="field full"><label htmlFor="inspectionNotes">สรุปผล / เหตุผล (บังคับเมื่อพบปัญหา)</label><textarea id="inspectionNotes" name="notes" rows={3} maxLength={2000} /></div>
+              <div className="inspection-finding-fields full">
+                <div><b>รายการตรวจพบแรก (กรอกครบชุดเมื่อมี)</b><span>เพิ่มรายการถัดไปได้หลังบันทึกใบตรวจ</span></div>
+                <div className="field"><label htmlFor="findingArea">ตำแหน่ง</label><input id="findingArea" name="findingArea" maxLength={100} placeholder="เช่น กันชนหน้า" /></div>
+                <div className="field"><label htmlFor="findingSeverity">ระดับ</label><select id="findingSeverity" name="findingSeverity" defaultValue=""><option value="">ไม่ระบุรายการ</option><option value="MINOR">เล็กน้อย</option><option value="MODERATE">ปานกลาง</option><option value="MAJOR">รุนแรง</option></select></div>
+                <div className="field full"><label htmlFor="findingDescription">รายละเอียด</label><textarea id="findingDescription" name="findingDescription" rows={2} minLength={3} maxLength={1000} /></div>
+                <div className="field full"><label htmlFor="inspectionEvidenceImageId">รูป DAMAGE ที่เกี่ยวข้อง</label><select id="inspectionEvidenceImageId" name="evidenceImageId" defaultValue=""><option value="">ยังไม่มีรูปหลักฐาน</option>{damageImages.map((image) => <option key={image.id} value={image.id}>{formatThaiDateTime(image.createdAt)} · {image.id.slice(0, 8)}</option>)}</select></div>
+              </div>
+              <div className="full"><button className="button button-gradient" type="submit">บันทึกใบตรวจสภาพ</button></div>
+            </form>
+          )}
+          {inspections.length ? <div className="inspection-list">{inspections.map((inspection) => {
+            const inspectionFindingsForRecord = findings.filter((finding) => finding.inspectionId === inspection.id);
+            return <article className={`app-panel inspection-card result-${inspection.result.toLowerCase()}`} key={inspection.id}>
+              <div className="inspection-card-head"><div><span>{inspectionTypeLabel(inspection.type)}</span><h3>{inspectionResultLabel(inspection.result)}</h3></div><span className="status-pill">{formatThaiDateTime(inspection.inspectedAt)}</span></div>
+              <dl><div><dt>ผู้ตรวจ</dt><dd>{inspection.inspectorName}</dd></div><div><dt>เลขไมล์</dt><dd>{inspection.odometerKm === null ? "ไม่ระบุ" : `${inspection.odometerKm.toLocaleString("th-TH")} กม.`}</dd></div><div><dt>น้ำมัน</dt><dd>{fuelLevelLabel(inspection.fuelLevel)}</dd></div></dl>
+              <p>{inspection.notes || "ไม่พบหมายเหตุเพิ่มเติม"}</p>
+              {inspectionFindingsForRecord.length > 0 && <div className="inspection-findings">{inspectionFindingsForRecord.map((finding) => <div key={finding.id}><div><b>{finding.area}</b><span className={`finding-severity ${finding.severity.toLowerCase()}`}>{damageSeverityLabel(finding.severity)}</span></div><p>{finding.description}</p>{finding.evidenceImageId ? <a href={`/api/images/${finding.evidenceImageId}`} target="_blank" rel="noreferrer">เปิดรูปหลักฐาน</a> : <span>ยังไม่มีรูปหลักฐาน</span>}</div>)}</div>}
+              {canInspect && inspection.result !== "PASS" && <form className="inspection-add-finding" action={`/api/motorcycles/${id}/inspections/${inspection.id}/findings`} method="post" aria-label={`เพิ่มรายการตรวจพบในใบตรวจ ${inspectionTypeLabel(inspection.type)}`}><input type="hidden" name="requestKey" value={crypto.randomUUID()} /><input name="area" maxLength={100} required placeholder="ตำแหน่ง *" aria-label="ตำแหน่งที่ตรวจพบ" /><select name="severity" required defaultValue="MINOR" aria-label="ระดับความเสียหาย"><option value="MINOR">เล็กน้อย</option><option value="MODERATE">ปานกลาง</option><option value="MAJOR">รุนแรง</option></select><input name="description" minLength={3} maxLength={1000} required placeholder="รายละเอียด *" aria-label="รายละเอียดที่ตรวจพบ" /><select name="evidenceImageId" defaultValue="" aria-label="รูปหลักฐานความเสียหาย"><option value="">ไม่มีรูป</option>{damageImages.map((image) => <option key={image.id} value={image.id}>{formatThaiDateTime(image.createdAt)} · {image.id.slice(0, 8)}</option>)}</select><button type="submit">เพิ่มรายการตรวจพบ</button></form>}
+            </article>;
+          })}</div> : <div className="app-panel app-empty"><div>🧾</div><h2>ยังไม่มีใบตรวจสภาพ</h2><p>บันทึกผลตรวจจริงก่อนเปลี่ยนรถเป็นสถานะตรวจสภาพแล้ว</p></div>}
+        </section>
+      )}
+
+      {canReadDocuments && (
+        <section className="detail-section">
+          <div className="detail-section-head"><div><p>PROOF OF DELIVERY</p><h2>หลักฐานส่งมอบ</h2></div><span>เก็บประวัติทุกฉบับ · ไม่ลบย้อนหลัง</span></div>
+          {canManagePod && record.currentStatus === "ARRIVED" && !activePod && deliveryImages.length > 0 && (
+            <form className="record-form pod-form" action={`/api/motorcycles/${id}/pod`} method="post">
+              <input type="hidden" name="requestKey" value={crypto.randomUUID()} />
+              <div className="field"><label htmlFor="recipientName">ชื่อผู้รับจริง *</label><input id="recipientName" name="recipientName" maxLength={160} autoComplete="name" required /></div>
+              <div className="field"><label htmlFor="recipientPhone">เบอร์ผู้รับ</label><input id="recipientPhone" name="recipientPhone" minLength={6} maxLength={50} inputMode="tel" autoComplete="tel" /></div>
+              <div className="field"><label htmlFor="deliveryLocation">สถานที่ส่งมอบ *</label><input id="deliveryLocation" name="deliveryLocation" minLength={2} maxLength={300} required /></div>
+              <div className="field"><label htmlFor="deliveredAt">วันเวลาส่งมอบ (เวลาไทย) *</label><input id="deliveredAt" name="deliveredAt" type="datetime-local" defaultValue={datetimeLocalNowBangkok()} required /></div>
+              <div className="field full"><label htmlFor="podEvidenceImageId">รูปส่งมอบ DELIVERY *</label><select id="podEvidenceImageId" name="evidenceImageId" required defaultValue=""><option value="">เลือกรูปหลักฐาน</option>{deliveryImages.map((image) => <option key={image.id} value={image.id}>{formatThaiDateTime(image.createdAt)} · {image.id.slice(0, 8)}</option>)}</select></div>
+              <div className="field full"><label htmlFor="podNotes">หมายเหตุ</label><textarea id="podNotes" name="notes" rows={3} maxLength={2000} /></div>
+              <div className="full"><button className="button button-gradient" type="submit">บันทึกหลักฐานส่งมอบ</button></div>
+            </form>
+          )}
+          {canManagePod && record.currentStatus === "ARRIVED" && !activePod && deliveryImages.length === 0 && <div className="login-notice page-message">อัปโหลดรูปประเภท “ส่งมอบ” ก่อนสร้าง POD ระบบไม่รับรูปหมวดอื่นแทนหลักฐานส่งมอบ</div>}
+          {podRecords.length ? <div className="pod-list">{podRecords.map((pod) => <article className={`app-panel pod-card ${pod.status.toLowerCase()}`} key={pod.id}>
+            <div className="pod-card-head"><div><span>{pod.status === "ACTIVE" ? "ACTIVE POD" : "VOIDED POD"}</span><h3>{pod.recipientName}</h3></div><span className="status-pill">{pod.status === "ACTIVE" ? "ใช้งาน" : "ยกเลิกแล้ว"}</span></div>
+            <dl><div><dt>ส่งมอบ</dt><dd>{formatThaiDateTime(pod.deliveredAt)}</dd></div><div><dt>สถานที่</dt><dd>{pod.deliveryLocation}</dd></div><div><dt>เบอร์ผู้รับ</dt><dd>{maskPhone(pod.recipientPhone)}</dd></div><div><dt>ผู้บันทึก</dt><dd>{pod.receiverName}</dd></div></dl>
+            <p>{pod.notes || "ไม่มีหมายเหตุ"}</p>
+            <a className="button button-glass button-small" href={`/api/images/${pod.evidenceImageId}`} target="_blank" rel="noreferrer">เปิดรูปส่งมอบ</a>
+            {pod.status === "VOIDED" && <div className="trip-release-note">เหตุผลยกเลิก: {pod.voidReason}</div>}
+            {canManagePod && pod.status === "ACTIVE" && record.currentStatus === "ARRIVED" && <form className="pod-void-form" action={`/api/motorcycles/${id}/pod/${pod.id}`} method="post"><input name="reason" minLength={3} maxLength={500} required placeholder="เหตุผลยกเลิกฉบับนี้ *" aria-label="เหตุผลยกเลิกหลักฐานส่งมอบ" /><button type="submit">ยกเลิกและเก็บประวัติ</button></form>}
+          </article>)}</div> : <div className="app-panel app-empty"><div>🤝</div><h2>ยังไม่มีหลักฐานส่งมอบ</h2><p>เมื่อรถถึงปลายทาง ให้บันทึกผู้รับ สถานที่ เวลา และรูปส่งมอบจริง</p></div>}
+        </section>
+      )}
+
       <section className="detail-section">
         <div className="detail-section-head"><div><p>TIMELINE</p><h2>ประวัติสถานะ</h2></div></div>
         <ol className="timeline">{events.map((event) => (
@@ -238,4 +430,32 @@ function tripStatusLabel(status: string): string {
 
 function assignmentStateLabel(state: string): string {
   return ({ ASSIGNED: "จัดเข้าเที่ยวแล้ว", LOADED: "ยืนยันขึ้นรถแล้ว", UNLOADED: "ยืนยันลงรถแล้ว", RELEASED: "ปิดรายการแล้ว" } as Record<string, string>)[state] ?? state;
+}
+
+function containerStatusLabel(status: string): string {
+  return ({ DRAFT: "ร่าง", PLANNED: "วางแผนแล้ว", LOADING: "กำลังโหลดตู้", SEALED: "ปิด Seal แล้ว", IN_TRANSIT: "กำลังขนส่ง", ARRIVED: "ถึงปลายทาง", UNLOADING: "กำลังนำรถลง", COMPLETED: "เสร็จสิ้น", CANCELLED: "ยกเลิก" } as Record<string, string>)[status] ?? status;
+}
+
+function containerAssignmentStateLabel(state: string): string {
+  return ({ ASSIGNED: "จัดเข้าตู้แล้ว", LOADED: "ยืนยันขึ้นตู้แล้ว", UNLOADED: "ยืนยันลงจากตู้แล้ว", RELEASED: "ปิดรายการแล้ว" } as Record<string, string>)[state] ?? state;
+}
+
+function inspectionTypeLabel(type: string): string {
+  return ({ RECEIPT: "ตรวจรับรถ", PRE_LOAD: "ตรวจก่อนโหลด", DELIVERY: "ตรวจส่งมอบ" } as Record<string, string>)[type] ?? type;
+}
+
+function inspectionResultLabel(result: string): string {
+  return ({ PASS: "ผ่าน", ISSUE: "พบข้อสังเกต", DAMAGE: "พบความเสียหาย" } as Record<string, string>)[result] ?? result;
+}
+
+function damageSeverityLabel(severity: string): string {
+  return ({ MINOR: "เล็กน้อย", MODERATE: "ปานกลาง", MAJOR: "รุนแรง" } as Record<string, string>)[severity] ?? severity;
+}
+
+function fuelLevelLabel(level: string): string {
+  return ({ UNKNOWN: "ไม่ทราบ", EMPTY: "หมด", QUARTER: "1/4", HALF: "1/2", THREE_QUARTERS: "3/4", FULL: "เต็ม" } as Record<string, string>)[level] ?? level;
+}
+
+function datetimeLocalNowBangkok(): string {
+  return new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().slice(0, 16);
 }
