@@ -22,15 +22,15 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   }
 
   if (!row.readAt) {
-    const result = await db
+    await db
       .update(notifications)
       .set({ readAt: new Date().toISOString() })
       .where(and(
         eq(notifications.id, id),
         eq(notifications.recipientUserId, actor.userId),
         isNull(notifications.readAt),
-      ));
-    await result.run();
+      ))
+      .run();
   }
 
   return NextResponse.redirect(new URL(row.href, request.url), 303);

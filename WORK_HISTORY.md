@@ -1,5 +1,15 @@
 # NATHEE GROUP 2025 — Work History
 
+## 2026-08-21 — Structured Site Content CMS and bounded Gallery batch upload
+
+- Added migration `0012` with stable page identities, immutable SHA-256 revisions, append-only publish/hide events, same-page publication enforcement, no-hard-delete triggers and explicit Site Content permissions.
+- Added authenticated admin pages to edit, reorder, preview and publish structured Home, Services, About and Contact sections. Rollback republishes an older revision without rewriting history.
+- Added public CMS rendering that accepts no raw HTML, limits links to safe local/tel destinations and displays only real `PUBLIC` + `PUBLISHED` Gallery media.
+- Added sequential bounded Gallery batches of up to 20 images with per-image title/Alt text, WebP/optional AVIF variants, visible progress, cancellation and retry without fake success.
+- Verification: TypeScript PASS, ESLint PASS, Vinext production build PASS, CMS unit tests PASS and complete D1 migration/invariant tests PASS.
+- Deployment: source only; migration `0012`, dynamic CMS and managed Gallery were not deployed. The current Z.com static website remains available and unchanged by this slice.
+- Rollback: before Production apply, revert the implementation commit. After apply, restore the D1 backup or use a reviewed forward migration; never delete revision, publication or Gallery history.
+
 ## 2026-08-21 — First Owner-supplied public Gallery release
 
 - Added two real company-work photographs to the versioned public Gallery manifest: motorcycle truck loading and storage-yard operations.

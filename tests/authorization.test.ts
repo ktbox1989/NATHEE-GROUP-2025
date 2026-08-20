@@ -16,6 +16,7 @@ test("owner has access to every company and capability", () => {
   assert.equal(can(owner, "audit:read"), true);
   assert.equal(can(owner, "yard:write"), true);
   assert.equal(can(owner, "gallery:publish"), true);
+  assert.equal(can(owner, "site:publish"), true);
 });
 
 test("staff access requires an explicit capability", () => {
@@ -23,7 +24,7 @@ test("staff access requires an explicit capability", () => {
     userId: "staff-1",
     role: "STAFF" as const,
     companyId: null,
-    permissions: ["jobs:read", "yard:read", "gallery:read", "gallery:write"] as const,
+    permissions: ["jobs:read", "yard:read", "gallery:read", "gallery:write", "site:read", "site:write"] as const,
   };
   assert.equal(can(staff, "jobs:read", "company-a"), true);
   assert.equal(can(staff, "jobs:write", "company-a"), false);
@@ -31,6 +32,8 @@ test("staff access requires an explicit capability", () => {
   assert.equal(can(staff, "yard:write"), false);
   assert.equal(can(staff, "gallery:write"), true);
   assert.equal(can(staff, "gallery:publish"), false);
+  assert.equal(can(staff, "site:write"), true);
+  assert.equal(can(staff, "site:publish"), false);
 });
 
 test("every non-owner internal role is fail-closed without explicit permissions", () => {
@@ -54,6 +57,7 @@ test("customer roles can read only records owned by their company", () => {
     assert.equal(can(customer, "motorcycles:read"), false);
     assert.equal(can(customer, "yard:read", "company-a"), false);
     assert.equal(can(customer, "gallery:read", "company-a"), false);
+    assert.equal(can(customer, "site:read"), false);
   }
 });
 

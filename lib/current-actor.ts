@@ -74,7 +74,7 @@ const resolveCurrentActor = cache(async (): Promise<CurrentActor | null> => {
         )
         .returning({ id: users.id })
         .get();
-      appUser = result ? { ...pendingUser, externalAuthId: authUser.id } : null;
+      appUser = result ? { ...pendingUser, externalAuthId: authUser.id } : undefined;
     }
   }
 

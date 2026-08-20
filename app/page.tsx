@@ -1,4 +1,20 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+import { CmsPublicPage } from "@/components/cms-public-page";
+import { getPublishedSitePage } from "@/lib/site-cms";
+
+export const dynamic = "force-dynamic";
+export async function generateMetadata(): Promise<Metadata> {
+  const state = await getPublishedSitePage("home");
+  const title = state.status === "PUBLISHED" ? state.content.seo.title : "NATHEE GROUP 2025 | Motorcycle Logistics";
+  const description = state.status === "PUBLISHED" ? state.content.seo.description : "บริการขนส่งรถจักรยานยนต์ รับฝากรถ ลานสต๊อก โหลดรถ และเตรียมงานส่งออก พร้อมระบบติดตามสถานะ";
+  return {
+    title,
+    description,
+    alternates: { canonical: "https://natheegroup2025.com/" },
+    openGraph: { title, description, url: "https://natheegroup2025.com/", siteName: "NATHEE GROUP 2025", type: "website", locale: "th_TH" },
+  };
+}
 
 const services = [
   ["🏍️", "ขนส่งในประเทศ", "รองรับรถใหม่ รถมือสอง งานรายคัน และงานล็อต พร้อมติดตามการทำงานเป็นขั้นตอน"],
@@ -17,7 +33,13 @@ const workflow = [
   ["05", "ส่งมอบ", "เก็บหลักฐานและปิดงานอย่างตรวจสอบได้"],
 ];
 
-export default function Home() {
+export default async function Home() {
+  const page = await getPublishedSitePage("home");
+  if (page.status === "PUBLISHED") return <CmsPublicPage content={page.content} slug="home" />;
+  return <LegacyHome />;
+}
+
+function LegacyHome() {
   return (
     <main>
       <div className="topbar">

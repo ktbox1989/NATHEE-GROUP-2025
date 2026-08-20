@@ -23,6 +23,9 @@ export const PERMISSIONS = [
   "gallery:read",
   "gallery:write",
   "gallery:publish",
+  "site:read",
+  "site:write",
+  "site:publish",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];

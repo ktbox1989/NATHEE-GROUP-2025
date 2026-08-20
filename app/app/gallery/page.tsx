@@ -2,7 +2,7 @@ import Link from "next/link";
 /* eslint-disable @next/next/no-img-element -- private R2 thumbnails require the authorization-aware image route */
 import { and, desc, eq, lt, or } from "drizzle-orm";
 import { redirect } from "next/navigation";
-import { GalleryUploadForm } from "@/components/gallery-upload-form";
+import { GalleryBulkUploadForm } from "@/components/gallery-bulk-upload-form";
 import { getDb } from "@/db";
 import { companies, galleryCategories, galleryItems, transportJobs } from "@/db/schema";
 import { can } from "@/lib/authorization";
@@ -41,7 +41,7 @@ export default async function GalleryAdminPage({ searchParams }: Props) {
       <div className="gallery-category-admin">{categories.map((category) => <form key={category.id} action={`/api/gallery/categories/${category.id}`} method="post" className="app-panel"><input name="name" defaultValue={category.name} maxLength={120} required aria-label="ชื่อหมวด" /><input name="slug" defaultValue={category.slug} pattern="[a-z0-9-]{2,80}" required aria-label="Slug" /><input name="description" defaultValue={category.description ?? ""} maxLength={500} aria-label="คำอธิบาย" /><input name="sortOrder" type="number" min={0} max={1000000} defaultValue={category.sortOrder} aria-label="ลำดับ" /><select name="status" defaultValue={category.status} aria-label="สถานะหมวด"><option value="ACTIVE">แสดง</option><option value="HIDDEN">ซ่อน</option></select><button type="submit">บันทึกหมวด</button></form>)}</div>
     </section>}
 
-    {canWrite && <section className="detail-section"><div className="detail-section-head"><div><p>UPLOAD</p><h2>เพิ่มภาพจริง</h2></div><span>อัปโหลดเป็น Draft เสมอ</span></div>{categories.some((category) => category.status === "ACTIVE") ? <GalleryUploadForm categories={categories.filter((category) => category.status === "ACTIVE").map(({ id, name }) => ({ id, name }))} jobs={jobs.map((job) => ({ id: job.id, companyId: job.companyId, label: `${job.jobNumber} · ${job.companyName}` }))} /> : <div className="app-panel app-empty"><h2>สร้างหมวดก่อนอัปโหลด</h2><p>Gallery จะไม่รับภาพที่ไม่มีหมวด</p></div>}</section>}
+    {canWrite && <section className="detail-section"><div className="detail-section-head"><div><p>BULK UPLOAD</p><h2>เพิ่มภาพจริงหลายภาพ</h2></div><span>ครั้งละไม่เกิน 20 ภาพ · อัปโหลดเป็น Draft เสมอ</span></div>{categories.some((category) => category.status === "ACTIVE") ? <GalleryBulkUploadForm categories={categories.filter((category) => category.status === "ACTIVE").map(({ id, name }) => ({ id, name }))} jobs={jobs.map((job) => ({ id: job.id, companyId: job.companyId, label: `${job.jobNumber} · ${job.companyName}` }))} /> : <div className="app-panel app-empty"><h2>สร้างหมวดก่อนอัปโหลด</h2><p>Gallery จะไม่รับภาพที่ไม่มีหมวด</p></div>}</section>}
 
     <section className="detail-section"><div className="detail-section-head"><div><p>LIBRARY</p><h2>รายการภาพ</h2></div><span>{items.length} รายการในหน้านี้</span></div>
       <div className="gallery-admin-grid">{items.map((item) => <article className="app-panel gallery-admin-card" id={item.id} key={item.id}><img src={`/api/gallery/images/${item.id}?role=thumbnail`} alt={item.altText} loading="lazy" width={640} height={480} /><div className="gallery-admin-meta"><div><span className={`status-pill ${item.status}`}>{item.status}</span>{item.isFeatured === 1 && <span className="status-pill">FEATURED</span>}</div><h3>{item.title}</h3><p>{categoryMap.get(item.categoryId) ?? "ไม่พบหมวด"} · {item.visibility}</p>{item.caption && <small>{item.caption}</small>}</div>

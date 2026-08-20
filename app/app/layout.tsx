@@ -49,6 +49,9 @@ export default async function OperationsLayout({
   if (can(actor, "gallery:read")) {
     items.push({ href: "/app/gallery", label: "Gallery / Portfolio", icon: "🖼️" });
   }
+  if (can(actor, "site:read")) {
+    items.push({ href: "/app/site-content", label: "จัดการหน้าเว็บไซต์", icon: "✦" });
+  }
   if (actor.role === "OWNER") {
     items.push({ href: "/app/users", label: "สมาชิก / สิทธิ์", icon: "👥" });
   }

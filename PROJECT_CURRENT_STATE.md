@@ -5,7 +5,7 @@ Updated: 2026-08-21 (Asia/Bangkok)
 ## Source checkpoint
 
 - Branch: `main`
-- Latest verified implementation milestone: `8ad52be` — Audited Inspection, Damage, POD and Print Center
+- Latest verified implementation milestone: Structured Site Content CMS and bounded Gallery batch upload (resolve the final commit with `git rev-parse HEAD`)
 - Canonical repository: `ktbox1989/NATHEE-GROUP-2025`
 - Working rule: resolve the current checkpoint-document commit with `git rev-parse HEAD`; never infer Production deployment from source HEAD.
 
@@ -14,8 +14,7 @@ Updated: 2026-08-21 (Asia/Bangkok)
 - Public static website: LIVE at `https://natheegroup2025.com/`
 - Z.com root: `/home/zptqqwps/public_html/natheegroup2025.com`
 - Public routes: 11, with mandatory SEO/noindex/mobile gates
-- Public Gallery Production: LIVE manifest v1, 10 categories, 0 published real images at the last runtime check
-- Public Gallery repository release: 2 Owner-supplied real photographs, responsive thumbnails, captions and alt text; awaiting the next public-site deployment
+- Public Gallery Production: LIVE manifest v1 with the two Owner-supplied real photographs, responsive thumbnails, captions and Alt text
 - Canonical `/login/`: static noindex status page, not real Auth
 - Canonical `/app`: 404
 - Canonical `/api/health`: 404
@@ -108,30 +107,39 @@ Updated: 2026-08-21 (Asia/Bangkok)
 - Added two real company-work photographs supplied and approved by the Owner: a two-level motorcycle truck load and a motorcycle storage yard.
 - Each photograph has a separate compressed thumbnail, factual Thai caption, descriptive alt text, a real Gallery category and deterministic featured ordering.
 - The homepage Gallery preview and `/gallery/` consume the same versioned manifest. No location, date, customer identity or unverified performance claim was inferred.
-- This is repository source only until the guarded Z.com public-site deployment and live postcheck pass.
+- The guarded Z.com public-site deployment and live postcheck passed for this public static release.
+
+### Structured Site Content CMS and Gallery batch workflow
+
+- Added an authenticated CMS for Home, Services, About and Contact using allowlisted structured sections rather than raw HTML.
+- Added immutable content revisions with SHA-256 hashes, append-only publication events, same-page publication enforcement, Audit records and forward-only rollback by republishing an older revision.
+- Added explicit `site:read`, `site:write` and `site:publish` permissions. OWNER retains business-wide rights; every other internal role remains fail-closed and CUSTOMER roles receive no CMS access.
+- Added a bounded Gallery batch uploader for up to 20 real images per batch. Images are processed and uploaded sequentially, require title/Alt text, remain Draft until separately published and preserve completed Drafts when a later image fails.
+- Public CMS Gallery sections query only `PUBLIC` + `PUBLISHED` items, remain bounded to 24 images per section and fail safely to an honest empty state when Gallery storage is unavailable.
+- Migration `0012` adds Site Content pages/revisions/publication history and the new permissions. It remains unapplied in Production.
 
 ## Verified source gates
 
-- Full test suite: 88 passing
-- Authorization/unit tests: 50 passing
-- Render/schema/notification/yard/trip/container/inspection/POD/query-plan tests: 38 passing
+- Full test suite: 99 passing
+- Authorization/unit/CMS parser tests: 55 passing
+- Render/schema/notification/yard/trip/container/inspection/POD/CMS/query-plan tests: 44 passing
 - Production Vinext build: PASS
 - ESLint: PASS
 - Public SEO and deployment architecture guards: PASS
-- Migrations through `0011` packaged in `dist/.openai/drizzle/`: PASS
+- Migrations through `0012` packaged in `dist/.openai/drizzle/`: PASS
 
 ## Open Owner gates
 
 - Approve application routing model: apex edge routes or an application subdomain.
 - Supply/configure Supabase Production values through a secure hosting channel.
-- Backup and apply migrations `0001`–`0011` to the protected D1 runtime.
+- Backup and apply migrations `0001`–`0012` to the protected D1 runtime.
 - Verify private R2 readiness.
 - Bootstrap the real OWNER identity and accept two-company customer isolation.
 - Deploy the two approved Gallery photographs and add verified location/map data when supplied.
 
 ## Next autonomous work
 
-1. Stop adding broad local modules and close the Production activation gates: canonical app route, Supabase environment/callback, D1 backup+ledger+migrations `0001`–`0011`, R2 readiness and real OWNER mapping.
+1. Stop adding broad local modules and close the Production activation gates: canonical app route, Supabase environment/callback, D1 backup+ledger+migrations `0001`–`0012`, R2 readiness and real OWNER mapping.
 2. Run real browser acceptance for OWNER and two isolated customer companies before exposing `/app` publicly.
 3. Add bounded Company Search and indexed Driver Search before large customer/staff rollout; current selectors remain deliberately capped.
 4. Configure external LINE/email notification providers only after credentials, consent, retry and escalation policy are approved.

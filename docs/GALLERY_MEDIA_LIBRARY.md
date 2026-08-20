@@ -26,6 +26,8 @@ Publishing and editing a currently published record require `gallery:publish`. A
 
 Each upload has an ORIGINAL, DISPLAY and THUMBNAIL variant in private R2. The browser prepares WebP and attempts AVIF when supported; the server independently validates file signature, type, byte limit and SHA-256 before recording metadata. A failed D1 batch triggers compensating deletion of newly written R2 objects.
 
+The admin batch uploader accepts at most 20 images at a time and processes them sequentially to bound browser memory and network pressure. Each image requires its own factual title and Alt text. A cancelled or partially failed batch never claims success: completed images remain Draft, the failed item is identified, and retry skips completed records.
+
 The read route negotiates AVIF/WebP with `Accept`, sends immutable-style public caching only for public/published items, and sends `private, no-store` for authorized private items.
 
 ## Static Z.com release manifest
@@ -43,7 +45,7 @@ An empty manifest produces an honest empty state. It must not be replaced with s
 
 ## Production gates
 
-Migrations `0002` and `0003` are source-only until the authenticated platform's D1 backup, dry-run, Auth setup and permission mapping pass. Do not expose `/app/gallery` or apply these migrations merely to make the static site appear complete.
+Migrations `0002`, `0003` and the Site Content integration in `0012` are source-only until the authenticated platform's D1 backup, dry-run, Auth setup and permission mapping pass. Do not expose `/app/gallery` or apply these migrations merely to make the static site appear complete.
 
 Before activating the dynamic Media Library:
 

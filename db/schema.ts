@@ -40,6 +40,9 @@ export const STAFF_PERMISSIONS = [
   "gallery:read",
   "gallery:write",
   "gallery:publish",
+  "site:read",
+  "site:write",
+  "site:publish",
 ] as const;
 export const RECORD_STATUSES = ["ACTIVE", "INACTIVE", "ARCHIVED"] as const;
 export const JOB_STATUSES = [
@@ -87,6 +90,7 @@ export const GALLERY_CATEGORY_STATUSES = ["ACTIVE", "HIDDEN"] as const;
 export const GALLERY_ITEM_STATUSES = ["DRAFT", "PUBLISHED", "HIDDEN", "ARCHIVED"] as const;
 export const GALLERY_VISIBILITIES = ["PUBLIC", "CUSTOMER_JOB", "INTERNAL"] as const;
 export const GALLERY_VARIANT_ROLES = ["ORIGINAL", "DISPLAY", "THUMBNAIL"] as const;
+export const SITE_PAGE_PUBLICATION_ACTIONS = ["PUBLISH", "HIDE"] as const;
 export const NOTIFICATION_TYPES = ["MOTORCYCLE_STATUS_CHANGED"] as const;
 export const NOTIFICATION_SEVERITIES = ["INFO", "WARNING", "CRITICAL"] as const;
 export const TRUCK_TYPES = ["FOUR_WHEEL", "SIX_WHEEL", "OTHER"] as const;
@@ -212,7 +216,7 @@ export const userPermissions = sqliteTable(
     index("idx_user_permissions_user").on(table.userId),
     check(
       "ck_user_permissions_permission",
-      sql`${table.permission} IN ('companies:read', 'companies:write', 'jobs:read', 'jobs:write', 'motorcycles:read', 'motorcycles:write', 'images:read', 'images:write', 'status:read', 'status:write', 'yard:read', 'yard:write', 'documents:read', 'audit:read', 'gallery:read', 'gallery:write', 'gallery:publish')`,
+      sql`${table.permission} IN ('companies:read', 'companies:write', 'jobs:read', 'jobs:write', 'motorcycles:read', 'motorcycles:write', 'images:read', 'images:write', 'status:read', 'status:write', 'yard:read', 'yard:write', 'documents:read', 'audit:read', 'gallery:read', 'gallery:write', 'gallery:publish', 'site:read', 'site:write', 'site:publish')`,
     ),
   ],
 );
@@ -768,6 +772,67 @@ export const galleryImageVariants = sqliteTable(
   ],
 );
 
+export const sitePages = sqliteTable(
+  "site_pages",
+  {
+    id: text("id").primaryKey(),
+    slug: text("slug").notNull(),
+    displayName: text("display_name").notNull(),
+    createdBy: text("created_by").notNull().references(() => users.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    uniqueIndex("uq_site_pages_slug").on(table.slug),
+    index("idx_site_pages_updated").on(table.updatedAt, table.id),
+    check("ck_site_pages_slug", sql`length(${table.slug}) BETWEEN 2 AND 80 AND ${table.slug} NOT GLOB '*[^a-z0-9-]*'`),
+    check("ck_site_pages_display_name", sql`length(${table.displayName}) BETWEEN 1 AND 120`),
+  ],
+);
+
+export const sitePageRevisions = sqliteTable(
+  "site_page_revisions",
+  {
+    id: text("id").primaryKey(),
+    requestKey: text("request_key").notNull(),
+    pageId: text("page_id").notNull().references(() => sitePages.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    contentJson: text("content_json").notNull(),
+    contentHash: text("content_hash").notNull(),
+    changeNote: text("change_note"),
+    createdBy: text("created_by").notNull().references(() => users.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    uniqueIndex("uq_site_page_revisions_request_key").on(table.requestKey),
+    index("idx_site_page_revisions_page_created").on(table.pageId, table.createdAt, table.id),
+    check("ck_site_page_revisions_json", sql`json_valid(${table.contentJson}) AND length(${table.contentJson}) BETWEEN 2 AND 50000`),
+    check("ck_site_page_revisions_hash", sql`length(${table.contentHash}) = 64 AND ${table.contentHash} NOT GLOB '*[^0-9a-f]*'`),
+    check("ck_site_page_revisions_note", sql`${table.changeNote} IS NULL OR length(${table.changeNote}) <= 500`),
+  ],
+);
+
+export const sitePagePublicationEvents = sqliteTable(
+  "site_page_publication_events",
+  {
+    id: text("id").primaryKey(),
+    requestKey: text("request_key").notNull(),
+    pageId: text("page_id").notNull().references(() => sitePages.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    revisionId: text("revision_id").references(() => sitePageRevisions.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    action: text("action", { enum: SITE_PAGE_PUBLICATION_ACTIONS }).notNull(),
+    note: text("note"),
+    createdBy: text("created_by").notNull().references(() => users.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    uniqueIndex("uq_site_page_publication_request_key").on(table.requestKey),
+    index("idx_site_page_publication_page_created").on(table.pageId, table.createdAt, table.id),
+    index("idx_site_page_publication_revision").on(table.revisionId),
+    check("ck_site_page_publication_action", sql`${table.action} IN ('PUBLISH', 'HIDE')`),
+    check("ck_site_page_publication_revision", sql`(${table.action} = 'PUBLISH' AND ${table.revisionId} IS NOT NULL) OR (${table.action} = 'HIDE' AND ${table.revisionId} IS NULL)`),
+    check("ck_site_page_publication_note", sql`${table.note} IS NULL OR length(${table.note}) <= 500`),
+  ],
+);
+
 export const statusEvents = sqliteTable(
   "status_events",
   {
@@ -903,6 +968,7 @@ export type YardZoneStatus = (typeof YARD_ZONE_STATUSES)[number];
 export type GalleryItemStatus = (typeof GALLERY_ITEM_STATUSES)[number];
 export type GalleryVisibility = (typeof GALLERY_VISIBILITIES)[number];
 export type GalleryVariantRole = (typeof GALLERY_VARIANT_ROLES)[number];
+export type SitePagePublicationAction = (typeof SITE_PAGE_PUBLICATION_ACTIONS)[number];
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 export type NotificationSeverity = (typeof NOTIFICATION_SEVERITIES)[number];
 export type TruckType = (typeof TRUCK_TYPES)[number];

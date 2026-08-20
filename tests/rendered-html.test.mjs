@@ -57,3 +57,13 @@ test("server-renders password recovery without revealing account data", async ()
   assert.match(html, /disabled/);
   assert.doesNotMatch(html, /owner123|staff123|abc123|nathee2025/i);
 });
+
+test("managed public pages fail safely without a D1 binding", async () => {
+  for (const [path, expected] of [["/services", /บริการขนส่งรถจักรยานยนต์ครบวงจร/], ["/about", /บริษัท นทีกรุ๊ป2025 จำกัด/], ["/contact", /063-194-1191/]]) {
+    const response = await render(path);
+    assert.equal(response.status, 200, path);
+    const html = await response.text();
+    assert.match(html, expected, path);
+    assert.doesNotMatch(html, /owner123|staff123|abc123|nathee2025/i, path);
+  }
+});
