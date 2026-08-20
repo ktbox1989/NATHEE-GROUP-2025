@@ -1,10 +1,12 @@
 "use client";
 
 import { useRef, useState, type FormEvent } from "react";
+import { browserSecureId } from "@/lib/browser-secure-id";
+import { isConfirmedGalleryUploadResponse } from "@/lib/gallery";
 
 type CategoryOption = { id: string; name: string };
 type JobOption = { id: string; companyId: string; label: string };
-type QueueItem = { id: string; file: File; title: string; alt: string; status: "READY" | "UPLOADING" | "DONE" | "ERROR" };
+type QueueItem = { id: string; requestKey: string; file: File; title: string; alt: string; status: "READY" | "UPLOADING" | "DONE" | "ERROR" };
 
 export function GalleryBulkUploadForm({ categories, jobs }: { categories: CategoryOption[]; jobs: JobOption[] }) {
   const formRef = useRef<HTMLFormElement>(null);
@@ -19,7 +21,7 @@ export function GalleryBulkUploadForm({ categories, jobs }: { categories: Catego
     const allFiles = [...(files ?? [])];
     const selected = allFiles.slice(0, 20);
     const valid = selected.filter((file) => file.size > 0 && file.size <= 20 * 1024 * 1024);
-    setQueue(valid.map((file) => ({ id: secureId("queue"), file, title: file.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim().slice(0, 160), alt: "", status: "READY" })));
+    setQueue(valid.map((file) => ({ id: browserSecureId("queue"), requestKey: browserSecureId("gallery-upload"), file, title: file.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim().slice(0, 160), alt: "", status: "READY" })));
     setMessage(allFiles.length > 20 ? `รับครั้งละ 20 ภาพ จึงเลือก 20 จาก ${allFiles.length} ภาพ` : selected.length !== valid.length ? "บางไฟล์ถูกตัดออกเพราะว่างหรือใหญ่เกิน 20 MB" : `เลือก ${valid.length} ภาพ กรุณาตรวจชื่อและกรอก Alt text ทุกภาพ`);
   }
 
@@ -37,6 +39,10 @@ export function GalleryBulkUploadForm({ categories, jobs }: { categories: Catego
       patch(item.id, { status: "UPLOADING" }); setCurrentProgress(0); setMessage(`กำลังอัปโหลดภาพ ${index + 1}/${pending.length}: ${item.title}`);
       try {
         const decoded = await decodeImage(item.file);
+        if (decoded.width * decoded.height > 80_000_000) {
+          decoded.close?.();
+          throw new Error("ความละเอียดภาพสูงเกินขีดจำกัด กรุณาลดขนาดภาพก่อนอัปโหลด");
+        }
         const display = await resize(decoded, 1800, "image/webp", 0.84);
         const thumbnail = await resize(decoded, 640, "image/webp", 0.8);
         const displayAvif = await resize(decoded, 1800, "image/avif", 0.78, true);
@@ -45,7 +51,7 @@ export function GalleryBulkUploadForm({ categories, jobs }: { categories: Catego
         const body = new FormData();
         for (const [key, value] of source.entries()) if (!["sourceImages", "jobSelection", "sortStart"].includes(key)) body.append(key, value);
         const start = Number(source.get("sortStart") ?? 0);
-        body.set("requestKey", secureId("gallery-upload")); body.set("title", item.title.trim()); body.set("altText", item.alt.trim()); body.set("sortOrder", String(Number.isSafeInteger(start) && start >= 0 ? start + index : index));
+        body.set("requestKey", item.requestKey); body.set("title", item.title.trim()); body.set("altText", item.alt.trim()); body.set("sortOrder", String(Number.isSafeInteger(start) && start >= 0 ? start + index : index));
         body.set("original", item.file, item.file.name); addVariant(body, "displayWebp", display); addVariant(body, "thumbnailWebp", thumbnail);
         if (displayAvif) addVariant(body, "displayAvif", displayAvif); if (thumbnailAvif) addVariant(body, "thumbnailAvif", thumbnailAvif);
         await upload(body, setCurrentProgress, (xhr) => { xhrRef.current = xhr; }); patch(item.id, { status: "DONE" });
@@ -76,5 +82,22 @@ function resize(image: DecodedImage, maxWidth: number, type: string, quality: nu
 function resize(image: DecodedImage, maxWidth: number, type: string, quality: number, optional: true): Promise<Variant | null>;
 async function resize(image: DecodedImage, maxWidth: number, type: string, quality: number, optional = false): Promise<Variant | null> { const scale = Math.min(1, maxWidth / image.width); const width = Math.max(1, Math.round(image.width * scale)); const height = Math.max(1, Math.round(image.height * scale)); const canvas = document.createElement("canvas"); canvas.width = width; canvas.height = height; canvas.getContext("2d", { alpha: false })?.drawImage(image, 0, 0, width, height); const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, type, quality)); if (!blob || blob.type !== type) { if (optional) return null; throw new Error("เบราว์เซอร์สร้าง WebP ไม่ได้ กรุณาใช้ Chrome, Edge หรือ Safari รุ่นใหม่"); } return { blob, width, height }; }
 function addVariant(body: FormData, field: string, variant: Variant) { body.set(field, variant.blob, `${field}.${variant.blob.type === "image/avif" ? "avif" : "webp"}`); body.set(`${field}Width`, String(variant.width)); body.set(`${field}Height`, String(variant.height)); }
-function upload(body: FormData, onProgress: (value: number) => void, register: (xhr: XMLHttpRequest) => void): Promise<void> { return new Promise((resolve, reject) => { const xhr = new XMLHttpRequest(); register(xhr); xhr.open("POST", "/api/gallery"); xhr.upload.onprogress = (event) => event.lengthComputable && onProgress(Math.round(event.loaded / event.total * 100)); xhr.onerror = () => reject(new Error("เครือข่ายขัดข้อง ภาพยังไม่ถูกเผยแพร่")); xhr.onabort = () => reject(new Error("ยกเลิกการอัปโหลดแล้ว")); xhr.onload = () => xhr.status >= 200 && xhr.status < 400 ? resolve() : reject(new Error("เซิร์ฟเวอร์ปฏิเสธไฟล์ กรุณาตรวจชนิดและขนาดภาพ")); xhr.send(body); }); }
-function secureId(prefix: string): string { if (typeof crypto.randomUUID === "function") return `${prefix}-${crypto.randomUUID()}`; if (typeof crypto.getRandomValues !== "function") throw new Error("secure random unavailable"); const bytes = new Uint8Array(16); crypto.getRandomValues(bytes); bytes[6] = (bytes[6] & 15) | 64; bytes[8] = (bytes[8] & 63) | 128; const hex = [...bytes].map((value) => value.toString(16).padStart(2, "0")).join(""); return `${prefix}-${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`; }
+function upload(body: FormData, onProgress: (value: number) => void, register: (xhr: XMLHttpRequest) => void): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    register(xhr);
+    xhr.open("POST", "/api/gallery");
+    xhr.setRequestHeader("Accept", "application/json");
+    xhr.responseType = "json";
+    xhr.upload.onprogress = (event) => event.lengthComputable && onProgress(Math.round(event.loaded / event.total * 100));
+    xhr.onerror = () => reject(new Error("เครือข่ายขัดข้อง ระบบยังไม่ยืนยันภาพ กรุณาลองใหม่"));
+    xhr.onabort = () => reject(new Error("ยกเลิกการอัปโหลดแล้ว"));
+    xhr.onload = () => {
+      if (isConfirmedGalleryUploadResponse(xhr.status, xhr.response)) resolve();
+      else if (xhr.status === 401) reject(new Error("Session หมดอายุ กรุณาเข้าสู่ระบบใหม่"));
+      else if (xhr.status === 413) reject(new Error("ข้อมูลภาพรวมใหญ่เกินขีดจำกัด กรุณาลดขนาดไฟล์"));
+      else reject(new Error("เซิร์ฟเวอร์ยังไม่ยืนยันภาพ กรุณาตรวจไฟล์ ข้อมูล และสิทธิ์แล้วลองใหม่"));
+    };
+    xhr.send(body);
+  });
+}

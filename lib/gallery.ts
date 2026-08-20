@@ -9,6 +9,19 @@ export const galleryStatuses = new Set<GalleryItemStatus>(["DRAFT", "PUBLISHED",
 export const galleryVisibilities = new Set<GalleryVisibility>(["PUBLIC", "CUSTOMER_JOB", "INTERNAL"]);
 export const galleryVariantRoles = new Set<GalleryVariantRole>(["ORIGINAL", "DISPLAY", "THUMBNAIL"]);
 
+export function isGalleryUploadRequestKey(value: string): boolean {
+  return /^gallery-upload-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+export function isConfirmedGalleryUploadResponse(status: number, payload: unknown): boolean {
+  if (status < 200 || status >= 300 || typeof payload !== "object" || payload === null) return false;
+  const response = payload as { ok?: unknown; galleryItemId?: unknown; duplicate?: unknown };
+  return response.ok === true
+    && typeof response.galleryItemId === "string"
+    && response.galleryItemId.length > 0
+    && typeof response.duplicate === "boolean";
+}
+
 export function normalizeGallerySlug(value: string): string {
   const normalized = value.trim().toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "").replace(/-+/g, "-").replace(/^-|-$/g, "");
   return normalized.length >= 2 && normalized.length <= 80 ? normalized : "";

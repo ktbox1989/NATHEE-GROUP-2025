@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { canPublishGalleryItem, normalizeGallerySlug, parseGallerySortOrder, preferredGalleryContentTypes } from "../lib/gallery.ts";
+import { canPublishGalleryItem, isConfirmedGalleryUploadResponse, isGalleryUploadRequestKey, normalizeGallerySlug, parseGallerySortOrder, preferredGalleryContentTypes } from "../lib/gallery.ts";
 
 test("gallery slugs are deterministic and reject an empty normalized value", () => {
   assert.equal(normalizeGallerySlug("  International Jobs  "), "international-jobs");
@@ -11,6 +11,22 @@ test("gallery ordering is bounded and non-negative", () => {
   assert.equal(parseGallerySortOrder("12"), 12);
   assert.equal(parseGallerySortOrder("-1"), undefined);
   assert.equal(parseGallerySortOrder("1.5"), undefined);
+});
+
+test("gallery upload idempotency requires a cryptographic request identity", () => {
+  assert.equal(isGalleryUploadRequestKey("gallery-upload-123e4567-e89b-42d3-a456-426614174000"), true);
+  assert.equal(isGalleryUploadRequestKey("queue-123e4567-e89b-42d3-a456-426614174000"), false);
+  assert.equal(isGalleryUploadRequestKey("gallery-upload-not-random"), false);
+  assert.equal(isGalleryUploadRequestKey("gallery-upload-123e4567-e89b-12d3-a456-426614174000"), false);
+});
+
+test("gallery upload never treats followed redirect HTML or incomplete JSON as success", () => {
+  assert.equal(isConfirmedGalleryUploadResponse(201, { ok: true, galleryItemId: "gallery-a", duplicate: false }), true);
+  assert.equal(isConfirmedGalleryUploadResponse(200, { ok: true, galleryItemId: "gallery-a", duplicate: true }), true);
+  assert.equal(isConfirmedGalleryUploadResponse(200, null), false);
+  assert.equal(isConfirmedGalleryUploadResponse(200, "<html>validation error</html>"), false);
+  assert.equal(isConfirmedGalleryUploadResponse(200, { ok: true }), false);
+  assert.equal(isConfirmedGalleryUploadResponse(303, { ok: true, galleryItemId: "gallery-a", duplicate: false }), false);
 });
 
 test("public publishing requires a display variant and alt text", () => {
