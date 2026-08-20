@@ -1,4 +1,5 @@
 import { asc, desc, eq } from "drizzle-orm";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getDb } from "@/db";
 import { companies, transportJobs } from "@/db/schema";
@@ -23,6 +24,7 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
   const rows = await db
     .select({
       id: transportJobs.id,
+      companyId: transportJobs.companyId,
       jobNumber: transportJobs.jobNumber,
       companyName: companies.displayName,
       origin: transportJobs.origin,
@@ -68,7 +70,7 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
       <div className="data-card">
         {rows.length ? (
           <div className="data-table-wrap"><table className="data-table">
-            <thead><tr><th>JOB NO.</th><th>บริษัท</th><th>เส้นทาง</th><th>กำหนดการ</th><th>สถานะ</th></tr></thead>
+            <thead><tr><th>JOB NO.</th><th>บริษัท</th><th>เส้นทาง</th><th>กำหนดการ</th><th>สถานะ</th><th>ฉลาก</th></tr></thead>
             <tbody>{rows.map((job) => (
               <tr key={job.id}>
                 <td><b>{job.jobNumber}</b><small>{job.createdAt}</small></td>
@@ -76,6 +78,7 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
                 <td>{job.origin} → {job.destination}</td>
                 <td>{job.pickup || "—"}<small>{job.delivery ? `ส่งโดยประมาณ ${job.delivery}` : "ยังไม่ระบุวันส่ง"}</small></td>
                 <td><span className="status-pill">{job.status}</span></td>
+                <td>{can(actor, "motorcycles:write", job.companyId) ? <Link href={`/app/jobs/${job.id}/labels`}>พิมพ์ QR</Link> : "—"}</td>
               </tr>
             ))}</tbody>
           </table></div>

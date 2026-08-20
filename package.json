@@ -11,7 +11,7 @@
     "start": "vinext start",
     "test": "npm run test:public && npm run test:unit && npm run build && node --test tests/rendered-html.test.mjs tests/schema.test.mjs",
     "test:public": "node scripts/verify-public-site.mjs",
-    "test:unit": "node --test tests/authorization.test.ts tests/status-transitions.test.ts tests/security-helpers.test.ts tests/image-validation.test.ts tests/runtime-readiness.test.ts",
+    "test:unit": "node --test tests/authorization.test.ts tests/status-transitions.test.ts tests/security-helpers.test.ts tests/image-validation.test.ts tests/runtime-readiness.test.ts tests/qr-token.test.ts tests/qr-svg.test.ts",
     "test:db": "node --test tests/schema.test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate"
@@ -19,7 +19,9 @@
   "dependencies": {
     "@supabase/ssr": "^0.12.4",
     "@supabase/supabase-js": "^2.112.3",
+    "@zxing/browser": "^0.2.1",
     "drizzle-orm": "0.45.2",
+    "qrcode": "^1.5.4",
     "react": "19.2.6",
     "react-dom": "19.2.6"
   },
@@ -31,6 +33,7 @@
     "@openai/sites-vite-plugin": "0.1.0",
     "@tailwindcss/postcss": "4.2.1",
     "@types/node": "22.19.19",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "6.0.2",

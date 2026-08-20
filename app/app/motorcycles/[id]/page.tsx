@@ -73,12 +73,13 @@ export default async function MotorcycleDetailPage({ params, searchParams }: Mot
   const nextStatuses = allowedTransitions(record.currentStatus);
   const canUpdateStatus = can(actor, "status:write", record.companyId);
   const canUpload = can(actor, "images:write", record.companyId);
+  const canPrintLabel = can(actor, "motorcycles:write", record.companyId);
 
   return (
     <>
       <div className="app-page-head">
         <div><p>{record.jobNumber}</p><h1>รถคันที่ {record.sequenceNumber}</h1><span>{record.companyName}</span></div>
-        <div className="app-page-actions"><Link href="/app/motorcycles">← กลับรายการรถ</Link></div>
+        <div className="app-page-actions"><Link href="/app/motorcycles">← กลับรายการรถ</Link>{canPrintLabel && <Link href={`/app/motorcycles/${record.id}/label`}>พิมพ์ฉลาก QR</Link>}</div>
       </div>
       {query.status === "updated" && <div className="form-message success page-message">อัปเดตสถานะเรียบร้อยแล้ว</div>}
       {query.status === "image_uploaded" && <div className="form-message success page-message">อัปโหลดรูปเรียบร้อยแล้ว</div>}

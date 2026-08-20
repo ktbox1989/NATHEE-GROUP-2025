@@ -8,6 +8,7 @@ Responsive public website and motorcycle-logistics operations platform for deskt
 - Email/password login, logout, recovery, and password-update flows use managed Supabase Auth with server-managed cookies.
 - OWNER, capability-based STAFF, and company-bound CUSTOMER permissions are enforced on the server.
 - Customer companies, transport jobs, motorcycles, private images, status timeline, member invitations, and audit log are implemented as the first vertical slice.
+- Opaque motorcycle QR lookup, mobile camera scanning, and permission-gated single/bounded-batch label printing are implemented without placing VIN, registration, or customer data in the QR payload.
 - Dashboard values are calculated from D1. Empty states are shown instead of fake statistics.
 - Structured data uses D1 (`DB`); private motorcycle images use R2 (`FILES`).
 - The same responsive application shell supports desktop, tablet, and mobile field work.

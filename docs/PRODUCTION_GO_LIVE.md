@@ -68,6 +68,13 @@ The endpoint never returns credentials or connection strings.
    addresses.
 9. Audit entries exist for company, job, motorcycle, image, status, and member
    operations.
+10. OWNER or permitted STAFF prints a motorcycle QR label and scans it on a
+    mobile browser. The QR opens the correct real motorcycle only after login.
+11. A customer can scan a label belonging to its company but receives the same
+    generic not-found response for another company's QR. A customer cannot open
+    single or batch label-printing pages.
+12. Batch printing renders at most 48 labels per page and the next-page link
+    continues by motorcycle sequence without duplicates.
 
 ## 6. Rollback
 

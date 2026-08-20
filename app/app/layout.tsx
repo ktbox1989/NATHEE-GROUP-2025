@@ -24,6 +24,7 @@ export default async function OperationsLayout({
   }
   if (can(actor, "motorcycles:read", policyCompany)) {
     items.push({ href: "/app/motorcycles", label: "รถจักรยานยนต์", icon: "🏍️" });
+    items.push({ href: "/app/scan", label: "สแกน QR", icon: "⌗" });
   }
   if (actor.role === "OWNER") {
     items.push({ href: "/app/users", label: "สมาชิก / สิทธิ์", icon: "👥" });
