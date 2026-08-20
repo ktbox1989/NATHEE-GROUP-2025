@@ -12,6 +12,12 @@ export default async function QuotationPage({ searchParams }: Props) {
   if (!content) notFound();
   const params = await searchParams;
   const requestNumber = /^QT-\d{4}-\d{6}$/.test(params.submitted ?? "") ? params.submitted : "";
-  const errorMessage = params.error === "consent" ? "กรุณายืนยันความยินยอมก่อนส่งข้อมูล" : params.error ? "ยังบันทึกคำขอไม่ได้ กรุณาตรวจข้อมูลและลองอีกครั้ง หรือติดต่อทางโทรศัพท์" : "";
+  const errorMessage = params.error === "consent"
+    ? "กรุณายืนยันความยินยอมก่อนส่งข้อมูล"
+    : params.error?.startsWith("file_")
+      ? "เอกสารประกอบไม่ผ่านการตรวจ กรุณาใช้ PDF, CSV, Excel หรือรูปภาพไม่เกิน 5 ไฟล์ ไฟล์ละ 8 MB และรวมไม่เกิน 20 MB"
+      : params.error
+        ? "ยังบันทึกคำขอไม่ได้ กรุณาตรวจข้อมูลและลองอีกครั้ง หรือติดต่อทางโทรศัพท์"
+        : "";
   return <CmsPublicPage content={content} slug="quotation" afterContent={<>{requestNumber && <section className="cms-section quotation-result"><div className="shell app-panel"><span className="eyebrow">บันทึกสำเร็จ</span><h2>ได้รับคำขอของคุณแล้ว</h2><p>เลขอ้างอิง <strong>{requestNumber}</strong> กรุณาเก็บหมายเลขนี้ไว้เมื่อติดต่อทีมงาน</p></div></section>}{errorMessage && <section className="cms-section quotation-result"><div className="shell app-panel form-error" role="alert"><h2>ส่งคำขอไม่สำเร็จ</h2><p>{errorMessage}</p></div></section>}<QuotationForm /></>} />;
 }

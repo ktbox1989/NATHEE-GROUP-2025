@@ -6,7 +6,7 @@ runtime.
 
 ## 1. Platform resources
 
-- D1 binding `DB` exists and migrations `drizzle/0000` through `0015` have
+- D1 binding `DB` exists and migrations `drizzle/0000` through `0016` have
   each been applied exactly once in order. Verify the migration ledger before
   applying any missing file; never rerun the full chain blindly.
 - R2 binding `FILES` exists and is private.
@@ -61,7 +61,7 @@ Production is ready only when it returns HTTP 200 and all five checks are
 format. `adminAuthentication` independently validates that a server-only
 secret is configured. `canonicalOrigin` requires the exact canonical
 Production origin. `database` verifies representative tables, indexes and
-invariant triggers through migration `0015`, not merely that D1 answers a
+invariant triggers through migration `0016`, not merely that D1 answers a
 query. `storage` performs a read-only R2 metadata probe. The endpoint never
 returns credentials or connection strings.
 
@@ -99,6 +99,8 @@ returns credentials or connection strings.
 19. Anonymous access receives only `PUBLIC` + `PUBLISHED` Gallery media; Draft, internal and customer-job images remain inaccessible.
 20. OWNER saves and publishes global Site Settings, verifies shared brand/menu/phones/Footer and then republishes the preceding settings revision without deleting history.
 21. A configured logo is shown only while its Gallery item remains `PUBLIC` + `PUBLISHED`; hiding that item must fall back to the safe brand abbreviation.
+22. Submit one quotation with verified PDF/CSV evidence. The request and attachment metadata must commit once, private R2 checksums must match, non-OWNER access must return not-found, and every successful Owner download must add an Audit record.
+23. Repeat the same quotation request key and verify no second request, metadata row or orphaned R2 object is created. Test an invalid signature and oversized payload and verify neither a request nor object is retained.
 
 ## 6. Rollback
 

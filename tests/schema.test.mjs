@@ -61,6 +61,7 @@ test("fresh migrations create every phase-one table", () => {
     "motorcycles",
     "notifications",
     "proof_of_delivery_records",
+    "quote_request_attachments",
     "quote_requests",
     "sequence_counters",
     "shipping_containers",
@@ -114,6 +115,38 @@ test("quotation migration preserves requests created before the public form", ()
   db.exec(`INSERT INTO quote_requests (id, request_number, contact_name, phone, origin, destination, quantity) VALUES ('legacy-quote', 'QT-2026-000099', 'ผู้ติดต่อเดิม', '0812345678', 'กรุงเทพฯ', 'ชลบุรี', 1)`);
   applyMigration(db, `${migrationDirectory}/0015_graceful_ben_urich.sql`);
   assert.deepEqual({ ...db.prepare("SELECT request_number, request_key, source, consent_at FROM quote_requests WHERE id = 'legacy-quote'").get() }, { request_number: "QT-2026-000099", request_key: null, source: "LEGACY", consent_at: null });
+  db.close();
+});
+
+test("quotation attachments are private immutable metadata with checksum idempotency", () => {
+  const db = createMigratedDatabase();
+  db.exec(`
+    INSERT INTO quote_requests (id, request_number, contact_name, phone, origin, destination, quantity)
+    VALUES ('quote-a', 'QT-2026-000010', 'ผู้ติดต่อ', '0812345678', 'กรุงเทพฯ', 'เชียงใหม่', 2);
+    INSERT INTO quote_request_attachments
+      (id, quote_request_id, storage_key, original_filename, content_type, byte_size, checksum)
+    VALUES
+      ('attachment-a', 'quote-a', 'quotations/quote-a/file-a.pdf', 'รายการรถ.pdf', 'application/pdf', 1200, '${"a".repeat(64)}');
+  `);
+  assert.throws(() => db.exec(`INSERT INTO quote_request_attachments (id, quote_request_id, storage_key, original_filename, content_type, byte_size, checksum) VALUES ('attachment-b', 'quote-a', 'quotations/quote-a/file-b.pdf', 'ซ้ำ.pdf', 'application/pdf', 1200, '${"a".repeat(64)}')`));
+  assert.throws(() => db.exec(`INSERT INTO quote_request_attachments (id, quote_request_id, storage_key, original_filename, content_type, byte_size, checksum) VALUES ('attachment-c', 'quote-a', 'quotations/quote-a/file-c.exe', 'อันตราย.exe', 'application/octet-stream', 1200, '${"b".repeat(64)}')`));
+  assert.throws(() => db.exec("UPDATE quote_request_attachments SET original_filename = 'เปลี่ยนชื่อ.pdf' WHERE id = 'attachment-a'"));
+  assert.throws(() => db.exec("DELETE FROM quote_request_attachments WHERE id = 'attachment-a'"));
+  const plan = db.prepare("EXPLAIN QUERY PLAN SELECT id FROM quote_request_attachments WHERE quote_request_id = ? ORDER BY created_at, id").all("quote-a").map((row) => String(row.detail)).join(" ");
+  assert.match(plan, /idx_quote_request_attachments_quote_created/);
+  db.close();
+});
+
+test("quotation attachment migration preserves existing quotation rows", () => {
+  const db = new DatabaseSync(":memory:");
+  db.exec("PRAGMA foreign_keys = ON");
+  const migrationDirectory = fileURLToPath(new URL("../drizzle/", import.meta.url));
+  const earlierMigrations = readdirSync(migrationDirectory).filter((name) => name.endsWith(".sql") && name < "0016_").sort();
+  for (const migration of earlierMigrations) applyMigration(db, `${migrationDirectory}/${migration}`);
+  db.exec(`INSERT INTO quote_requests (id, request_number, contact_name, phone, origin, destination, quantity) VALUES ('legacy-quote-16', 'QT-2026-000100', 'ผู้ติดต่อเดิม', '0812345678', 'กรุงเทพฯ', 'ชลบุรี', 1)`);
+  applyMigration(db, `${migrationDirectory}/0016_numerous_shatterstar.sql`);
+  assert.equal(db.prepare("SELECT COUNT(*) AS total FROM quote_requests WHERE id = 'legacy-quote-16'").get().total, 1);
+  assert.equal(db.prepare("SELECT COUNT(*) AS total FROM quote_request_attachments").get().total, 0);
   db.close();
 });
 

@@ -22,16 +22,26 @@ The server validates and bounds every submitted field, rejects a honeypot value,
 
 The authenticated inbox `/app/quotations` is OWNER-only. It is keyset-bounded to 50 records and status changes write an Audit Log in the same D1 batch. Other roles receive no navigation item and are redirected by the server.
 
+Migration `0016_numerous_shatterstar` adds private quotation attachments without rewriting an existing quotation:
+
+- at most five files, 8 MB each and 20 MB combined;
+- allowlisted PDF, UTF-8 CSV, XLSX, JPEG, PNG, WebP, AVIF, HEIC and HEIF with extension/MIME/signature agreement;
+- private R2 bytes and immutable D1 filename, type, byte size, storage key and SHA-256 metadata;
+- per-quotation checksum uniqueness, no hard delete and no metadata rewrite; and
+- OWNER-only forced download with `nosniff`, no-store and a mandatory Audit record before bytes are served.
+
+The upload path writes unique R2 keys first, commits the quotation, every attachment row and redacted submission Audit in one D1 batch, and compensates by deleting only those newly written keys if D1 fails or a concurrent request key wins. A cleanup failure is fail-closed and never reports a saved request. Original filenames and contact values are not copied to submission Audit JSON. Uploaded files remain untrusted external input: the Owner UI warns before download, and Production activation still requires an approved anti-abuse/malware-handling policy.
+
 ## Production activation gates
 
 Before exposing the online form:
 
 1. Back up Production D1 and verify the migration ledger through `0014`.
-2. Dry-run then apply migration `0015` to the protected D1 runtime.
+2. Dry-run then apply migrations `0015` and `0016` in order to the protected D1 runtime.
 3. Configure and verify canonical `APP_ORIGIN`, Supabase Auth, real OWNER mapping and R2 readiness.
-4. Verify `/api/health` includes the quotation unique index and all three safety triggers.
-5. Submit one authorized test request through the real browser, verify the D1 row and redacted Audit Log, then update its status from the OWNER inbox.
+4. Verify `/api/health` includes the quotation and attachment tables, unique indexes and all five safety triggers.
+5. Submit one authorized test request with a PDF and CSV through the real browser, verify the D1 rows, SHA-256/R2 objects and redacted Audit Log, then download each attachment from the OWNER inbox and update the request status.
 6. Verify a repeated request key returns the same reference and never creates a second row.
-7. Add an approved anti-abuse provider (for example Cloudflare Turnstile/rate limiting) before advertising the form broadly. No provider credential or bypass is stored in this repository.
+7. Add an approved anti-abuse provider (for example Cloudflare Turnstile/rate limiting) and a reviewed untrusted-file handling policy before advertising the form broadly. No provider credential or bypass is stored in this repository.
 
 Until every gate passes, deploy only the improved static sales pages. The static quotation page remains an honest telephone/LINE conversion path.

@@ -23,7 +23,7 @@ export function QuotationForm() {
 
   return <section className="cms-section quotation-form-section" aria-labelledby="quotation-form-title"><div className="shell quotation-layout">
     <div className="cms-section-heading"><span className="eyebrow">ONLINE QUOTATION</span><h2 id="quotation-form-title">ส่งรายละเอียดเพื่อให้ทีมงานประเมิน</h2><p>ระบบจะบันทึกคำขอจริงและออกเลขอ้างอิงเมื่อฐานข้อมูลรับข้อมูลสำเร็จเท่านั้น</p></div>
-    <form className="quotation-form" method="post" action="/api/quotation" onSubmit={submit}>
+    <form className="quotation-form" method="post" action="/api/quotation" encType="multipart/form-data" onSubmit={submit}>
       <input type="hidden" name="requestKey" />
       <label className="quotation-honeypot" aria-hidden="true">เว็บไซต์<input name="website" type="text" tabIndex={-1} autoComplete="off" /></label>
       <label>ชื่อผู้ติดต่อ *<input name="contactName" required minLength={2} maxLength={120} autoComplete="name" /></label>
@@ -37,6 +37,7 @@ export function QuotationForm() {
       <label>จำนวนรถ *<input name="quantity" type="number" required min={1} max={10000} inputMode="numeric" /></label>
       <label>วันที่ต้องการ<input name="desiredDate" type="date" /></label>
       <fieldset className="quotation-extras"><legend>บริการเพิ่มเติม</legend><label><input type="checkbox" name="extras" value="STORAGE" /> รับฝาก / สต๊อก</label><label><input type="checkbox" name="extras" value="CONTAINER" /> ขึ้นตู้ Container</label><label><input type="checkbox" name="extras" value="INTERNATIONAL" /> งานต่างประเทศ</label><label><input type="checkbox" name="extras" value="LARGE_BATCH" /> งานล็อตใหญ่</label></fieldset>
+      <label className="quotation-attachments" htmlFor="quotation-attachments">เอกสารประกอบ (ถ้ามี)<input id="quotation-attachments" name="attachments" type="file" multiple aria-describedby="quotation-attachments-help" accept=".pdf,.csv,.xlsx,.jpg,.jpeg,.png,.webp,.avif,.heic,.heif,application/pdf,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,image/jpeg,image/png,image/webp,image/avif,image/heic,image/heif" /><small id="quotation-attachments-help">สูงสุด 5 ไฟล์ ไฟล์ละไม่เกิน 8 MB รวมไม่เกิน 20 MB รองรับ PDF, CSV, Excel และรูปภาพ ไฟล์จะเก็บแบบ Private</small></label>
       <label className="quotation-notes">รายละเอียดเพิ่มเติม<textarea name="notes" maxLength={1500} rows={5} /></label>
       <label className="quotation-consent"><input type="checkbox" name="privacyConsent" value="yes" required /> ยินยอมให้บริษัทใช้ข้อมูลนี้เพื่อติดต่อกลับและประเมินงานตามคำขอนี้</label>
       <button className="button button-gradient" type="submit" disabled={submitting}>{submitting ? "กำลังบันทึกคำขอ…" : "ส่งคำขอใบเสนอราคา"}</button>

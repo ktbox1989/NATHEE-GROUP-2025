@@ -1,13 +1,17 @@
+import { env } from "cloudflare:workers";
 import { eq } from "drizzle-orm";
 import { NextResponse, type NextRequest } from "next/server";
 import { getDb } from "@/db";
-import { auditLogs, quoteRequests } from "@/db/schema";
+import { auditLogs, quoteRequestAttachments, quoteRequests } from "@/db/schema";
 import { nextBusinessNumber } from "@/lib/business-numbers";
 import { parseQuotationForm } from "@/lib/quotation";
+import { prepareQuotationAttachments, QUOTATION_MAX_REQUEST_BYTES } from "@/lib/quotation-attachments";
 import { isSameOrigin } from "@/lib/same-origin";
 
 export async function POST(request: NextRequest) {
   if (!isSameOrigin(request)) return new NextResponse("Forbidden", { status: 403 });
+  const declaredLength = Number(request.headers.get("content-length"));
+  if (Number.isFinite(declaredLength) && declaredLength > QUOTATION_MAX_REQUEST_BYTES) return redirect(request, "error", "file_size");
   let form: FormData;
   try {
     form = await request.formData();
@@ -16,8 +20,16 @@ export async function POST(request: NextRequest) {
   }
   const parsed = parseQuotationForm(form);
   if (!parsed.ok) return redirect(request, "error", parsed.error);
+  let attachmentResult;
+  try {
+    attachmentResult = await prepareQuotationAttachments(form);
+  } catch {
+    return redirect(request, "error", "file_type");
+  }
+  if (!attachmentResult.ok) return redirect(request, "error", attachmentResult.error);
 
   const db = getDb();
+  const storedKeys: string[] = [];
   try {
     const existing = await db.select({ requestNumber: quoteRequests.requestNumber }).from(quoteRequests).where(eq(quoteRequests.requestKey, parsed.value.requestKey)).get();
     if (existing) return redirect(request, "submitted", existing.requestNumber);
@@ -25,6 +37,17 @@ export async function POST(request: NextRequest) {
     const id = crypto.randomUUID();
     const requestNumber = await nextBusinessNumber("QT");
     const consentAt = new Date().toISOString();
+    const attachments = attachmentResult.value.map((attachment) => {
+      const attachmentId = crypto.randomUUID();
+      return { ...attachment, id: attachmentId, storageKey: `quotations/${id}/${attachmentId}.${attachment.extension}` };
+    });
+    for (const attachment of attachments) {
+      await env.FILES.put(attachment.storageKey, attachment.bytes, {
+        httpMetadata: { contentType: attachment.contentType },
+        customMetadata: { quoteRequestId: id, checksum: attachment.checksum },
+      });
+      storedKeys.push(attachment.storageKey);
+    }
     await db.batch([
       db.insert(quoteRequests).values({
         id,
@@ -46,6 +69,15 @@ export async function POST(request: NextRequest) {
         consentAt,
         status: "NEW",
       }),
+      ...attachments.map((attachment) => db.insert(quoteRequestAttachments).values({
+        id: attachment.id,
+        quoteRequestId: id,
+        storageKey: attachment.storageKey,
+        originalFilename: attachment.originalFilename,
+        contentType: attachment.contentType,
+        byteSize: attachment.byteSize,
+        checksum: attachment.checksum,
+      })),
       db.insert(auditLogs).values({
         id: crypto.randomUUID(),
         actorUserId: null,
@@ -54,12 +86,14 @@ export async function POST(request: NextRequest) {
         entityType: "quote_request",
         entityId: id,
         beforeJson: null,
-        afterJson: JSON.stringify({ requestNumber, source: "PUBLIC_WEBSITE", quantity: parsed.value.quantity, extras: parsed.value.extras }),
+        afterJson: JSON.stringify({ requestNumber, source: "PUBLIC_WEBSITE", quantity: parsed.value.quantity, extras: parsed.value.extras, attachmentCount: attachments.length, attachmentTypes: [...new Set(attachments.map((attachment) => attachment.contentType))] }),
         reason: "Customer consent recorded with quotation request",
       }),
     ]);
     return redirect(request, "submitted", requestNumber);
   } catch {
+    const cleanup = await Promise.allSettled(storedKeys.map((key) => env.FILES.delete(key)));
+    if (cleanup.some((result) => result.status === "rejected")) return redirect(request, "error", "cleanup");
     try {
       const existing = await db.select({ requestNumber: quoteRequests.requestNumber }).from(quoteRequests).where(eq(quoteRequests.requestKey, parsed.value.requestKey)).get();
       if (existing) return redirect(request, "submitted", existing.requestNumber);

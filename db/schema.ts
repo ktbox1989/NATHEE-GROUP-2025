@@ -983,6 +983,29 @@ export const quoteRequests = sqliteTable(
   ],
 );
 
+export const quoteRequestAttachments = sqliteTable(
+  "quote_request_attachments",
+  {
+    id: text("id").primaryKey(),
+    quoteRequestId: text("quote_request_id").notNull().references(() => quoteRequests.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    storageKey: text("storage_key").notNull(),
+    originalFilename: text("original_filename").notNull(),
+    contentType: text("content_type").notNull(),
+    byteSize: integer("byte_size").notNull(),
+    checksum: text("checksum").notNull(),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    uniqueIndex("uq_quote_request_attachments_storage_key").on(table.storageKey),
+    uniqueIndex("uq_quote_request_attachments_quote_checksum").on(table.quoteRequestId, table.checksum),
+    index("idx_quote_request_attachments_quote_created").on(table.quoteRequestId, table.createdAt, table.id),
+    check("ck_quote_request_attachments_filename", sql`length(${table.originalFilename}) BETWEEN 1 AND 160`),
+    check("ck_quote_request_attachments_content_type", sql`${table.contentType} IN ('application/pdf', 'text/csv', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/heic', 'image/heif')`),
+    check("ck_quote_request_attachments_size", sql`${table.byteSize} BETWEEN 1 AND 8388608`),
+    check("ck_quote_request_attachments_checksum", sql`length(${table.checksum}) = 64 AND ${table.checksum} NOT GLOB '*[^0-9a-f]*'`),
+  ],
+);
+
 export const auditLogs = sqliteTable(
   "audit_logs",
   {
