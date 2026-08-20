@@ -3,8 +3,8 @@ import Link from "next/link";
 import { and, asc, desc, eq, isNull } from "drizzle-orm";
 import { notFound, redirect } from "next/navigation";
 import { getDb } from "@/db";
-import { companies, motorcycleImages, motorcycles, statusEvents, transportJobs, users, yardPlacements, yardZones } from "@/db/schema";
-import { can, isCustomerRole } from "@/lib/authorization";
+import { companies, motorcycleImages, motorcycles, statusEvents, transportJobs, tripMotorcycleAssignments, trips, trucks, users, yardPlacements, yardZones } from "@/db/schema";
+import { can, isCustomerRole, isInternalRole } from "@/lib/authorization";
 import { requireActor } from "@/lib/current-actor";
 import { motorcycleStatusLabels } from "@/lib/labels";
 import { allowedTransitions } from "@/lib/status-transitions";
@@ -51,7 +51,7 @@ export default async function MotorcycleDetailPage({ params, searchParams }: Mot
 
   const canReadYard = can(actor, "yard:read");
   const canUpdateYard = can(actor, "yard:write");
-  const [images, events, currentYard, activeZones] = await Promise.all([
+  const [images, events, currentYard, activeZones, activeTrip] = await Promise.all([
     db
       .select()
       .from(motorcycleImages)
@@ -95,6 +95,23 @@ export default async function MotorcycleDetailPage({ params, searchParams }: Mot
           .orderBy(asc(yardZones.code))
           .all()
       : Promise.resolve([]),
+    isInternalRole(actor.role) && can(actor, "jobs:read")
+      ? db
+          .select({
+            assignmentState: tripMotorcycleAssignments.state,
+            tripId: trips.id,
+            tripNumber: trips.tripNumber,
+            tripStatus: trips.status,
+            origin: trips.origin,
+            destination: trips.destination,
+            truckCode: trucks.code,
+          })
+          .from(tripMotorcycleAssignments)
+          .innerJoin(trips, eq(trips.id, tripMotorcycleAssignments.tripId))
+          .innerJoin(trucks, eq(trucks.id, trips.truckId))
+          .where(and(eq(tripMotorcycleAssignments.motorcycleId, id), isNull(tripMotorcycleAssignments.releasedAt)))
+          .get()
+      : Promise.resolve(undefined),
   ]);
   const nextStatuses = allowedTransitions(record.currentStatus);
   const canUpdateStatus = can(actor, "status:write", record.companyId);
@@ -107,6 +124,17 @@ export default async function MotorcycleDetailPage({ params, searchParams }: Mot
         <div><p>{record.jobNumber}</p><h1>รถคันที่ {record.sequenceNumber}</h1><span>{record.companyName}</span></div>
         <div className="app-page-actions"><Link href="/app/motorcycles">← กลับรายการรถ</Link>{canPrintLabel && <Link href={`/app/motorcycles/${record.id}/label`}>พิมพ์ฉลาก QR</Link>}</div>
       </div>
+
+      {activeTrip && (
+        <section className="detail-section">
+          <div className="detail-section-head"><div><p>ACTIVE TRIP</p><h2>เที่ยวที่รถคันนี้สังกัดอยู่</h2></div><Link href={`/app/trips/${activeTrip.tripId}`}>เปิด Load Board →</Link></div>
+          <article className="app-panel motorcycle-trip-context">
+            <div><span>{activeTrip.tripNumber} · {activeTrip.truckCode}</span><h3>{activeTrip.origin} → {activeTrip.destination}</h3></div>
+            <dl><div><dt>สถานะเที่ยว</dt><dd>{tripStatusLabel(activeTrip.tripStatus)}</dd></div><div><dt>สถานะบนเที่ยว</dt><dd>{assignmentStateLabel(activeTrip.assignmentState)}</dd></div></dl>
+            <p>การเปลี่ยนสถานะรถในหน้านี้จะไม่เปลี่ยนสถานะเที่ยวอัตโนมัติ ให้กลับไปยืนยันขึ้น/ลงรถที่ Load Board เพื่อคง Audit ครบทั้งสองส่วน</p>
+          </article>
+        </section>
+      )}
       {query.status === "updated" && <div className="form-message success page-message">อัปเดตสถานะเรียบร้อยแล้ว</div>}
       {query.status === "image_uploaded" && <div className="form-message success page-message">อัปโหลดรูปเรียบร้อยแล้ว</div>}
       {query.status === "yard_updated" && <div className="form-message success page-message">อัปเดตตำแหน่งลานเรียบร้อยแล้ว</div>}
@@ -202,4 +230,12 @@ function formatThaiDateTime(value: string): string {
   const date = new Date(value.endsWith("Z") ? value : `${value.replace(" ", "T")}Z`);
   if (Number.isNaN(date.getTime())) return value;
   return new Intl.DateTimeFormat("th-TH", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Bangkok" }).format(date);
+}
+
+function tripStatusLabel(status: string): string {
+  return ({ DRAFT: "ร่าง", PLANNED: "วางแผนแล้ว", LOADING: "กำลังขึ้นรถ", IN_TRANSIT: "กำลังขนส่ง", ARRIVED: "ถึงปลายทาง", COMPLETED: "เสร็จสิ้น", CANCELLED: "ยกเลิก" } as Record<string, string>)[status] ?? status;
+}
+
+function assignmentStateLabel(state: string): string {
+  return ({ ASSIGNED: "จัดเข้าเที่ยวแล้ว", LOADED: "ยืนยันขึ้นรถแล้ว", UNLOADED: "ยืนยันลงรถแล้ว", RELEASED: "ปิดรายการแล้ว" } as Record<string, string>)[state] ?? state;
 }

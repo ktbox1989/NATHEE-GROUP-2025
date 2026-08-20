@@ -27,6 +27,18 @@ export function isTripRequestKey(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
 
+export function normalizeLoadBoardSearch(value: string): string | null | undefined {
+  const normalized = value.trim().replace(/\s+/g, " ");
+  if (!normalized) return null;
+  const hasControlCharacter = [...normalized].some((character) => {
+    const code = character.charCodeAt(0);
+    return code < 32 || code === 127;
+  });
+  const hasWildcard = ["%", "_", "*", "?", "[", "]", "\\"].some((character) => normalized.includes(character));
+  if (normalized.length < 2 || normalized.length > 50 || hasControlCharacter || hasWildcard) return undefined;
+  return normalized;
+}
+
 export function parseTruckCapacity(value: string): number | null | undefined {
   const normalized = value.trim();
   if (!normalized) return null;

@@ -1,4 +1,4 @@
-import { and, asc, count, eq, gt, isNull, or } from "drizzle-orm";
+import { and, asc, count, eq, gt, isNull, or, sql } from "drizzle-orm";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getDb } from "@/db";
@@ -15,7 +15,7 @@ import {
 import { can, isInternalRole } from "@/lib/authorization";
 import { requireActor } from "@/lib/current-actor";
 import { motorcycleStatusLabels } from "@/lib/labels";
-import { allowedTripTransitions, tripReadinessIssue } from "@/lib/trips";
+import { allowedTripTransitions, normalizeLoadBoardSearch, tripReadinessIssue } from "@/lib/trips";
 
 export const dynamic = "force-dynamic";
 
@@ -38,7 +38,7 @@ const assignmentLabels = {
 
 type Props = {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ status?: string; error?: string; after?: string; afterId?: string }>;
+  searchParams: Promise<{ status?: string; error?: string; after?: string; afterId?: string; motorcycleQ?: string }>;
 };
 
 export default async function TripDetailPage({ params, searchParams }: Props) {
@@ -48,6 +48,8 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
   if (!isInternalRole(actor.role) || !can(actor, "jobs:read")) redirect("/app");
   const cursor = parseCursor(query.after, query.afterId);
   if (cursor === null) notFound();
+  const motorcycleSearch = normalizeLoadBoardSearch(query.motorcycleQ ?? "");
+  if (motorcycleSearch === undefined) notFound();
 
   const db = getDb();
   const trip = await db
@@ -149,7 +151,17 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
           tripMotorcycleAssignments,
           and(eq(tripMotorcycleAssignments.motorcycleId, motorcycles.id), isNull(tripMotorcycleAssignments.releasedAt)),
         )
-        .where(and(eq(motorcycles.currentStatus, "SCHEDULED"), isNull(tripMotorcycleAssignments.id)))
+        .where(and(
+          eq(motorcycles.currentStatus, "SCHEDULED"),
+          isNull(tripMotorcycleAssignments.id),
+          motorcycleSearch
+            ? or(
+                sql`${transportJobs.jobNumber} GLOB ${`${motorcycleSearch.toUpperCase()}*`}`,
+                sql`${motorcycles.publicId} GLOB ${`${motorcycleSearch.toLowerCase()}*`}`,
+                sql`${motorcycles.registration} GLOB ${`${motorcycleSearch}*`}`,
+              )
+            : undefined,
+        ))
         .orderBy(asc(transportJobs.jobNumber), asc(motorcycles.sequenceNumber))
         .limit(101)
         .all()
@@ -178,14 +190,18 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
       {canManage && assignableTrip && capacityAvailable && (
         <section className="detail-section">
           <div className="detail-section-head"><div><p>ASSIGN MOTORCYCLE</p><h2>จัดรถเข้าเที่ยว</h2></div><span>เฉพาะรถสถานะ “รอขึ้นรถ” ที่ยังไม่อยู่เที่ยวอื่น</span></div>
+          <form className="trip-load-search" action={`/app/trips/${id}`} method="get" role="search">
+            <label htmlFor="motorcycleQ">ค้นหาด้วยเลข Job, Public ID หรือทะเบียน (ขึ้นต้นด้วย)</label>
+            <div><input id="motorcycleQ" name="motorcycleQ" minLength={2} maxLength={50} defaultValue={motorcycleSearch ?? ""} placeholder="เช่น JOB-2026 หรือ 1กข" /><button type="submit">ค้นหา</button>{motorcycleSearch && <Link href={`/app/trips/${id}`}>ล้างการค้นหา</Link>}</div>
+          </form>
           {eligible.length ? (
             <form className="app-panel trip-assign-form" action={`/api/trips/${id}/assignments`} method="post">
               <input type="hidden" name="requestKey" value={crypto.randomUUID()} />
               <div className="field"><label htmlFor="motorcycleId">รถจักรยานยนต์</label><select id="motorcycleId" name="motorcycleId" required><option value="">เลือกรถ</option>{eligible.map((motorcycle) => <option key={motorcycle.id} value={motorcycle.id}>{motorcycle.jobNumber} · คันที่ {motorcycle.sequenceNumber} · {[motorcycle.make, motorcycle.model, motorcycle.registration].filter(Boolean).join(" / ") || "ยังไม่ระบุรายละเอียด"} · {motorcycle.companyName}</option>)}</select></div>
               <button className="button button-gradient button-small" type="submit">จัดเข้าเที่ยว</button>
-              {eligibleTruncated && <p>แสดง 100 รายการแรก กรุณาใช้สถานะและ Job ให้เป็นปัจจุบันก่อนจัดเที่ยวจำนวนมาก</p>}
+              {eligibleTruncated && <p>พบมากกว่า 100 รายการ กรุณาค้นหาด้วยเลข Job, Public ID หรือทะเบียนให้แคบลง</p>}
             </form>
-          ) : <div className="app-panel app-empty"><div>🏍️</div><h2>ไม่มีรถที่พร้อมจัดเที่ยว</h2><p>รถต้องผ่านขั้นตอนเดิมจนถึงสถานะ “รอขึ้นรถ” ก่อน ระบบจะไม่ข้ามสถานะให้อัตโนมัติ</p></div>}
+          ) : <div className="app-panel app-empty"><div>🏍️</div><h2>{motorcycleSearch ? "ไม่พบรถตรงกับคำค้น" : "ไม่มีรถที่พร้อมจัดเที่ยว"}</h2><p>{motorcycleSearch ? "ตรวจเลข Job, Public ID หรือทะเบียน แล้วค้นหาอีกครั้ง" : "รถต้องผ่านขั้นตอนเดิมจนถึงสถานะ “รอขึ้นรถ” ก่อน ระบบจะไม่ข้ามสถานะให้อัตโนมัติ"}</p></div>}
         </section>
       )}
 
@@ -210,7 +226,7 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
             )}
           </article>
         ))}</div> : <div className="app-panel app-empty"><div>📋</div><h2>{cursor ? "ไม่มีรายการในหน้าถัดไป" : "ยังไม่มีรถในเที่ยว"}</h2><p>จัดรถจริงเข้าเที่ยวก่อนเริ่มขั้นตอนขึ้นรถ</p></div>}
-        <nav className="batch-navigation" aria-label="หน้ารายการรถในเที่ยว"><span>แสดงรายการตามลำดับจัดเข้าเที่ยว</span>{hasMore && next && <Link className="button button-glass button-small" href={`/app/trips/${id}?after=${encodeURIComponent(next.assignedAt)}&afterId=${encodeURIComponent(next.id)}`}>หน้าถัดไป</Link>}</nav>
+        <nav className="batch-navigation" aria-label="หน้ารายการรถในเที่ยว"><span>แสดงรายการตามลำดับจัดเข้าเที่ยว</span>{hasMore && next && <Link className="button button-glass button-small" href={`/app/trips/${id}?after=${encodeURIComponent(next.assignedAt)}&afterId=${encodeURIComponent(next.id)}${motorcycleSearch ? `&motorcycleQ=${encodeURIComponent(motorcycleSearch)}` : ""}`}>หน้าถัดไป</Link>}</nav>
       </section>
 
       {can(actor, "jobs:write") && nextStatuses.length > 0 && (

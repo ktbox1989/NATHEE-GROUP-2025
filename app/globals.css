@@ -233,6 +233,11 @@ footer { border-top: 1px solid var(--border); background: #050611; color: var(--
 .trip-capacity-card > span, .trip-time-card > span { display: block; margin-top: 8px; color: var(--muted); font-size: 10.5px; }
 .trip-time-card strong { display: block; margin-top: 22px; font-family: var(--font-display); font-size: 15px; font-weight: 600; }
 .trip-assign-form { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: end; gap: 13px; padding: 17px; }
+.trip-load-search { display: grid; gap: 7px; margin-bottom: 10px; padding: 14px 16px; border: 1px solid var(--border); border-radius: 13px; background: rgba(255,255,255,.02); }
+.trip-load-search label { color: var(--muted); font-size: 10.5px; }
+.trip-load-search > div { display: flex; gap: 8px; }
+.trip-load-search input { flex: 1 1 auto; min-width: 0; min-height: 40px; padding: 8px 11px; border: 1px solid var(--border); border-radius: 9px; outline: none; background: rgba(255,255,255,.04); color: var(--text); }
+.trip-load-search button, .trip-load-search a { display: inline-grid; min-height: 40px; padding: 8px 12px; place-items: center; border: 1px solid var(--border-strong); border-radius: 9px; background: var(--gradient-soft); color: #e6e1ff; cursor: pointer; font-size: 11px; }
 .trip-assign-form .field { margin: 0; }
 .trip-assign-form select { width: 100%; min-height: 44px; padding: 9px 12px; border: 1px solid var(--border); border-radius: 11px; outline: none; background: rgba(255,255,255,.04); color: var(--text); }
 .trip-assign-form option { background: var(--bg-2); }
@@ -265,6 +270,14 @@ footer { border-top: 1px solid var(--border); background: #050611; color: var(--
 .trip-workflow-form input { min-height: 39px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 9px; outline: none; background: rgba(255,255,255,.04); color: var(--text); }
 .trip-workflow-form button { min-height: 39px; padding: 8px 13px; border: 1px solid var(--border-strong); border-radius: 9px; background: var(--gradient-soft); color: #e6e1ff; cursor: pointer; }
 .trip-workflow-form button:disabled { cursor: not-allowed; opacity: .42; }
+.motorcycle-trip-context { display: grid; grid-template-columns: minmax(220px,1fr) minmax(280px,.8fr); gap: 17px; padding: 18px; }
+.motorcycle-trip-context > div > span { color: #9d8dff; font-family: var(--font-mono); font-size: 9px; letter-spacing: .08em; }
+.motorcycle-trip-context h3 { margin-top: 4px; font-family: var(--font-display); font-size: 17px; font-weight: 600; }
+.motorcycle-trip-context dl { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
+.motorcycle-trip-context dl > div { padding: 10px; border: 1px solid var(--border); border-radius: 10px; background: rgba(255,255,255,.025); }
+.motorcycle-trip-context dt { color: var(--muted); font-size: 9px; }
+.motorcycle-trip-context dd { margin-top: 3px; font-size: 11.5px; }
+.motorcycle-trip-context > p { grid-column: 1 / -1; color: var(--muted); font-size: 10.5px; }
 .trip-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
 .trip-actions form { display: flex; gap: 7px; }
 .trip-actions input { min-height: 36px; padding: 7px 9px; border: 1px solid var(--border); border-radius: 9px; outline: none; background: rgba(255,255,255,.04); color: var(--text); }
@@ -529,6 +542,10 @@ footer { border-top: 1px solid var(--border); background: #050611; color: var(--
   .trip-actions, .trip-actions form { display: grid; width: 100%; }
   .trip-actions input, .trip-actions button { width: 100%; }
   .trip-overview-grid, .trip-assign-form, .trip-workflow-form { grid-template-columns: 1fr; }
+  .motorcycle-trip-context { grid-template-columns: 1fr; }
+  .motorcycle-trip-context > p { grid-column: auto; }
+  .trip-load-search > div { display: grid; grid-template-columns: 1fr 1fr; }
+  .trip-load-search input { grid-column: 1 / -1; width: 100%; }
   .trip-capacity-card { grid-column: auto; }
   .trip-assign-form .button, .trip-workflow-form button { width: 100%; }
   .trip-load-main { flex-direction: column; }

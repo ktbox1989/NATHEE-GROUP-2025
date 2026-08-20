@@ -8,6 +8,7 @@ import {
   isTripRequestKey,
   isPlannedTripOrderValid,
   normalizeRegistration,
+  normalizeLoadBoardSearch,
   normalizeTruckCode,
   motorcycleStatusAllowsAssignmentState,
   parseTruckCapacity,
@@ -25,6 +26,16 @@ test("truck input is canonical and capacity remains optional", () => {
   assert.equal(parseTruckCapacity("24"), 24);
   assert.equal(parseTruckCapacity("0"), undefined);
   assert.equal(parseTruckCapacity("1.5"), undefined);
+});
+
+test("load-board prefix search is bounded and rejects wildcard scans", () => {
+  assert.equal(normalizeLoadBoardSearch("  JOB-2026-001  "), "JOB-2026-001");
+  assert.equal(normalizeLoadBoardSearch("1กข  1234"), "1กข 1234");
+  assert.equal(normalizeLoadBoardSearch(""), null);
+  assert.equal(normalizeLoadBoardSearch("x"), undefined);
+  assert.equal(normalizeLoadBoardSearch("%"), undefined);
+  assert.equal(normalizeLoadBoardSearch("ABC*"), undefined);
+  assert.equal(normalizeLoadBoardSearch("a".repeat(51)), undefined);
 });
 
 test("load assignment state follows the audited motorcycle workflow", () => {
