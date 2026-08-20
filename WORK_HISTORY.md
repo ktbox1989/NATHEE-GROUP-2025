@@ -1,5 +1,25 @@
 # NATHEE GROUP 2025 — Work History
 
+## 2026-08-21 — Inspection, Damage, POD and Print Center
+
+- Implementation commit: `8ad52be`
+- Added additive migration `0011_inspection_damage_pod` with append-only inspections/findings, version-preserving POD, same-motorcycle evidence checks and no-hard-delete triggers.
+- Database guards require a passed receipt inspection before `INSPECTED` and an active DELIVERY-evidence POD before `DELIVERED`.
+- Added responsive inspection, damage finding, POD correction/history and authorized print/PDF UI on motorcycle detail.
+- Verification: full tests 88/88, production build PASS, lint PASS, public SEO/deployment guards PASS, scoped secret scan found no embedded credential value.
+- Deployment: source prepared locally; migration `0011` was not applied and Production remained unchanged.
+- Rollback: before Production apply, revert `8ad52be`. After apply, restore the pre-migration D1 backup or use a reviewed forward migration; never delete inspection/POD history.
+
+## 2026-08-21 — Audited Container Load Manifest
+
+- Implementation commit: `dad8d22`
+- Added additive migration `0010_container_motorcycle_loads` with trip/container exclusivity, tenant/capacity/Seal/motorcycle-state invariants and append-only assignment history.
+- Activated the full audited container lifecycle and added a bounded responsive Load Manifest plus motorcycle active-container context.
+- Cancellation/completion release assignments atomically without deleting history; Container and event records are immutable at their evidence boundaries.
+- Verification: full tests 79/79 at the milestone, production build PASS, lint PASS and public SEO/deployment guards PASS.
+- Deployment: source prepared locally; migration `0010` was not applied and Production remained unchanged.
+- Rollback: before Production apply, revert `dad8d22`. After apply, restore the pre-migration D1 backup or use a reviewed forward migration.
+
 ## 2026-08-21 — Fail-closed Container Registry Foundation
 
 - Implementation commit: `7bd4bad`

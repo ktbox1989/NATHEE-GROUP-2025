@@ -5,7 +5,7 @@ Updated: 2026-08-21 (Asia/Bangkok)
 ## Source checkpoint
 
 - Branch: `main`
-- Latest verified implementation milestone: `7bd4bad` — Fail-closed Container Registry Foundation
+- Latest verified implementation milestone: `8ad52be` — Audited Inspection, Damage, POD and Print Center
 - Canonical repository: `ktbox1989/NATHEE-GROUP-2025`
 - Working rule: resolve the current checkpoint-document commit with `git rev-parse HEAD`; never infer Production deployment from source HEAD.
 
@@ -85,32 +85,49 @@ Updated: 2026-08-21 (Asia/Bangkok)
 - Added internal-only, responsive `/app/containers` registry with a 50-record keyset page and explicit warning that it is not yet a Container Load Manifest.
 - Migration `0009_container_registry` is additive and remains unapplied in Production.
 
+### Audited Container Load Manifest (`dad8d22`)
+
+- Migration `0010_container_motorcycle_loads` adds an append-only container/motorcycle assignment ledger and activates the guarded DRAFT→PLANNED→LOADING→SEALED→IN_TRANSIT→ARRIVED→UNLOADING→COMPLETED lifecycle.
+- A motorcycle cannot be active in both a trip and a container. D1 independently enforces tenant matching, one active assignment, confirmed capacity (or the existing 1,000-record hard ceiling), motorcycle status, Seal readiness and terminal release rules.
+- Container, assignment and status mutations are optimistic/idempotent where applicable and commit Audit in the same D1 batch. Cancellation/completion retain assignment history; Container and event history cannot be hard-deleted.
+- Added a responsive, bounded `/app/containers/:id` Load Manifest and active-container context on motorcycle detail. No status is advanced implicitly.
+- Migration `0010` remains unapplied in Production.
+
+### Inspection, Damage, POD and Print Center (`8ad52be`)
+
+- Migration `0011_inspection_damage_pod` adds append-only motorcycle inspections, normalized damage findings and version-preserving Proof of Delivery records linked to private R2 image metadata.
+- Inspection type is checked against the real motorcycle lifecycle. ISSUE/DAMAGE requires notes; optional findings accept only same-motorcycle `DAMAGE` evidence.
+- A motorcycle cannot advance to `INSPECTED` without a passed receipt inspection, or to `DELIVERED` without an active POD backed by same-motorcycle `DELIVERY` evidence.
+- POD is immutable after delivery. Before delivery, an incorrect active POD can be voided with a reason and replaced without deleting history. Phone output is masked and Audit records exclude the phone value.
+- Motorcycle detail now provides real inspection/finding/POD forms and bounded history. `/app/motorcycles/:id/documents` renders an authorized print/PDF record from the same source data.
+- Migration `0011` remains unapplied in Production.
+
 ## Verified source gates
 
-- Full test suite: 71 passing
-- Authorization/unit tests: 44 passing
-- Render/schema/notification/yard/trip/container/query-plan tests: 27 passing
+- Full test suite: 88 passing
+- Authorization/unit tests: 50 passing
+- Render/schema/notification/yard/trip/container/inspection/POD/query-plan tests: 38 passing
 - Production Vinext build: PASS
 - ESLint: PASS
 - Public SEO and deployment architecture guards: PASS
-- Migrations through `0009` packaged in `dist/.openai/drizzle/`: PASS
+- Migrations through `0011` packaged in `dist/.openai/drizzle/`: PASS
 
 ## Open Owner gates
 
 - Approve application routing model: apex edge routes or an application subdomain.
 - Supply/configure Supabase Production values through a secure hosting channel.
-- Backup and apply migrations `0001`–`0009` to the protected D1 runtime.
+- Backup and apply migrations `0001`–`0011` to the protected D1 runtime.
 - Verify private R2 readiness.
 - Bootstrap the real OWNER identity and accept two-company customer isolation.
 - Add real company Gallery photographs and verified location/map data.
 
 ## Next autonomous work
 
-1. Add container/motorcycle assignments, capacity/Seal readiness and audited lifecycle before enabling any non-DRAFT container state.
-2. Continue dependency order: Inspection/Damage, POD, documents and print center.
-3. Add bounded Company Search before management selector limits are reached.
-4. Replace the still-bounded 200-driver selector with an indexed driver lookup before large staff rollout.
-5. Keep all new migrations local until Production backup/runtime gates are satisfied.
+1. Stop adding broad local modules and close the Production activation gates: canonical app route, Supabase environment/callback, D1 backup+ledger+migrations `0001`–`0011`, R2 readiness and real OWNER mapping.
+2. Run real browser acceptance for OWNER and two isolated customer companies before exposing `/app` publicly.
+3. Add bounded Company Search and indexed Driver Search before large customer/staff rollout; current selectors remain deliberately capped.
+4. Configure external LINE/email notification providers only after credentials, consent, retry and escalation policy are approved.
+5. Keep all new migrations unapplied until the Production backup/runtime gates are satisfied.
 
 ## Prohibited claims
 

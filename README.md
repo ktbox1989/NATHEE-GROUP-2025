@@ -85,8 +85,17 @@ Node.js 22.13 or newer is required.
 
 - The local Container Registry accepts only ISO 6346 numbers whose owner/category format and check digit are valid.
 - It stores Seal, 20FT/40FT/40HC type, optional confirmed capacity, port and country through an idempotent audited D1 write.
-- Registry rows remain DRAFT and immutable until the next migration adds motorcycle assignments and load/Seal readiness. The current UI explicitly does not claim to be a Container Load Manifest.
-- Container records and events are retained; database triggers reject hard deletion and unguarded lifecycle changes.
+- The Container Load Manifest prevents a motorcycle from being active in a trip and container simultaneously, enforces company/capacity limits and coordinates load/unload confirmation with the audited motorcycle status.
+- DRAFT→PLANNED→LOADING→SEALED→IN_TRANSIT→ARRIVED→UNLOADING→COMPLETED is guarded in D1. A real Seal and every assigned motorcycle must be ready before a transition can commit.
+- Container records, assignments and events are retained; database triggers reject hard deletion and unguarded lifecycle changes.
+
+## Inspection, damage and Proof of Delivery
+
+- Receipt, pre-load and delivery inspections are append-only and allowed only in compatible motorcycle states.
+- ISSUE/DAMAGE inspections retain notes and normalized findings; evidence can reference only same-motorcycle private images categorized as `DAMAGE`.
+- `INSPECTED` requires a passed receipt inspection. `DELIVERED` requires an active POD with same-motorcycle `DELIVERY` evidence.
+- Incorrect POD can be voided with reason before delivery and replaced without deleting the old record. Recipient phone output is masked.
+- The authorized motorcycle Document & Print Center renders the operational record for printing or browser PDF without inventing data.
 
 ## Z.com public website
 
