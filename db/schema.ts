@@ -68,6 +68,10 @@ export const MOTORCYCLE_STATUSES = [
   "WAITING_DOCUMENTS",
   "CANCELLED",
 ] as const;
+export const MOTORCYCLE_CONDITIONS = ["NEW", "USED", "UNKNOWN"] as const;
+export const MOTORCYCLE_IMPORT_SOURCE_TYPES = ["CSV", "XLSX"] as const;
+export const MOTORCYCLE_IMPORT_STATUSES = ["VALIDATED", "IMPORTING", "IMPORTED", "FAILED"] as const;
+export const MOTORCYCLE_IMPORT_ROW_STATUSES = ["VALID", "ERROR", "IMPORTED"] as const;
 export const IMAGE_CATEGORIES = [
   "FRONT",
   "REAR",
@@ -413,10 +417,15 @@ export const motorcycles = sqliteTable(
     sequenceNumber: integer("sequence_number").notNull(),
     make: text("make"),
     model: text("model"),
+    variant: text("variant"),
+    modelYear: integer("model_year"),
     color: text("color"),
     registration: text("registration"),
+    province: text("province"),
     vin: text("vin"),
     engineNumber: text("engine_number"),
+    vehicleCondition: text("vehicle_condition", { enum: MOTORCYCLE_CONDITIONS }).notNull().default("UNKNOWN"),
+    notes: text("notes"),
     currentStatus: text("current_status", { enum: MOTORCYCLE_STATUSES })
       .notNull()
       .default("PENDING_RECEIPT"),
@@ -436,6 +445,9 @@ export const motorcycles = sqliteTable(
     index("idx_motorcycles_job").on(table.jobId),
     index("idx_motorcycles_registration").on(table.registration),
     check("ck_motorcycles_sequence_positive", sql`${table.sequenceNumber} > 0`),
+    check("ck_motorcycles_model_year", sql`${table.modelYear} IS NULL OR ${table.modelYear} BETWEEN 1900 AND 2200`),
+    check("ck_motorcycles_condition", sql`${table.vehicleCondition} IN ('NEW', 'USED', 'UNKNOWN')`),
+    check("ck_motorcycles_notes", sql`${table.notes} IS NULL OR length(${table.notes}) <= 1000`),
     check(
       "ck_motorcycles_status",
       sql`${table.currentStatus} IN ('PENDING_RECEIPT', 'RECEIVED', 'INSPECTED', 'IN_YARD', 'SCHEDULED', 'LOADED', 'IN_TRANSIT', 'ARRIVED', 'DELIVERED', 'CLOSED', 'ISSUE', 'DAMAGED', 'WAITING_DOCUMENTS', 'CANCELLED')`,
@@ -857,6 +869,77 @@ export const siteSettingsRevisions = sqliteTable(
     check("ck_site_settings_revisions_json", sql`json_valid(${table.settingsJson}) AND length(${table.settingsJson}) BETWEEN 2 AND 20000`),
     check("ck_site_settings_revisions_hash", sql`length(${table.settingsHash}) = 64 AND ${table.settingsHash} NOT GLOB '*[^0-9a-f]*'`),
     check("ck_site_settings_revisions_note", sql`${table.changeNote} IS NULL OR length(${table.changeNote}) <= 500`),
+  ],
+);
+
+export const motorcycleImportBatches = sqliteTable(
+  "motorcycle_import_batches",
+  {
+    id: text("id").primaryKey(),
+    requestKey: text("request_key").notNull(),
+    jobId: text("job_id").notNull().references(() => transportJobs.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    companyId: text("company_id").notNull().references(() => companies.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    sourceFilename: text("source_filename").notNull(),
+    sourceType: text("source_type", { enum: MOTORCYCLE_IMPORT_SOURCE_TYPES }).notNull(),
+    checksum: text("checksum").notNull(),
+    rowCount: integer("row_count").notNull(),
+    validCount: integer("valid_count").notNull(),
+    errorCount: integer("error_count").notNull(),
+    status: text("status", { enum: MOTORCYCLE_IMPORT_STATUSES }).notNull().default("VALIDATED"),
+    importRequestKey: text("import_request_key"),
+    createdBy: text("created_by").notNull().references(() => users.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    createdAt: createdAt(),
+    importedAt: text("imported_at"),
+  },
+  (table) => [
+    uniqueIndex("uq_motorcycle_import_batches_request_key").on(table.requestKey),
+    uniqueIndex("uq_motorcycle_import_batches_job_checksum").on(table.jobId, table.checksum),
+    uniqueIndex("uq_motorcycle_import_batches_import_request").on(table.importRequestKey).where(sql`${table.importRequestKey} IS NOT NULL`),
+    index("idx_motorcycle_import_batches_job_created").on(table.jobId, table.createdAt, table.id),
+    index("idx_motorcycle_import_batches_company_created").on(table.companyId, table.createdAt, table.id),
+    check("ck_motorcycle_import_batches_filename", sql`length(${table.sourceFilename}) BETWEEN 1 AND 160`),
+    check("ck_motorcycle_import_batches_type", sql`${table.sourceType} IN ('CSV', 'XLSX')`),
+    check("ck_motorcycle_import_batches_checksum", sql`length(${table.checksum}) = 64 AND ${table.checksum} NOT GLOB '*[^0-9a-f]*'`),
+    check("ck_motorcycle_import_batches_counts", sql`${table.rowCount} BETWEEN 1 AND 500 AND ${table.validCount} >= 0 AND ${table.errorCount} >= 0 AND ${table.validCount} + ${table.errorCount} = ${table.rowCount}`),
+    check("ck_motorcycle_import_batches_status", sql`${table.status} IN ('VALIDATED', 'IMPORTING', 'IMPORTED', 'FAILED')`),
+  ],
+);
+
+export const motorcycleImportRows = sqliteTable(
+  "motorcycle_import_rows",
+  {
+    id: text("id").primaryKey(),
+    batchId: text("batch_id").notNull().references(() => motorcycleImportBatches.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    sourceRowNumber: integer("source_row_number").notNull(),
+    recordId: text("record_id").notNull(),
+    publicId: text("public_id").notNull(),
+    rawPayload: text("raw_payload").notNull(),
+    make: text("make"),
+    model: text("model"),
+    variant: text("variant"),
+    modelYear: integer("model_year"),
+    color: text("color"),
+    registration: text("registration"),
+    province: text("province"),
+    vin: text("vin"),
+    engineNumber: text("engine_number"),
+    vehicleCondition: text("vehicle_condition", { enum: MOTORCYCLE_CONDITIONS }).notNull().default("UNKNOWN"),
+    notes: text("notes"),
+    validationStatus: text("validation_status", { enum: MOTORCYCLE_IMPORT_ROW_STATUSES }).notNull(),
+    errorMessage: text("error_message"),
+    importedRecordId: text("imported_record_id").references(() => motorcycles.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    importedAt: text("imported_at"),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    uniqueIndex("uq_motorcycle_import_rows_batch_row").on(table.batchId, table.sourceRowNumber),
+    uniqueIndex("uq_motorcycle_import_rows_record_id").on(table.recordId),
+    uniqueIndex("uq_motorcycle_import_rows_public_id").on(table.publicId),
+    index("idx_motorcycle_import_rows_batch_status_row").on(table.batchId, table.validationStatus, table.sourceRowNumber),
+    check("ck_motorcycle_import_rows_source_row", sql`${table.sourceRowNumber} BETWEEN 2 AND 501`),
+    check("ck_motorcycle_import_rows_condition", sql`${table.vehicleCondition} IN ('NEW', 'USED', 'UNKNOWN')`),
+    check("ck_motorcycle_import_rows_validation", sql`${table.validationStatus} IN ('VALID', 'ERROR', 'IMPORTED')`),
+    check("ck_motorcycle_import_rows_import_marker", sql`(${table.validationStatus} = 'IMPORTED' AND ${table.importedRecordId} IS NOT NULL AND ${table.importedAt} IS NOT NULL) OR (${table.validationStatus} <> 'IMPORTED' AND ${table.importedRecordId} IS NULL AND ${table.importedAt} IS NULL)`),
   ],
 );
 

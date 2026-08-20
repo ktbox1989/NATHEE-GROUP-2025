@@ -56,10 +56,15 @@ export default async function MotorcycleDetailPage({ params, searchParams }: Mot
       sequenceNumber: motorcycles.sequenceNumber,
       make: motorcycles.make,
       model: motorcycles.model,
+      variant: motorcycles.variant,
+      modelYear: motorcycles.modelYear,
       color: motorcycles.color,
       registration: motorcycles.registration,
+      province: motorcycles.province,
       vin: motorcycles.vin,
       engineNumber: motorcycles.engineNumber,
+      vehicleCondition: motorcycles.vehicleCondition,
+      notes: motorcycles.notes,
       currentStatus: motorcycles.currentStatus,
     })
     .from(motorcycles)
@@ -271,11 +276,13 @@ export default async function MotorcycleDetailPage({ params, searchParams }: Mot
         <section className="app-panel record-summary">
           <div className="record-summary-head"><span>ข้อมูลรถ</span><span className="status-pill">{motorcycleStatusLabels[record.currentStatus]}</span></div>
           <dl>
-            <div><dt>ยี่ห้อ / รุ่น</dt><dd>{[record.make, record.model].filter(Boolean).join(" · ") || "—"}</dd></div>
+            <div><dt>ยี่ห้อ / รุ่น</dt><dd>{[record.make, record.model, record.variant].filter(Boolean).join(" · ") || "—"}</dd></div>
+            <div><dt>ปี / สภาพ</dt><dd>{[record.modelYear, conditionLabel(record.vehicleCondition)].filter(Boolean).join(" · ")}</dd></div>
             <div><dt>สี</dt><dd>{record.color || "—"}</dd></div>
-            <div><dt>ทะเบียน</dt><dd>{record.registration || "—"}</dd></div>
+            <div><dt>ทะเบียน</dt><dd>{[record.registration, record.province].filter(Boolean).join(" · ") || "—"}</dd></div>
             <div><dt>VIN</dt><dd>{record.vin || "—"}</dd></div>
             <div><dt>เลขเครื่อง</dt><dd>{record.engineNumber || "—"}</dd></div>
+            <div><dt>หมายเหตุ</dt><dd>{record.notes || "—"}</dd></div>
             <div><dt>Public ID</dt><dd className="mono-value">{record.publicId}</dd></div>
           </dl>
         </section>
@@ -430,6 +437,10 @@ function tripStatusLabel(status: string): string {
 
 function assignmentStateLabel(state: string): string {
   return ({ ASSIGNED: "จัดเข้าเที่ยวแล้ว", LOADED: "ยืนยันขึ้นรถแล้ว", UNLOADED: "ยืนยันลงรถแล้ว", RELEASED: "ปิดรายการแล้ว" } as Record<string, string>)[state] ?? state;
+}
+
+function conditionLabel(condition: string): string {
+  return ({ NEW: "รถใหม่", USED: "รถมือสอง", UNKNOWN: "ไม่ระบุ" } as Record<string, string>)[condition] ?? condition;
 }
 
 function containerStatusLabel(status: string): string {

@@ -4,7 +4,7 @@ import { asc, desc, eq, notInArray } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { getDb } from "@/db";
 import { companies, motorcycles, transportJobs } from "@/db/schema";
-import { can, isCustomerRole } from "@/lib/authorization";
+import { can, isCustomerRole, isInternalRole } from "@/lib/authorization";
 import { requireActor } from "@/lib/current-actor";
 import { motorcycleStatusLabels } from "@/lib/labels";
 
@@ -65,6 +65,7 @@ export default async function MotorcyclesPage({ searchParams }: MotorcyclesPageP
     <>
       <div className="app-page-head">
         <div><p>MOTORCYCLE RECORDS</p><h1>รถจักรยานยนต์</h1><span>{customerRole ? "รถของบริษัทคุณเท่านั้น" : "ทะเบียนรถ รูปภาพ สถานะ และ Timeline"}</span></div>
+        {canWrite && isInternalRole(actor.role) && <Link className="button button-glass" href="/app/motorcycles/imports">นำเข้า CSV / Excel</Link>}
       </div>
       {params.status === "created" && <div className="form-message success page-message">เพิ่มรถเข้าระบบเรียบร้อยแล้ว</div>}
       {params.error && <div className="form-message error page-message">เพิ่มรถไม่สำเร็จ กรุณาตรวจสอบ Job, VIN และเลขเครื่อง</div>}
@@ -73,10 +74,15 @@ export default async function MotorcyclesPage({ searchParams }: MotorcyclesPageP
           <div className="field full"><label htmlFor="jobId">งานขนส่ง *</label><select id="jobId" name="jobId" required><option value="">เลือก Job</option>{jobRows.map((job) => <option key={job.id} value={job.id}>{job.jobNumber} · {job.companyName}</option>)}</select></div>
           <div className="field"><label htmlFor="make">ยี่ห้อ</label><input id="make" name="make" placeholder="เช่น Honda" /></div>
           <div className="field"><label htmlFor="model">รุ่น</label><input id="model" name="model" /></div>
+          <div className="field"><label htmlFor="variant">รุ่นย่อย</label><input id="variant" name="variant" /></div>
+          <div className="field"><label htmlFor="modelYear">ปีรถ</label><input id="modelYear" name="modelYear" inputMode="numeric" pattern="[0-9]{4}" placeholder="2026" /></div>
           <div className="field"><label htmlFor="color">สี</label><input id="color" name="color" /></div>
           <div className="field"><label htmlFor="registration">ทะเบียน</label><input id="registration" name="registration" /></div>
-          <div className="field"><label htmlFor="vin">เลขโครง / VIN</label><input id="vin" name="vin" /></div>
-          <div className="field"><label htmlFor="engineNumber">เลขเครื่อง</label><input id="engineNumber" name="engineNumber" /></div>
+          <div className="field"><label htmlFor="province">จังหวัด</label><input id="province" name="province" /></div>
+          <div className="field"><label htmlFor="vehicleCondition">สภาพรถ</label><select id="vehicleCondition" name="vehicleCondition"><option value="UNKNOWN">ไม่ระบุ</option><option value="NEW">รถใหม่</option><option value="USED">รถมือสอง</option></select></div>
+          <div className="field"><label htmlFor="vin">เลขโครง / VIN *</label><input id="vin" name="vin" /><small>ต้องมี VIN หรือเลขเครื่องอย่างน้อยหนึ่งค่า</small></div>
+          <div className="field"><label htmlFor="engineNumber">เลขเครื่อง *</label><input id="engineNumber" name="engineNumber" /></div>
+          <div className="field full"><label htmlFor="notes">หมายเหตุ</label><textarea id="notes" name="notes" rows={3} maxLength={1000} /></div>
           <div className="full"><button className="button button-gradient" type="submit">เพิ่มรถเข้าระบบ</button></div>
         </form>
       )}
