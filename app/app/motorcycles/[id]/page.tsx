@@ -1,6 +1,7 @@
 /* eslint-disable @next/next/no-img-element -- Private R2 images are served by an authenticated endpoint and must not pass through the public image optimizer. */
 import Link from "next/link";
 import { MotorcycleImageUploadForm } from "@/components/motorcycle-image-upload-form";
+import { ProofOfDeliveryForm } from "@/components/proof-of-delivery-form";
 import { and, asc, desc, eq, isNull } from "drizzle-orm";
 import { notFound, redirect } from "next/navigation";
 import { getDb } from "@/db";
@@ -12,6 +13,7 @@ import {
   motorcycleInspections,
   motorcycles,
   proofOfDeliveryRecords,
+  proofOfDeliverySignatures,
   shippingContainers,
   statusEvents,
   transportJobs,
@@ -206,12 +208,15 @@ export default async function MotorcycleDetailPage({ params, searchParams }: Mot
             evidenceImageId: proofOfDeliveryRecords.evidenceImageId,
             notes: proofOfDeliveryRecords.notes,
             status: proofOfDeliveryRecords.status,
+            signatureRequired: proofOfDeliveryRecords.signatureRequired,
+            signatureId: proofOfDeliverySignatures.id,
             voidReason: proofOfDeliveryRecords.voidReason,
             createdAt: proofOfDeliveryRecords.createdAt,
             receiverName: users.displayName,
           })
           .from(proofOfDeliveryRecords)
           .innerJoin(users, eq(users.id, proofOfDeliveryRecords.receivedBy))
+          .leftJoin(proofOfDeliverySignatures, eq(proofOfDeliverySignatures.podId, proofOfDeliveryRecords.id))
           .where(eq(proofOfDeliveryRecords.motorcycleId, id))
           .orderBy(desc(proofOfDeliveryRecords.createdAt), desc(proofOfDeliveryRecords.id))
           .limit(20)
@@ -222,12 +227,13 @@ export default async function MotorcycleDetailPage({ params, searchParams }: Mot
   const canUpload = can(actor, "images:write", record.companyId);
   const canPrintLabel = can(actor, "motorcycles:write", record.companyId);
   const canInspect = canUpdateStatus;
-  const canManagePod = isInternalRole(actor.role) && canUpdateStatus && can(actor, "images:read", record.companyId);
+  const canManagePod = isInternalRole(actor.role) && canUpdateStatus && can(actor, "images:read", record.companyId) && canReadDocuments;
   const activePod = podRecords.find((pod) => pod.status === "ACTIVE");
+  const activePodReady = activePod && (activePod.signatureRequired === 0 || Boolean(activePod.signatureId));
   const hasPassedReceiptInspection = inspections.some((inspection) => inspection.type === "RECEIPT" && inspection.result === "PASS");
   const nextStatuses = allowedTransitions(record.currentStatus).filter((status) => {
     if (status === "INSPECTED") return hasPassedReceiptInspection;
-    if (status === "DELIVERED") return Boolean(activePod);
+    if (status === "DELIVERED") return Boolean(activePodReady);
     return true;
   });
   const damageImages = images.filter((image) => image.category === "DAMAGE");
@@ -299,7 +305,7 @@ export default async function MotorcycleDetailPage({ params, searchParams }: Mot
       </div>
 
       {canUpdateStatus && allowedTransitions(record.currentStatus).includes("INSPECTED") && !hasPassedReceiptInspection && <div className="login-notice page-message">ต้องบันทึกผลตรวจรับรถเป็น “ผ่าน” ก่อน ระบบจึงจะอนุญาตสถานะตรวจสภาพแล้ว</div>}
-      {canUpdateStatus && allowedTransitions(record.currentStatus).includes("DELIVERED") && !activePod && <div className="login-notice page-message">ต้องมีหลักฐานส่งมอบที่ active พร้อมรูป DELIVERY ก่อน ระบบจึงจะอนุญาตสถานะส่งมอบแล้ว</div>}
+      {canUpdateStatus && allowedTransitions(record.currentStatus).includes("DELIVERED") && !activePodReady && <div className="login-notice page-message">ต้องมีหลักฐานส่งมอบที่ active พร้อมรูป DELIVERY และลายเซ็นผู้รับสำหรับ POD ใหม่ ก่อนระบบอนุญาตสถานะส่งมอบแล้ว</div>}
 
       {canReadYard && (
         <section className="detail-section">
@@ -386,27 +392,17 @@ export default async function MotorcycleDetailPage({ params, searchParams }: Mot
       {canReadDocuments && (
         <section className="detail-section">
           <div className="detail-section-head"><div><p>PROOF OF DELIVERY</p><h2>หลักฐานส่งมอบ</h2></div><span>เก็บประวัติทุกฉบับ · ไม่ลบย้อนหลัง</span></div>
-          {canManagePod && record.currentStatus === "ARRIVED" && !activePod && deliveryImages.length > 0 && (
-            <form className="record-form pod-form" action={`/api/motorcycles/${id}/pod`} method="post">
-              <input type="hidden" name="requestKey" value={crypto.randomUUID()} />
-              <div className="field"><label htmlFor="recipientName">ชื่อผู้รับจริง *</label><input id="recipientName" name="recipientName" maxLength={160} autoComplete="name" required /></div>
-              <div className="field"><label htmlFor="recipientPhone">เบอร์ผู้รับ</label><input id="recipientPhone" name="recipientPhone" minLength={6} maxLength={50} inputMode="tel" autoComplete="tel" /></div>
-              <div className="field"><label htmlFor="deliveryLocation">สถานที่ส่งมอบ *</label><input id="deliveryLocation" name="deliveryLocation" minLength={2} maxLength={300} required /></div>
-              <div className="field"><label htmlFor="deliveredAt">วันเวลาส่งมอบ (เวลาไทย) *</label><input id="deliveredAt" name="deliveredAt" type="datetime-local" defaultValue={datetimeLocalNowBangkok()} required /></div>
-              <div className="field full"><label htmlFor="podEvidenceImageId">รูปส่งมอบ DELIVERY *</label><select id="podEvidenceImageId" name="evidenceImageId" required defaultValue=""><option value="">เลือกรูปหลักฐาน</option>{deliveryImages.map((image) => <option key={image.id} value={image.id}>{formatThaiDateTime(image.createdAt)} · {image.id.slice(0, 8)}</option>)}</select></div>
-              <div className="field full"><label htmlFor="podNotes">หมายเหตุ</label><textarea id="podNotes" name="notes" rows={3} maxLength={2000} /></div>
-              <div className="full"><button className="button button-gradient" type="submit">บันทึกหลักฐานส่งมอบ</button></div>
-            </form>
-          )}
+          {canManagePod && record.currentStatus === "ARRIVED" && !activePod && deliveryImages.length > 0 && <ProofOfDeliveryForm motorcycleId={id} defaultDeliveredAt={datetimeLocalNowBangkok()} deliveryImages={deliveryImages.map((image) => ({ id: image.id, label: `${formatThaiDateTime(image.createdAt)} · ${image.id.slice(0, 8)}` }))} />}
           {canManagePod && record.currentStatus === "ARRIVED" && !activePod && deliveryImages.length === 0 && <div className="login-notice page-message">อัปโหลดรูปประเภท “ส่งมอบ” ก่อนสร้าง POD ระบบไม่รับรูปหมวดอื่นแทนหลักฐานส่งมอบ</div>}
           {podRecords.length ? <div className="pod-list">{podRecords.map((pod) => <article className={`app-panel pod-card ${pod.status.toLowerCase()}`} key={pod.id}>
             <div className="pod-card-head"><div><span>{pod.status === "ACTIVE" ? "ACTIVE POD" : "VOIDED POD"}</span><h3>{pod.recipientName}</h3></div><span className="status-pill">{pod.status === "ACTIVE" ? "ใช้งาน" : "ยกเลิกแล้ว"}</span></div>
             <dl><div><dt>ส่งมอบ</dt><dd>{formatThaiDateTime(pod.deliveredAt)}</dd></div><div><dt>สถานที่</dt><dd>{pod.deliveryLocation}</dd></div><div><dt>เบอร์ผู้รับ</dt><dd>{maskPhone(pod.recipientPhone)}</dd></div><div><dt>ผู้บันทึก</dt><dd>{pod.receiverName}</dd></div></dl>
             <p>{pod.notes || "ไม่มีหมายเหตุ"}</p>
             <a className="button button-glass button-small" href={`/api/images/${pod.evidenceImageId}?role=display`} target="_blank" rel="noreferrer">เปิดรูปส่งมอบ</a>
+            {pod.signatureId ? <div className="pod-signature-proof"><span>ลายเซ็นผู้รับ</span><img src={`/api/pod-signatures/${pod.signatureId}`} alt={`ลายเซ็นผู้รับ ${pod.recipientName}`} width={720} height={240} loading="lazy" decoding="async" /></div> : <div className="trip-release-note">{pod.signatureRequired === 0 ? "POD เดิมก่อนระบบลายเซ็น — ไม่มีไฟล์ลายเซ็นในระบบ" : "POD ใหม่มีหลักฐานลายเซ็นไม่ครบ — ระบบไม่อนุญาตให้ยืนยันส่งมอบ"}</div>}
             {pod.status === "VOIDED" && <div className="trip-release-note">เหตุผลยกเลิก: {pod.voidReason}</div>}
             {canManagePod && pod.status === "ACTIVE" && record.currentStatus === "ARRIVED" && <form className="pod-void-form" action={`/api/motorcycles/${id}/pod/${pod.id}`} method="post"><input name="reason" minLength={3} maxLength={500} required placeholder="เหตุผลยกเลิกฉบับนี้ *" aria-label="เหตุผลยกเลิกหลักฐานส่งมอบ" /><button type="submit">ยกเลิกและเก็บประวัติ</button></form>}
-          </article>)}</div> : <div className="app-panel app-empty"><div>🤝</div><h2>ยังไม่มีหลักฐานส่งมอบ</h2><p>เมื่อรถถึงปลายทาง ให้บันทึกผู้รับ สถานที่ เวลา และรูปส่งมอบจริง</p></div>}
+          </article>)}</div> : <div className="app-panel app-empty"><div>🤝</div><h2>ยังไม่มีหลักฐานส่งมอบ</h2><p>เมื่อรถถึงปลายทาง ให้บันทึกผู้รับ สถานที่ เวลา รูปส่งมอบ และลายเซ็นจริง</p></div>}
         </section>
       )}
 

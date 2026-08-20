@@ -346,6 +346,22 @@ footer { border-top: 1px solid var(--border); background: #050611; color: var(--
 .evidence-upload-actions progress { width: min(100%, 320px); accent-color: var(--gold); }
 .evidence-upload-actions p { flex-basis: 100%; margin: 0; color: var(--muted); font-size: 12px; }
 .inspection-form, .pod-form { margin-bottom: 16px; }
+.pod-signature-field { display: grid; gap: 10px; padding: 14px; border: 1px solid var(--border); border-radius: 13px; background: rgba(255,255,255,.02); }
+.pod-signature-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.pod-signature-head > div { display: grid; gap: 3px; }
+.pod-signature-head label { font-weight: 600; }
+.pod-signature-head small { color: var(--muted); line-height: 1.5; }
+.pod-signature-field canvas { display: block; width: min(100%,720px); aspect-ratio: 3 / 1; border: 2px solid rgba(255,255,255,.2); border-radius: 10px; background: #fff; cursor: crosshair; touch-action: none; }
+.consent-field { display: flex; align-items: flex-start; gap: 10px; min-height: 44px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 11px; color: var(--muted); line-height: 1.5; }
+.consent-field input { flex: 0 0 auto; width: 20px; height: 20px; margin-top: 1px; accent-color: var(--gold); }
+.pod-submit-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.pod-submit-actions progress { width: min(100%,320px); accent-color: #34d399; }
+.pod-submit-actions p { flex-basis: 100%; margin: 0; color: var(--muted); font-size: 12px; }
+.pod-signature-proof { display: grid; gap: 7px; margin-top: 12px; }
+.pod-signature-proof span { color: var(--muted); font-size: 10px; }
+.document-signature { display: grid; gap: 5px; }
+.document-signature span, .document-signature-missing { color: var(--muted); font-size: 10px; }
+.pod-signature-proof img, .document-signature img { display: block; width: min(100%,360px); aspect-ratio: 3 / 1; border: 1px solid var(--border); border-radius: 8px; background: #fff; object-fit: contain; }
 .inspection-finding-fields { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; padding: 14px; border: 1px solid var(--border); border-radius: 13px; background: rgba(255,255,255,.02); }
 .inspection-finding-fields > div:first-child { grid-column: 1 / -1; display: flex; justify-content: space-between; gap: 12px; }
 .inspection-finding-fields > div:first-child b { font-size: 12px; }
@@ -847,6 +863,8 @@ footer { border-top: 1px solid var(--border); background: #050611; color: var(--
   .inspection-finding-fields, .inspection-card > dl, .pod-card > dl { grid-template-columns: 1fr; }
   .inspection-finding-fields > div:first-child { grid-column: auto; flex-direction: column; }
   .inspection-add-finding, .pod-void-form { grid-template-columns: 1fr; }
+  .pod-signature-head { align-items: stretch; flex-direction: column; }
+  .pod-signature-head .button, .pod-submit-actions > .button { width: 100%; }
   .inspection-add-finding input, .inspection-add-finding select, .inspection-add-finding button, .pod-void-form input, .pod-void-form button { width: 100%; }
   .document-print-sheet { padding: 15px; }
   .document-brand { flex-direction: column; }
@@ -918,6 +936,7 @@ footer { border-top: 1px solid var(--border); background: #050611; color: var(--
   .document-record { gap: 2mm; padding: 3mm; }
   .document-finding { background: #fff5f5; }
   .document-finding img, .document-pod-image { max-height: 50mm; background: #fff; }
+  .document-signature img { width: 70mm; max-height: 24mm; border-color: #9ca3af; }
   .report-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 4mm; }
   .report-section { border-color: #9ca3af; background: #fff !important; box-shadow: none; }
   .report-section-head { border-color: #d1d5db; }

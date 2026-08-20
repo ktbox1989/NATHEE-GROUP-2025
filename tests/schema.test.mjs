@@ -67,6 +67,7 @@ test("fresh migrations create every phase-one table", () => {
     "motorcycles",
     "notifications",
     "proof_of_delivery_records",
+    "proof_of_delivery_signatures",
     "quote_request_attachments",
     "quote_requests",
     "sequence_counters",

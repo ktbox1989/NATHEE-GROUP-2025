@@ -122,8 +122,11 @@ test("trip readiness follows audited motorcycle and load assignment states", () 
       (id, motorcycle_id, company_id, storage_key, category, content_type, byte_size, checksum, uploaded_by)
     VALUES ('delivery-trip-a', 'motorcycle-a', 'company-a', 'delivery-trip-a.jpg', 'DELIVERY', 'image/jpeg', 100, '${"f".repeat(64)}', 'owner-a');
     INSERT INTO proof_of_delivery_records
-      (id, request_key, motorcycle_id, company_id, recipient_name, delivery_location, delivered_at, evidence_image_id, received_by)
-    VALUES ('pod-trip-a', '0198f708-44a3-7ef7-8d4f-4f477922af01', 'motorcycle-a', 'company-a', 'ผู้รับ', 'Destination B', '2026-08-21T10:05:00.000Z', 'delivery-trip-a', 'owner-a');
+      (id, request_key, motorcycle_id, company_id, recipient_name, delivery_location, delivered_at, evidence_image_id, received_by, signature_required)
+    VALUES ('pod-trip-a', '0198f708-44a3-7ef7-8d4f-4f477922af01', 'motorcycle-a', 'company-a', 'ผู้รับ', 'Destination B', '2026-08-21T10:05:00.000Z', 'delivery-trip-a', 'owner-a', 1);
+    INSERT INTO proof_of_delivery_signatures
+      (id, pod_id, company_id, storage_key, content_type, width, height, byte_size, checksum, attested_by, attested_at)
+    VALUES ('signature-trip-a', 'pod-trip-a', 'company-a', 'signature-trip-a.png', 'image/png', 720, 240, 500, '${"c".repeat(64)}', 'owner-a', '2026-08-21T10:05:00.000Z');
   `);
   db.exec("UPDATE motorcycles SET current_status = 'DELIVERED' WHERE id = 'motorcycle-a'");
   db.exec("UPDATE trips SET status = 'COMPLETED' WHERE id = 'trip-a'");

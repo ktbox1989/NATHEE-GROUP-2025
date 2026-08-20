@@ -121,18 +121,21 @@ test("proof of delivery requires ARRIVED status, same-motorcycle DELIVERY eviden
   assert.throws(() => db.exec("UPDATE motorcycles SET current_status = 'DELIVERED' WHERE id = 'motorcycle-b'"), /active proof/);
   assert.throws(() => db.exec(`
     INSERT INTO proof_of_delivery_records
-      (id, request_key, motorcycle_id, company_id, recipient_name, delivery_location, delivered_at, evidence_image_id, received_by)
-    VALUES ('pod-wrong-image', '0198f708-44a3-7ef7-8d4f-4f477922cc01', 'motorcycle-b', 'company-a', 'ผู้รับ', 'Bangkok', '2026-08-21T06:00:00.000Z', 'damage-image-a', 'owner-a')
+      (id, request_key, motorcycle_id, company_id, recipient_name, delivery_location, delivered_at, evidence_image_id, received_by, signature_required)
+    VALUES ('pod-wrong-image', '0198f708-44a3-7ef7-8d4f-4f477922cc01', 'motorcycle-b', 'company-a', 'ผู้รับ', 'Bangkok', '2026-08-21T06:00:00.000Z', 'damage-image-a', 'owner-a', 1)
   `), /matching DELIVERY evidence/);
   db.exec(`
     INSERT INTO proof_of_delivery_records
-      (id, request_key, motorcycle_id, company_id, recipient_name, recipient_phone, delivery_location, delivered_at, evidence_image_id, received_by)
-    VALUES ('pod-b', '0198f708-44a3-7ef7-8d4f-4f477922cc02', 'motorcycle-b', 'company-a', 'ผู้รับจริง', '0812345678', 'Bangkok', '2026-08-21T06:00:00.000Z', 'delivery-image-b', 'owner-a')
+      (id, request_key, motorcycle_id, company_id, recipient_name, recipient_phone, delivery_location, delivered_at, evidence_image_id, received_by, signature_required)
+    VALUES ('pod-b', '0198f708-44a3-7ef7-8d4f-4f477922cc02', 'motorcycle-b', 'company-a', 'ผู้รับจริง', '0812345678', 'Bangkok', '2026-08-21T06:00:00.000Z', 'delivery-image-b', 'owner-a', 1);
+    INSERT INTO proof_of_delivery_signatures
+      (id, pod_id, company_id, storage_key, content_type, width, height, byte_size, checksum, attested_by, attested_at)
+    VALUES ('signature-b', 'pod-b', 'company-a', 'signature-b.png', 'image/png', 720, 240, 500, '${"c".repeat(64)}', 'owner-a', '2026-08-21T06:00:00.000Z')
   `);
   assert.throws(() => db.exec(`
     INSERT INTO proof_of_delivery_records
-      (id, request_key, motorcycle_id, company_id, recipient_name, delivery_location, delivered_at, evidence_image_id, received_by)
-    VALUES ('pod-duplicate', '0198f708-44a3-7ef7-8d4f-4f477922cc03', 'motorcycle-b', 'company-a', 'ผู้รับจริง', 'Bangkok', '2026-08-21T06:00:00.000Z', 'delivery-image-b', 'owner-a')
+      (id, request_key, motorcycle_id, company_id, recipient_name, delivery_location, delivered_at, evidence_image_id, received_by, signature_required)
+    VALUES ('pod-duplicate', '0198f708-44a3-7ef7-8d4f-4f477922cc03', 'motorcycle-b', 'company-a', 'ผู้รับจริง', 'Bangkok', '2026-08-21T06:00:00.000Z', 'delivery-image-b', 'owner-a', 1)
   `));
   db.exec("UPDATE motorcycles SET current_status = 'DELIVERED' WHERE id = 'motorcycle-b'");
   assert.throws(() => db.exec("UPDATE proof_of_delivery_records SET status = 'VOIDED', void_reason = 'แก้ไขข้อมูล', voided_by = 'owner-a', voided_at = '2026-08-21T06:10:00.000Z' WHERE id = 'pod-b'"), /before motorcycle delivery/);
@@ -144,14 +147,14 @@ test("an arrived POD can be voided with reason and replaced without reusing hist
   const db = createDatabase();
   db.exec(`
     INSERT INTO proof_of_delivery_records
-      (id, request_key, motorcycle_id, company_id, recipient_name, delivery_location, delivered_at, evidence_image_id, received_by)
-    VALUES ('pod-d-old', '0198f708-44a3-7ef7-8d4f-4f477922cd01', 'motorcycle-d', 'company-a', 'ชื่อผิด', 'Bangkok', '2026-08-21T06:00:00.000Z', 'delivery-image-d', 'owner-a');
+      (id, request_key, motorcycle_id, company_id, recipient_name, delivery_location, delivered_at, evidence_image_id, received_by, signature_required)
+    VALUES ('pod-d-old', '0198f708-44a3-7ef7-8d4f-4f477922cd01', 'motorcycle-d', 'company-a', 'ชื่อผิด', 'Bangkok', '2026-08-21T06:00:00.000Z', 'delivery-image-d', 'owner-a', 1);
     UPDATE proof_of_delivery_records
     SET status = 'VOIDED', void_reason = 'แก้ไขชื่อผู้รับ', voided_by = 'owner-a', voided_at = '2026-08-21T06:10:00.000Z'
     WHERE id = 'pod-d-old';
     INSERT INTO proof_of_delivery_records
-      (id, request_key, motorcycle_id, company_id, recipient_name, delivery_location, delivered_at, evidence_image_id, received_by)
-    VALUES ('pod-d-new', '0198f708-44a3-7ef7-8d4f-4f477922cd02', 'motorcycle-d', 'company-a', 'ชื่อถูกต้อง', 'Bangkok', '2026-08-21T06:00:00.000Z', 'delivery-image-d', 'owner-a');
+      (id, request_key, motorcycle_id, company_id, recipient_name, delivery_location, delivered_at, evidence_image_id, received_by, signature_required)
+    VALUES ('pod-d-new', '0198f708-44a3-7ef7-8d4f-4f477922cd02', 'motorcycle-d', 'company-a', 'ชื่อถูกต้อง', 'Bangkok', '2026-08-21T06:00:00.000Z', 'delivery-image-d', 'owner-a', 1);
   `);
   assert.deepEqual(
     db.prepare("SELECT id, status FROM proof_of_delivery_records WHERE motorcycle_id = 'motorcycle-d' ORDER BY created_at, id").all().map((row) => ({ ...row })),

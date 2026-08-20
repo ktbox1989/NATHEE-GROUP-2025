@@ -684,6 +684,7 @@ export const proofOfDeliveryRecords = sqliteTable(
     evidenceImageId: text("evidence_image_id").notNull().references(() => motorcycleImages.id, { onDelete: "restrict", onUpdate: "cascade" }),
     notes: text("notes"),
     receivedBy: text("received_by").notNull().references(() => users.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    signatureRequired: integer("signature_required").notNull().default(0),
     status: text("status", { enum: POD_STATUSES }).notNull().default("ACTIVE"),
     voidReason: text("void_reason"),
     voidedBy: text("voided_by").references(() => users.id, { onDelete: "restrict", onUpdate: "cascade" }),
@@ -699,6 +700,7 @@ export const proofOfDeliveryRecords = sqliteTable(
     check("ck_pod_records_phone", sql`${table.recipientPhone} IS NULL OR length(${table.recipientPhone}) BETWEEN 6 AND 50`),
     check("ck_pod_records_location", sql`length(${table.deliveryLocation}) BETWEEN 2 AND 300`),
     check("ck_pod_records_notes", sql`${table.notes} IS NULL OR length(${table.notes}) <= 2000`),
+    check("ck_pod_records_signature_required", sql`${table.signatureRequired} IN (0, 1)`),
     check("ck_pod_records_status", sql`${table.status} IN ('ACTIVE', 'VOIDED')`),
     check("ck_pod_records_void", sql`(${table.status} = 'VOIDED') = (${table.voidReason} IS NOT NULL AND ${table.voidedBy} IS NOT NULL AND ${table.voidedAt} IS NOT NULL)`),
   ],
@@ -856,6 +858,33 @@ export const sitePagePublicationEvents = sqliteTable(
     check("ck_site_page_publication_action", sql`${table.action} IN ('PUBLISH', 'HIDE')`),
     check("ck_site_page_publication_revision", sql`(${table.action} = 'PUBLISH' AND ${table.revisionId} IS NOT NULL) OR (${table.action} = 'HIDE' AND ${table.revisionId} IS NULL)`),
     check("ck_site_page_publication_note", sql`${table.note} IS NULL OR length(${table.note}) <= 500`),
+  ],
+);
+
+export const proofOfDeliverySignatures = sqliteTable(
+  "proof_of_delivery_signatures",
+  {
+    id: text("id").primaryKey(),
+    podId: text("pod_id").notNull().references(() => proofOfDeliveryRecords.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    companyId: text("company_id").notNull().references(() => companies.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    storageKey: text("storage_key").notNull(),
+    contentType: text("content_type").notNull(),
+    width: integer("width").notNull(),
+    height: integer("height").notNull(),
+    byteSize: integer("byte_size").notNull(),
+    checksum: text("checksum").notNull(),
+    attestedBy: text("attested_by").notNull().references(() => users.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    attestedAt: text("attested_at").notNull(),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    uniqueIndex("uq_pod_signatures_pod").on(table.podId),
+    uniqueIndex("uq_pod_signatures_storage_key").on(table.storageKey),
+    index("idx_pod_signatures_company_created").on(table.companyId, table.createdAt),
+    check("ck_pod_signatures_content_type", sql`${table.contentType} = 'image/png'`),
+    check("ck_pod_signatures_dimensions", sql`${table.width} BETWEEN 200 AND 2048 AND ${table.height} BETWEEN 80 AND 1024 AND ${table.width} > ${table.height}`),
+    check("ck_pod_signatures_size", sql`${table.byteSize} BETWEEN 200 AND 1048576`),
+    check("ck_pod_signatures_checksum", sql`length(${table.checksum}) = 64 AND ${table.checksum} NOT GLOB '*[^0-9a-f]*'`),
   ],
 );
 
