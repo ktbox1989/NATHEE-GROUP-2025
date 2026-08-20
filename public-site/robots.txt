@@ -1,6 +1,7 @@
 User-agent: *
 Allow: /
 Disallow: /login-status.html
+Disallow: /login/
 Disallow: /auth/
 Disallow: /app/
 Disallow: /api/

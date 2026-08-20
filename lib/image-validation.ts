@@ -13,6 +13,7 @@ export const SUPPORTED_IMAGE_TYPES: ReadonlyMap<string, string> = new Map([
   ["image/webp", "webp"],
   ["image/heic", "heic"],
   ["image/heif", "heif"],
+  ["image/avif", "avif"],
 ]);
 
 export function hasExpectedImageSignature(
@@ -41,6 +42,12 @@ export function hasExpectedImageSignature(
     return bytes.length >= 12 &&
       ascii(bytes, 4, 8) === "ftyp" &&
       HEIF_BRANDS.has(ascii(bytes, 8, 12));
+  }
+
+  if (contentType === "image/avif") {
+    return bytes.length >= 12 &&
+      ascii(bytes, 4, 8) === "ftyp" &&
+      ["avif", "avis"].includes(ascii(bytes, 8, 12));
   }
 
   return false;

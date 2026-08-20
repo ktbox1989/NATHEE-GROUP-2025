@@ -15,6 +15,20 @@
       "when": 1787241954409,
       "tag": "0001_dark_blue_shield",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1787243703795,
+      "tag": "0002_overrated_klaw",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1787244748074,
+      "tag": "0003_late_doctor_octopus",
+      "breakpoints": true
     }
   ]
 }

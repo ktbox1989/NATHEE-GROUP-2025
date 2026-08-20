@@ -18,10 +18,11 @@ source_root="$test_root/source"
 production_root="$test_root/production"
 stage_root="$test_root/stage"
 backup_dir="$test_root/backup"
-mkdir -p "$source_root/assets" "$production_root/legacy" "$stage_root"
+mkdir -p "$source_root/assets" "$source_root/services" "$production_root/legacy" "$stage_root"
 
 printf 'new homepage\n' > "$source_root/index.html"
 printf 'new stylesheet\n' > "$source_root/assets/site.css"
+printf 'services page\n' > "$source_root/services/index.html"
 printf 'old homepage\n' > "$production_root/index.html"
 printf 'preserve legacy\n' > "$production_root/legacy/unknown.txt"
 
@@ -35,6 +36,7 @@ nathee_apply_tree "$stage_root" "$production_root" test || fail "atomic deployme
 nathee_verify_file_manifest "$production_root" "$backup_dir/RELEASE_SHA256SUMS.txt" || fail "deployment verification"
 
 grep -Fqx 'new homepage' "$production_root/index.html" || fail "intended file was not replaced"
+grep -Fqx 'services page' "$production_root/services/index.html" || fail "nested clean route was not deployed"
 grep -Fqx 'preserve legacy' "$production_root/legacy/unknown.txt" || fail "unknown file was changed"
 grep -Fqx 'assets/site.css' "$backup_dir/CREATED_FILES.txt" || fail "created file was not recorded"
 
@@ -44,6 +46,7 @@ nathee_restore_backup "$backup_dir" "$production_root" || fail "rollback"
 
 grep -Fqx 'old homepage' "$production_root/index.html" || fail "original file was not restored"
 [[ ! -e "$production_root/assets/site.css" ]] || fail "release-created file was not removed"
+[[ ! -e "$production_root/services/index.html" ]] || fail "nested release-created file was not removed"
 grep -Fqx 'preserve legacy' "$production_root/legacy/unknown.txt" || fail "unknown backup file was not restored"
 grep -Fqx 'created externally' "$production_root/external-after-deploy.txt" || fail "post-deploy unknown file was deleted"
 
@@ -103,4 +106,4 @@ printf '%s\n' "$$" > "$lock_dir/owner.pid"
 nathee_release_lock_dir "$lock_dir" || fail "portable lock release"
 [[ ! -e "$lock_dir" ]] || fail "portable lock directory remains"
 
-printf 'DEPLOY_FILE_TOOLS_TEST_PASS backup=verified unknown=preserved rollback=verified tar_tamper=rejected metadata_tamper=rejected rsync=absent flock=absent dev_fd=absent mktemp_fallback=verified lock=atomic_mkdir\n'
+printf 'DEPLOY_FILE_TOOLS_TEST_PASS backup=verified nested_routes=verified unknown=preserved rollback=verified tar_tamper=rejected metadata_tamper=rejected rsync=absent flock=absent dev_fd=absent mktemp_fallback=verified lock=atomic_mkdir\n'

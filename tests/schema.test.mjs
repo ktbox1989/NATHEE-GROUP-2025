@@ -50,6 +50,9 @@ test("fresh migrations create every phase-one table", () => {
   assert.deepEqual(tables, [
     "audit_logs",
     "companies",
+    "gallery_categories",
+    "gallery_image_variants",
+    "gallery_items",
     "motorcycle_images",
     "motorcycles",
     "quote_requests",
@@ -150,5 +153,64 @@ test("active yard queries use the partial zone index", () => {
     .map((row) => String(row.detail))
     .join(" ");
   assert.match(plan, /idx_yard_placements_zone_active/);
+  db.close();
+});
+
+test("gallery constraints keep public media separate from customer job evidence", () => {
+  const db = createMigratedDatabase();
+  seedCoreRecords(db);
+  db.exec(`
+    INSERT INTO gallery_categories (id, slug, name, created_by)
+    VALUES ('category-a', 'domestic', 'ขนส่งในประเทศ', 'owner-a');
+    INSERT INTO gallery_items
+      (id, request_key, category_id, title, alt_text, visibility, uploaded_by)
+    VALUES
+      ('gallery-a', 'gallery-request-a', 'category-a', 'งานขนส่งจริง', 'รถจักรยานยนต์บนรถขนส่ง', 'PUBLIC', 'owner-a');
+  `);
+  assert.throws(() => db.exec(`
+    INSERT INTO gallery_items
+      (id, request_key, category_id, company_id, job_id, title, alt_text, visibility, uploaded_by)
+    VALUES
+      ('gallery-b', 'gallery-request-b', 'category-a', 'company-a', 'job-a', 'ข้อมูลลูกค้า', 'รูปงานลูกค้า', 'PUBLIC', 'owner-a');
+  `));
+  assert.throws(() => db.exec("UPDATE gallery_items SET status = 'PUBLISHED' WHERE id = 'gallery-a'"));
+  db.exec(`
+    INSERT INTO gallery_image_variants
+      (id, gallery_item_id, role, storage_key, content_type, width, height, byte_size, checksum)
+    VALUES
+      ('variant-a', 'gallery-a', 'DISPLAY', 'gallery/gallery-a/display.webp', 'image/webp', 1200, 900, 1024, '${"a".repeat(64)}');
+    UPDATE gallery_items
+    SET status = 'PUBLISHED', published_by = 'owner-a', published_at = '2026-08-20T12:00:00.000Z'
+    WHERE id = 'gallery-a';
+  `);
+  assert.equal(db.prepare("SELECT status FROM gallery_items WHERE id = 'gallery-a'").get().status, "PUBLISHED");
+  db.close();
+});
+
+test("gallery public listing uses its bounded ordering index", () => {
+  const db = createMigratedDatabase();
+  const plan = db.prepare("EXPLAIN QUERY PLAN SELECT id FROM gallery_items WHERE visibility = 'PUBLIC' AND status = 'PUBLISHED' ORDER BY is_featured, sort_order, created_at").all().map((row) => String(row.detail)).join(" ");
+  assert.match(plan, /idx_gallery_items_public_order/);
+  db.close();
+});
+
+test("gallery metadata migration preserves existing items and leaves unknown fields null", () => {
+  const db = new DatabaseSync(":memory:");
+  db.exec("PRAGMA foreign_keys = ON");
+  const migrationDirectory = fileURLToPath(new URL("../drizzle/", import.meta.url));
+  applyMigration(db, `${migrationDirectory}/0000_harsh_speed_demon.sql`);
+  applyMigration(db, `${migrationDirectory}/0001_dark_blue_shield.sql`);
+  applyMigration(db, `${migrationDirectory}/0002_overrated_klaw.sql`);
+  db.exec(`
+    INSERT INTO users (id, external_auth_id, email, display_name, role)
+    VALUES ('owner-a', 'auth-owner-a', 'owner@example.test', 'Owner', 'OWNER');
+    INSERT INTO gallery_categories (id, slug, name, created_by)
+    VALUES ('category-a', 'domestic', 'ขนส่งในประเทศ', 'owner-a');
+    INSERT INTO gallery_items (id, request_key, category_id, title, alt_text, uploaded_by)
+    VALUES ('gallery-a', 'request-a', 'category-a', 'ภาพเดิม', 'ภาพงานเดิม', 'owner-a');
+  `);
+  applyMigration(db, `${migrationDirectory}/0003_late_doctor_octopus.sql`);
+  const row = db.prepare("SELECT title, taken_at, location, public_job_reference FROM gallery_items WHERE id = 'gallery-a'").get();
+  assert.deepEqual({ ...row }, { title: "ภาพเดิม", taken_at: null, location: null, public_job_reference: null });
   db.close();
 });

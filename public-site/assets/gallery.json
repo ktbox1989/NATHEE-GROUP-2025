@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "updatedAt": null,
+  "categories": [
+    { "id": "domestic", "label": "ขนส่งในประเทศ" },
+    { "id": "international", "label": "ขนส่งต่างประเทศ" },
+    { "id": "truck-4", "label": "รถ 4 ล้อ" },
+    { "id": "truck-6", "label": "รถ 6 ล้อ" },
+    { "id": "storage", "label": "ลานสต๊อก / รับฝากรถ" },
+    { "id": "container", "label": "Container Loading / Export" },
+    { "id": "dealer-fleet", "label": "Dealer / Fleet" },
+    { "id": "large-batch", "label": "งานล็อตใหญ่" },
+    { "id": "truck-loading", "label": "โหลดรถขึ้นรถบรรทุก" },
+    { "id": "delivery", "label": "ส่งมอบปลายทาง" }
+  ],
+  "items": []
+}

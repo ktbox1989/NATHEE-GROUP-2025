@@ -29,6 +29,9 @@ export default async function OperationsLayout({
   if (can(actor, "yard:read")) {
     items.push({ href: "/app/yard", label: "จัดการลาน", icon: "🅿️" });
   }
+  if (can(actor, "gallery:read")) {
+    items.push({ href: "/app/gallery", label: "Gallery / Portfolio", icon: "🖼️" });
+  }
   if (actor.role === "OWNER") {
     items.push({ href: "/app/users", label: "สมาชิก / สิทธิ์", icon: "👥" });
     items.push({ href: "/app/audit", label: "Audit Log", icon: "🔍" });

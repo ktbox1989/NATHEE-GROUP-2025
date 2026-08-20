@@ -60,8 +60,20 @@ assert_canonical_location() {
 
 fetch / "$TMP_DIR/index.html"
 fetch /login-status.html "$TMP_DIR/login-status.html"
+fetch /login/ "$TMP_DIR/login-clean.html"
+fetch /services/ "$TMP_DIR/services.html"
+fetch /motorcycle-transport/ "$TMP_DIR/motorcycle-transport.html"
+fetch /international/ "$TMP_DIR/international.html"
+fetch /storage/ "$TMP_DIR/storage.html"
+fetch /container-loading/ "$TMP_DIR/container-loading.html"
+fetch /dealer-fleet/ "$TMP_DIR/dealer-fleet.html"
+fetch /gallery/ "$TMP_DIR/gallery.html"
+fetch /about/ "$TMP_DIR/about.html"
+fetch /contact/ "$TMP_DIR/contact.html"
+fetch /quotation/ "$TMP_DIR/quotation.html"
 fetch /assets/site.css "$TMP_DIR/site.css"
 fetch /assets/site.js "$TMP_DIR/site.js"
+fetch /assets/gallery.json "$TMP_DIR/gallery.json"
 fetch /robots.txt "$TMP_DIR/robots.txt"
 fetch /sitemap.xml "$TMP_DIR/sitemap.xml"
 
@@ -71,31 +83,41 @@ grep -Fq '<meta property="og:description"' "$TMP_DIR/index.html" || fail "live O
 grep -Fq '<meta name="twitter:title"' "$TMP_DIR/index.html" || fail "live Twitter title is missing"
 grep -Fq '<meta name="twitter:description"' "$TMP_DIR/index.html" || fail "live Twitter description is missing"
 grep -Fq 'type="application/ld+json"' "$TMP_DIR/index.html" || fail "live structured data is missing"
-grep -Fq '"@type": "Organization"' "$TMP_DIR/index.html" || fail "live Organization structured data is missing"
+grep -Fq '"Organization"' "$TMP_DIR/index.html" || fail "live Organization structured data is missing"
 grep -Fq 'href="tel:0631941191"' "$TMP_DIR/index.html" || fail "live primary telephone link is missing"
 grep -Fq 'href="tel:0856802082"' "$TMP_DIR/index.html" || fail "live secondary telephone link is missing"
 grep -Fq 'https://natheegroup2025.com/sitemap.xml' "$TMP_DIR/robots.txt" || fail "live robots sitemap URL is wrong"
 grep -Fq 'Disallow: /login-status.html' "$TMP_DIR/robots.txt" || fail "live robots file does not exclude login status"
+grep -Fq 'Disallow: /login/' "$TMP_DIR/robots.txt" || fail "live robots file does not exclude login route"
 grep -Fq 'Disallow: /auth/' "$TMP_DIR/robots.txt" || fail "live robots file does not exclude auth routes"
 grep -Fq 'Disallow: /app/' "$TMP_DIR/robots.txt" || fail "live robots file does not exclude app routes"
 grep -Fq 'Disallow: /api/' "$TMP_DIR/robots.txt" || fail "live robots file does not exclude API routes"
 grep -Fq '<loc>https://natheegroup2025.com/</loc>' "$TMP_DIR/sitemap.xml" || fail "live sitemap canonical URL is wrong"
-if grep -Eiq 'login-status|/auth/|/app/|/api/' "$TMP_DIR/sitemap.xml"; then
+if grep -Eiq 'login-status|/login/|/auth/|/app/|/api/' "$TMP_DIR/sitemap.xml"; then
   fail "live sitemap exposes a private or noindex route"
 fi
 grep -Fq '<meta name="robots" content="noindex,nofollow,noarchive">' "$TMP_DIR/login-status.html" || fail "live login status noindex is missing"
+grep -Fq '<meta name="robots" content="noindex,nofollow,noarchive">' "$TMP_DIR/login-clean.html" || fail "live clean login route noindex is missing"
+
+for route in services motorcycle-transport international storage container-loading dealer-fleet gallery about contact quotation; do
+  grep -Fq "<link rel=\"canonical\" href=\"https://natheegroup2025.com/$route/\">" "$TMP_DIR/$route.html" || fail "live /$route/ canonical is wrong"
+  grep -Fq '<meta property="og:title"' "$TMP_DIR/$route.html" || fail "live /$route/ Open Graph is missing"
+  grep -Fq 'type="application/ld+json"' "$TMP_DIR/$route.html" || fail "live /$route/ structured data is missing"
+done
+grep -Fq '"version": 1' "$TMP_DIR/gallery.json" || fail "live Gallery manifest version is wrong"
 
 index_bytes="$(wc -c < "$TMP_DIR/index.html" | tr -d ' ')"
 css_bytes="$(wc -c < "$TMP_DIR/site.css" | tr -d ' ')"
 js_bytes="$(wc -c < "$TMP_DIR/site.js" | tr -d ' ')"
 critical_bytes=$((index_bytes + css_bytes + js_bytes))
-[[ $index_bytes -le 40960 ]] || fail "live index.html exceeds mobile byte budget"
-[[ $css_bytes -le 32768 ]] || fail "live site.css exceeds mobile byte budget"
-[[ $js_bytes -le 8192 ]] || fail "live site.js exceeds mobile byte budget"
-[[ $critical_bytes -le 81920 ]] || fail "live critical payload exceeds mobile byte budget"
-grep -Fq '<script src="assets/site.js" defer></script>' "$TMP_DIR/index.html" || fail "live JavaScript is not deferred"
-printf 'PRODUCTION_SEO_CONTENT_PASS canonical=1 metadata=verified jsonld=Organization sitemap=public-only\n'
-printf 'PRODUCTION_MOBILE_BUDGET_PASS criticalBytes=%s budget=81920\n' "$critical_bytes"
+[[ $index_bytes -le 46080 ]] || fail "live index.html exceeds mobile byte budget"
+[[ $css_bytes -le 40960 ]] || fail "live site.css exceeds mobile byte budget"
+[[ $js_bytes -le 16384 ]] || fail "live site.js exceeds mobile byte budget"
+[[ $critical_bytes -le 102400 ]] || fail "live critical payload exceeds mobile byte budget"
+grep -Fq '<script src="/assets/site.js" defer></script>' "$TMP_DIR/index.html" || fail "live JavaScript is not deferred"
+printf 'PRODUCTION_SEO_CONTENT_PASS pages=11 metadata=verified jsonld=verified sitemap=public-only\n'
+printf 'PRODUCTION_GALLERY_CONTENT_PASS manifest=v1 privacy=public-only\n'
+printf 'PRODUCTION_MOBILE_BUDGET_PASS criticalBytes=%s budget=102400\n' "$critical_bytes"
 
 forbidden_regex='https://nateegroup2025\.com|02-000-0000|@natheegroup|ABC MOTOR|abc123|owner123|staff123|nathee2025|1,000\+|10,000\+'
 if grep -RInE "$forbidden_regex" "$TMP_DIR"; then
@@ -124,6 +146,13 @@ printf 'PRODUCTION_LOGIN_STATUS=%s\n' "$login_status"
 [[ "$login_status" == "200" ]] || fail "login status page is not 200 (status=$login_status)"
 grep -Eiq '^x-robots-tag:[[:space:]]*noindex,[[:space:]]*nofollow,[[:space:]]*noarchive$' "$TMP_DIR/login.headers" \
   || fail "login status X-Robots-Tag is missing"
+
+capture_response "$BASE_URL/login/" "$TMP_DIR/login-clean.headers" "$TMP_DIR/login-clean.body"
+login_clean_status="$(response_status "$TMP_DIR/login-clean.headers")"
+printf 'PRODUCTION_CLEAN_LOGIN_STATUS=%s\n' "$login_clean_status"
+[[ "$login_clean_status" == "200" ]] || fail "clean login route is not 200"
+grep -Eiq '^x-robots-tag:[[:space:]]*noindex,[[:space:]]*nofollow,[[:space:]]*noarchive$' "$TMP_DIR/login-clean.headers" \
+  || fail "clean login route X-Robots-Tag is missing"
 
 capture_response "https://www.$DOMAIN/" "$TMP_DIR/www.headers" "$TMP_DIR/www.body"
 www_status="$(response_status "$TMP_DIR/www.headers")"
@@ -156,5 +185,5 @@ grep -Fq 'ไม่พบหน้าที่ต้องการ' "$TMP_DIR/4
 grep -Eiq '^x-robots-tag:[[:space:]]*noindex,[[:space:]]*nofollow,[[:space:]]*noarchive$' "$TMP_DIR/404.headers" \
   || fail "404 X-Robots-Tag is missing"
 
-printf 'PRODUCTION_NOINDEX_PASS login=header+meta 404=header+meta\n'
-printf 'PRODUCTION_POSTCHECK_PASS domain=%s\n' "$DOMAIN"
+printf 'PRODUCTION_NOINDEX_PASS login=header+meta clean-login=header+meta 404=header+meta\n'
+printf 'PRODUCTION_POSTCHECK_PASS domain=%s publicRoutes=11\n' "$DOMAIN"

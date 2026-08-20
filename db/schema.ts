@@ -25,6 +25,9 @@ export const STAFF_PERMISSIONS = [
   "yard:write",
   "documents:read",
   "audit:read",
+  "gallery:read",
+  "gallery:write",
+  "gallery:publish",
 ] as const;
 export const RECORD_STATUSES = ["ACTIVE", "INACTIVE", "ARCHIVED"] as const;
 export const JOB_STATUSES = [
@@ -68,6 +71,10 @@ export const QUOTE_STATUSES = [
   "CANCELLED",
 ] as const;
 export const YARD_ZONE_STATUSES = ["ACTIVE", "INACTIVE"] as const;
+export const GALLERY_CATEGORY_STATUSES = ["ACTIVE", "HIDDEN"] as const;
+export const GALLERY_ITEM_STATUSES = ["DRAFT", "PUBLISHED", "HIDDEN", "ARCHIVED"] as const;
+export const GALLERY_VISIBILITIES = ["PUBLIC", "CUSTOMER_JOB", "INTERNAL"] as const;
+export const GALLERY_VARIANT_ROLES = ["ORIGINAL", "DISPLAY", "THUMBNAIL"] as const;
 
 const createdAt = () =>
   text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`);
@@ -154,7 +161,7 @@ export const userPermissions = sqliteTable(
     index("idx_user_permissions_user").on(table.userId),
     check(
       "ck_user_permissions_permission",
-      sql`${table.permission} IN ('companies:read', 'companies:write', 'jobs:read', 'jobs:write', 'motorcycles:read', 'motorcycles:write', 'images:read', 'images:write', 'status:read', 'status:write', 'yard:read', 'yard:write', 'documents:read', 'audit:read')`,
+      sql`${table.permission} IN ('companies:read', 'companies:write', 'jobs:read', 'jobs:write', 'motorcycles:read', 'motorcycles:write', 'images:read', 'images:write', 'status:read', 'status:write', 'yard:read', 'yard:write', 'documents:read', 'audit:read', 'gallery:read', 'gallery:write', 'gallery:publish')`,
     ),
   ],
 );
@@ -335,6 +342,100 @@ export const motorcycleImages = sqliteTable(
   ],
 );
 
+export const galleryCategories = sqliteTable(
+  "gallery_categories",
+  {
+    id: text("id").primaryKey(),
+    slug: text("slug").notNull(),
+    name: text("name").notNull(),
+    description: text("description"),
+    status: text("status", { enum: GALLERY_CATEGORY_STATUSES }).notNull().default("ACTIVE"),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdBy: text("created_by").notNull().references(() => users.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    uniqueIndex("uq_gallery_categories_slug").on(table.slug),
+    index("idx_gallery_categories_status_sort").on(table.status, table.sortOrder, table.name),
+    check("ck_gallery_categories_slug", sql`length(${table.slug}) BETWEEN 2 AND 80 AND ${table.slug} NOT GLOB '*[^a-z0-9-]*'`),
+    check("ck_gallery_categories_name", sql`length(${table.name}) BETWEEN 1 AND 120`),
+    check("ck_gallery_categories_status", sql`${table.status} IN ('ACTIVE', 'HIDDEN')`),
+    check("ck_gallery_categories_sort", sql`${table.sortOrder} >= 0`),
+  ],
+);
+
+export const galleryItems = sqliteTable(
+  "gallery_items",
+  {
+    id: text("id").primaryKey(),
+    requestKey: text("request_key").notNull(),
+    categoryId: text("category_id").notNull().references(() => galleryCategories.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    companyId: text("company_id").references(() => companies.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    jobId: text("job_id").references(() => transportJobs.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    title: text("title").notNull(),
+    caption: text("caption"),
+    altText: text("alt_text").notNull(),
+    takenAt: text("taken_at"),
+    location: text("location"),
+    publicJobReference: text("public_job_reference"),
+    status: text("status", { enum: GALLERY_ITEM_STATUSES }).notNull().default("DRAFT"),
+    visibility: text("visibility", { enum: GALLERY_VISIBILITIES }).notNull().default("INTERNAL"),
+    sortOrder: integer("sort_order").notNull().default(0),
+    isFeatured: integer("is_featured").notNull().default(0),
+    uploadedBy: text("uploaded_by").notNull().references(() => users.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    publishedBy: text("published_by").references(() => users.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    publishedAt: text("published_at"),
+    archivedAt: text("archived_at"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    uniqueIndex("uq_gallery_items_request_key").on(table.requestKey),
+    index("idx_gallery_items_public_order").on(table.visibility, table.status, table.isFeatured, table.sortOrder, table.createdAt),
+    index("idx_gallery_items_category_order").on(table.categoryId, table.status, table.sortOrder, table.createdAt),
+    index("idx_gallery_items_company_job").on(table.companyId, table.jobId, table.status, table.createdAt),
+    check("ck_gallery_items_title", sql`length(${table.title}) BETWEEN 1 AND 160`),
+    check("ck_gallery_items_alt", sql`length(${table.altText}) BETWEEN 3 AND 300`),
+    check("ck_gallery_items_location", sql`${table.location} IS NULL OR length(${table.location}) <= 200`),
+    check("ck_gallery_items_public_job_reference", sql`${table.publicJobReference} IS NULL OR length(${table.publicJobReference}) <= 100`),
+    check("ck_gallery_items_status", sql`${table.status} IN ('DRAFT', 'PUBLISHED', 'HIDDEN', 'ARCHIVED')`),
+    check("ck_gallery_items_visibility", sql`${table.visibility} IN ('PUBLIC', 'CUSTOMER_JOB', 'INTERNAL')`),
+    check("ck_gallery_items_sort", sql`${table.sortOrder} >= 0`),
+    check("ck_gallery_items_featured", sql`${table.isFeatured} IN (0, 1)`),
+    check("ck_gallery_items_customer_scope", sql`${table.visibility} <> 'CUSTOMER_JOB' OR (${table.companyId} IS NOT NULL AND ${table.jobId} IS NOT NULL)`),
+    check("ck_gallery_items_public_scope", sql`${table.visibility} <> 'PUBLIC' OR (${table.companyId} IS NULL AND ${table.jobId} IS NULL)`),
+    check("ck_gallery_items_published_actor", sql`${table.status} <> 'PUBLISHED' OR (${table.publishedBy} IS NOT NULL AND ${table.publishedAt} IS NOT NULL)`),
+  ],
+);
+
+export const galleryImageVariants = sqliteTable(
+  "gallery_image_variants",
+  {
+    id: text("id").primaryKey(),
+    galleryItemId: text("gallery_item_id").notNull().references(() => galleryItems.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    role: text("role", { enum: GALLERY_VARIANT_ROLES }).notNull(),
+    storageKey: text("storage_key").notNull(),
+    contentType: text("content_type").notNull(),
+    width: integer("width"),
+    height: integer("height"),
+    byteSize: integer("byte_size").notNull(),
+    checksum: text("checksum").notNull(),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    uniqueIndex("uq_gallery_image_variants_storage_key").on(table.storageKey),
+    uniqueIndex("uq_gallery_image_variants_item_role_type").on(table.galleryItemId, table.role, table.contentType),
+    index("idx_gallery_image_variants_item_role").on(table.galleryItemId, table.role),
+    check("ck_gallery_image_variants_role", sql`${table.role} IN ('ORIGINAL', 'DISPLAY', 'THUMBNAIL')`),
+    check("ck_gallery_image_variants_content_type", sql`${table.contentType} IN ('image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/heic', 'image/heif')`),
+    check("ck_gallery_image_variants_size", sql`${table.byteSize} > 0`),
+    check("ck_gallery_image_variants_width", sql`${table.width} IS NULL OR ${table.width} > 0`),
+    check("ck_gallery_image_variants_height", sql`${table.height} IS NULL OR ${table.height} > 0`),
+    check("ck_gallery_image_variants_checksum", sql`length(${table.checksum}) = 64 AND ${table.checksum} NOT GLOB '*[^0-9a-f]*'`),
+  ],
+);
+
 export const statusEvents = sqliteTable(
   "status_events",
   {
@@ -429,3 +530,6 @@ export type UserRole = (typeof USER_ROLES)[number];
 export type MotorcycleStatus = (typeof MOTORCYCLE_STATUSES)[number];
 export type ImageCategory = (typeof IMAGE_CATEGORIES)[number];
 export type YardZoneStatus = (typeof YARD_ZONE_STATUSES)[number];
+export type GalleryItemStatus = (typeof GALLERY_ITEM_STATUSES)[number];
+export type GalleryVisibility = (typeof GALLERY_VISIBILITIES)[number];
+export type GalleryVariantRole = (typeof GALLERY_VARIANT_ROLES)[number];

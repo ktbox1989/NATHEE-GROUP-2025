@@ -10,11 +10,13 @@ test("image signatures must match the declared content type", () => {
   const png = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
   const webp = new TextEncoder().encode("RIFF0000WEBP");
   const heic = new TextEncoder().encode("0000ftypheic");
+  const avif = new TextEncoder().encode("0000ftypavif");
 
   assert.equal(hasExpectedImageSignature(jpeg, "image/jpeg"), true);
   assert.equal(hasExpectedImageSignature(png, "image/png"), true);
   assert.equal(hasExpectedImageSignature(webp, "image/webp"), true);
   assert.equal(hasExpectedImageSignature(heic, "image/heic"), true);
+  assert.equal(hasExpectedImageSignature(avif, "image/avif"), true);
   assert.equal(hasExpectedImageSignature(jpeg, "image/png"), false);
   assert.equal(
     hasExpectedImageSignature(new TextEncoder().encode("<script>"), "image/jpeg"),
