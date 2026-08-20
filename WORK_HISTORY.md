@@ -1,5 +1,15 @@
 # NATHEE GROUP 2025 — Work History
 
+## 2026-08-21 — Private quotation evidence and audited Owner retrieval
+
+- Implementation commit: `af2b397`
+- Added bounded PDF/CSV/XLSX/image attachments to the durable quotation flow. Files are signature-validated, SHA-256 checked and stored in private R2; immutable metadata lives in additive migration `0016_numerous_shatterstar`.
+- Quotation, attachment metadata and redacted Audit commit in one D1 batch. Failed or concurrency-losing attempts compensating-delete only their own new R2 keys and never display false success.
+- Added OWNER-only forced download with no-store/nosniff headers and fail-closed Audit-before-read. Other roles and mismatched IDs receive no attachment disclosure.
+- Verification: full tests 130/130 (76 unit + 54 integration), TypeScript PASS, ESLint PASS, Vinext Production build PASS, public SEO/Gallery/mobile/responsive/deployment guards PASS, migration upgrade/index/immutability checks PASS, scoped secret scan PASS and `git diff --check` PASS.
+- Deployment: source only. No Z.com file, Sites version, Supabase value, D1 row/migration, R2 object, DNS or Production runtime changed. Production enablement remains gated by application routing, Auth/Owner mapping, D1 backup+migrations through `0016`, R2 readiness and approved public-upload abuse/malware controls.
+- Rollback: revert `af2b397` before applying `0016`. After apply, retain attachment/Audit history and use a reviewed forward migration or restore the pre-migration D1 backup; never hard-delete evidence rows.
+
 ## 2026-08-21 — Commercial proof and durable quotation intake
 
 - Implementation commit: `c5fbaa5`

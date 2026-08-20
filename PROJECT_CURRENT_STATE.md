@@ -6,7 +6,7 @@ Updated: 2026-08-21 (Asia/Bangkok)
 
 - Review branch: `codex/nathee-media-owner-2`
 - Integration baseline: `3cfd65a176cba858c6fd5d76cab61df5c78093f8`
-- Latest verified implementation milestone: Commercial proof, service conversion content and durable quotation intake (`c5fbaa5054065550feefd71c16daf091a0c5ad43`)
+- Latest verified implementation milestone: Private quotation evidence and audited Owner retrieval (`af2b397b84662867bb6242f8fc2d6cc1552c7b39`)
 - Canonical repository: `ktbox1989/NATHEE-GROUP-2025`
 - Working rule: resolve the current checkpoint-document commit with `git rev-parse HEAD`; never infer Production deployment from source HEAD.
 
@@ -26,6 +26,15 @@ Updated: 2026-08-21 (Asia/Bangkok)
 
 ## Closed local milestones
 
+### Private quotation evidence and audited Owner retrieval (`af2b397`)
+
+- Extended the real quotation form with up to five private PDF/CSV/XLSX/image attachments. The server enforces an 8 MB per-file and 20 MB combined bound plus extension/MIME/signature agreement before storing bytes.
+- R2 stores unique private objects; additive migration `0016_numerous_shatterstar` stores immutable filename/type/size/storage-key/SHA-256 metadata, rejects duplicate content in one request and prohibits update or hard delete.
+- A quotation, all attachment metadata and redacted submission Audit commit in one D1 batch. Any R2 objects created before a failed/concurrent D1 write are compensating-deleted; cleanup failure is fail-closed and never reports success.
+- Only OWNER can retrieve an attachment. Download is forced with no-store/nosniff headers, missing/cross-role records return a generic denial and every successful read requires an Audit write first.
+- Verification: full tests 130/130 (76 unit + 54 integration), TypeScript PASS, ESLint PASS, Production build PASS, public SEO/Gallery/mobile/responsive/deployment guards PASS, migration upgrade/integrity/index checks PASS, secret scan PASS and `git diff --check` PASS.
+- Deployment boundary: migration `0016`, dynamic form/API and R2 flow are source-only. Z.com public static files and all Production services remain unchanged. Production activation still requires the existing Auth/routing/D1/R2 gates plus an approved anti-abuse and untrusted-file policy.
+
 ### Commercial proof and durable quotation intake (`c5fbaa5`)
 
 - Replaced public Home/Gallery loading placeholders with server-rendered Owner-approved photography. Home, Services, the five service detail routes, About and Contact use the same nine-item public manifest and 54 verified JPEG/WebP/AVIF variants.
@@ -35,7 +44,7 @@ Updated: 2026-08-21 (Asia/Bangkok)
 - Added a real `/quotation` form and `POST /api/quotation` D1 path. Validation is bounded, same-origin, consented and honeypot-protected; a database-unique request key makes retries and concurrent submissions idempotent, and success appears only after the request and a redacted Audit record commit.
 - Added OWNER-only `/app/quotations` with bounded 50-record keyset pages and audited status updates. Migration `0015_graceful_ben_urich` preserves legacy rows, requires consent for public submissions, makes submission identity immutable and prohibits hard deletion.
 - Verification: full tests 125/125 (73 unit + 52 integration), TypeScript PASS, ESLint PASS, Production build PASS, public SEO/Gallery/mobile/responsive/deployment guards PASS, secret scan PASS and `git diff --check` PASS.
-- Deployment boundary: improved static pages are eligible for the existing guarded Z.com flow after integration. The online quotation form remains NOT Production-live until the separate Cloudflare runtime, Supabase Auth/Owner mapping, D1 backup plus migrations through `0015`, R2 and an approved anti-abuse control pass.
+- Deployment boundary: improved static pages are eligible for the existing guarded Z.com flow after integration. The online quotation form remains NOT Production-live until the separate Cloudflare runtime, Supabase Auth/Owner mapping, D1 backup plus migrations through `0016`, R2 and approved anti-abuse/untrusted-file controls pass.
 
 ### Responsive layout and public media delivery (`22a5454`)
 
@@ -165,7 +174,7 @@ Updated: 2026-08-21 (Asia/Bangkok)
 - Added a single allowlisted application-origin contract. Production accepts only `https://natheegroup2025.com`; private `*.chatgpt.site` previews and localhost are explicit non-Production cases.
 - Password recovery, invitations and the Auth callback no longer derive sensitive redirect destinations from the request Host. Same-origin mutation checks now reject Host-spoofed requests and a Production runtime without `APP_ORIGIN` fails closed.
 - Supabase public/admin configuration rejects placeholders, malformed URLs, secret/public key confusion and values outside the approved `sb_publishable_...` / `sb_secret_...` contract.
-- `/api/health` now requires five independent checks: public Auth, admin Auth, canonical origin, required D1 tables/indexes/triggers through migration `0015`, and a read-only R2 metadata probe. A bare database connection or binding name can no longer claim Production readiness.
+- `/api/health` now requires five independent checks: public Auth, admin Auth, canonical origin, required D1 tables/indexes/triggers through migration `0016`, and a read-only R2 metadata probe. A bare database connection or binding name can no longer claim Production readiness.
 - This is source-only. No Supabase value, D1 migration, R2 object, Sites version, DNS record or Z.com Production file was changed.
 
 ### Exact confirmed Auth identity mapping
@@ -177,26 +186,26 @@ Updated: 2026-08-21 (Asia/Bangkok)
 
 ## Verified source gates
 
-- Full test suite: 117 passing
-- Authorization/unit/CMS/settings/search/config/readiness/identity tests: 68 passing
-- Render/schema/notification/yard/trip/container/inspection/POD/CMS/settings/query-plan tests: 49 passing
+- Full test suite: 130 passing
+- Authorization/unit/CMS/settings/search/config/readiness/identity/quotation-attachment tests: 76 passing
+- Render/schema/notification/yard/trip/container/inspection/POD/CMS/settings/query-plan tests: 54 passing
 - Production Vinext build: PASS
 - ESLint: PASS
 - Public SEO and deployment architecture guards: PASS
-- Migrations through `0015` packaged in `dist/.openai/drizzle/`: PASS
+- Migrations through `0016` packaged in `dist/.openai/drizzle/`: PASS
 
 ## Open Owner gates
 
 - Approve application routing model: apex edge routes or an application subdomain.
 - Supply/configure Supabase Production values through a secure hosting channel.
-- Backup and apply migrations `0001`–`0015` to the protected D1 runtime.
+- Backup and apply migrations `0001`–`0016` to the protected D1 runtime.
 - Verify private R2 readiness.
 - Bootstrap the real OWNER identity and accept two-company customer isolation.
-- Deploy the two approved Gallery photographs and add verified location/map data when supplied.
+- Approve public-upload anti-abuse and untrusted-file/malware handling, and add verified location/map data when supplied.
 
 ## Next autonomous work
 
-1. Stop adding broad local modules and close the Production activation gates: canonical app route, Supabase environment/callback, D1 backup+ledger+migrations `0001`–`0015`, R2 readiness, real OWNER mapping and approved quotation anti-abuse control.
+1. Close the Production activation gates: canonical app route, Supabase environment/callback, D1 backup+ledger+migrations `0001`–`0016`, R2 readiness, real OWNER mapping and approved quotation anti-abuse/untrusted-file controls.
 2. Run real browser acceptance for OWNER and two isolated customer companies before exposing `/app` publicly.
 3. Configure external LINE/email notification providers only after credentials, consent, retry and escalation policy are approved.
 4. Keep all new migrations unapplied until the Production backup/runtime gates are satisfied.
