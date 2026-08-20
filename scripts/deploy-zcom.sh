@@ -24,6 +24,11 @@ fail() {
 [[ -d "$SOURCE_ROOT" ]] || fail "public-site source is missing"
 [[ -d "$PRODUCTION_ROOT" ]] || fail "production root is missing"
 
+staging_changes="$(git -C "$REPO_ROOT" status --porcelain --untracked-files=all)" || fail "could not inspect staging worktree"
+[[ -z "$staging_changes" ]] || fail "staging worktree is dirty; deploy only an exact pulled commit"
+source_commit="$(git -C "$REPO_ROOT" rev-parse HEAD)" || fail "could not resolve staging commit"
+printf 'DEPLOY_SOURCE_COMMIT=%s\n' "$source_commit"
+
 for required_command in bash tar cp mv mkdir rmdir find sha256sum cut curl grep awk tr wc dirname rm date git; do
   if command -v "$required_command" >/dev/null 2>&1; then
     printf 'DEPLOY_CAPABILITY %s=PRESENT\n' "$required_command"

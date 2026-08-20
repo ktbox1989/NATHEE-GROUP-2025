@@ -29,6 +29,7 @@ GIT_SSH_COMMAND='ssh -i ~/.ssh/nathee_deploy -p 443' git pull --ff-only origin m
 cd /home/zptqqwps/nathee-deploy
 bash scripts/verify-public-site.sh
 bash scripts/test-deploy-file-tools.sh
+bash scripts/test-public-seo-gates.sh
 bash scripts/deploy-zcom.sh
 bash scripts/postcheck-production.sh
 ```
@@ -36,15 +37,25 @@ bash scripts/postcheck-production.sh
 The deploy script:
 
 1. refuses to run outside the approved account and staging path;
-2. prevents concurrent deployments with an atomic directory lock, without requiring `flock`;
-3. verifies the static source and rejects demo/placeholder content;
-4. creates a complete timestamped `tar` backup, extracted snapshot, and SHA-256 manifests;
-5. prints the exact verified directory as `BACKUP_PATH=/home/zptqqwps/backups/nathee/<timestamp>`;
-6. stages and verifies release files without requiring `rsync`, `/dev/fd`, package installation, executable script bits, or root access;
-7. atomically replaces only files named by the verified release manifest;
-8. never deletes unknown Production files during deployment;
-9. tests the live domain, canonical URLs, redirects, headers, assets, and 404;
-10. automatically restores the exact backup if deployment or postcheck fails.
+2. refuses a dirty staging worktree and prints the exact source commit;
+3. prevents concurrent deployments with an atomic directory lock, without requiring `flock`;
+4. verifies the static source and rejects demo/placeholder content;
+5. creates a complete timestamped `tar` backup, extracted snapshot, and SHA-256 manifests;
+6. prints the exact verified directory as `BACKUP_PATH=/home/zptqqwps/backups/nathee/<timestamp>`;
+7. stages and verifies release files without requiring `rsync`, `/dev/fd`, package installation, executable script bits, or root access;
+8. atomically replaces only files named by the verified release manifest;
+9. never deletes unknown Production files during deployment;
+10. tests the live domain, canonical URLs, redirects, headers, assets, and 404;
+11. automatically restores the exact backup if deployment or postcheck fails.
+
+SEO is a mandatory fail-closed deployment gate. The source verifier and live
+postcheck require one canonical homepage URL, complete title/description/Open
+Graph/Twitter metadata, valid Organization JSON-LD, a public-only sitemap,
+robots exclusions plus HTTP `X-Robots-Tag` protection for noindex pages, image
+alt attributes, deferred JavaScript, responsive breakpoints, and bounded mobile
+critical bytes. The current static package contains no content images; if an
+`img` is added later, verification fails unless it has an explicit `alt`
+attribute. Authenticated application routes are never listed in the sitemap.
 
 Each backup also records `CREATED_FILES.txt`. Rollback removes only files that
 the exact release created and then atomically restores the verified snapshot;

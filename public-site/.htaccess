@@ -28,6 +28,10 @@ ErrorDocument 404 /404.html
     Header always set Cache-Control "no-cache, must-revalidate"
   </FilesMatch>
 
+  <FilesMatch "^(?:login-status|404)\.html$">
+    Header always set X-Robots-Tag "noindex, nofollow, noarchive"
+  </FilesMatch>
+
   <FilesMatch "\.(?:css|js|svg)$">
     Header always set Cache-Control "public, max-age=3600, must-revalidate"
   </FilesMatch>
