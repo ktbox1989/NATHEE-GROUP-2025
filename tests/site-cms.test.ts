@@ -71,6 +71,17 @@ test("content text remains data and is not interpreted as raw HTML", () => {
   assert.equal(parsed?.sections[0].heading, "<script>alert('xss')</script>");
 });
 
+test("CMS allows only the exact Google Maps search navigation contract", () => {
+  const valid = structuredClone(DEFAULT_SITE_CONTENT.contact);
+  assert.ok(parseCmsPageContent(valid));
+  const malicious = structuredClone(DEFAULT_SITE_CONTENT.contact);
+  malicious.sections.at(-1)!.primaryHref = "https://www.google.com/maps/search/?api=1&query=nathee%26redirect%3Dhttps%3A%2F%2Fevil.example";
+  assert.equal(parseCmsPageContent(malicious), null);
+  const wrongHost = structuredClone(DEFAULT_SITE_CONTENT.contact);
+  wrongHost.sections.at(-1)!.primaryHref = "https://evil.example/maps/search/?api=1&query=nathee";
+  assert.equal(parseCmsPageContent(wrongHost), null);
+});
+
 test("global site settings default is valid and round-trips deterministically", () => {
   assert.deepEqual(parseSiteSettings(DEFAULT_SITE_SETTINGS), DEFAULT_SITE_SETTINGS);
   const serialized = serializeSiteSettings(DEFAULT_SITE_SETTINGS);

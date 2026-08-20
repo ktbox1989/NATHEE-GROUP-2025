@@ -54,6 +54,7 @@ export default async function OperationsLayout({
     items.push({ href: "/app/site-settings", label: "ตั้งค่าเว็บไซต์", icon: "⚙" });
   }
   if (actor.role === "OWNER") {
+    items.push({ href: "/app/quotations", label: "คำขอใบเสนอราคา", icon: "🧾" });
     items.push({ href: "/app/users", label: "สมาชิก / สิทธิ์", icon: "👥" });
   }
   if (can(actor, "audit:read")) {

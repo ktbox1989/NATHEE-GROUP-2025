@@ -102,8 +102,11 @@
     items = data.items.filter(validItem).map(item => ({ ...item, categoryLabel: labels.get(item.category) || 'ผลงาน' })).sort((a, b) => Number(Boolean(b.featured)) - Number(Boolean(a.featured)) || Number(a.order || 0) - Number(b.order || 0));
     if (filters) data.categories.forEach(entry => { const id = text(entry.id, 80), label = text(entry.label, 80); if (!id || !label || !items.some(item => item.category === id)) return; const button = document.createElement('button'); button.type = 'button'; button.dataset.category = id; button.textContent = label; button.setAttribute('aria-pressed', 'false'); filters.append(button); });
     render();
-    if (preview) { preview.replaceChildren(); if (!items.length) { const empty = document.createElement('div'); empty.className = 'empty-state'; empty.innerHTML = '<strong>กำลังเตรียมภาพผลงานจริง</strong><span>จะแสดงเฉพาะภาพที่ได้รับอนุญาตให้เผยแพร่</span>'; preview.append(empty); } else items.slice(0, 6).forEach(item => preview.append(card(item, 0, false))); }
-  }).catch(() => { const target = grid || preview; if (target) target.innerHTML = '<div class="empty-state"><strong>โหลด Gallery ไม่สำเร็จ</strong><span>กรุณารีเฟรชหน้า หรือลองใหม่ภายหลัง</span></div>'; });
+    if (preview) { preview.replaceChildren(); if (!items.length) { const empty = document.createElement('div'); empty.className = 'empty-state'; empty.innerHTML = '<strong>ไม่พบภาพที่เผยแพร่</strong><span>Gallery แสดงเฉพาะภาพจริงที่ได้รับอนุญาต</span>'; preview.append(empty); } else items.slice(0, 6).forEach(item => preview.append(card(item, 0, false))); }
+  }).catch(() => {
+    const target = grid || preview;
+    if (target && !target.children.length) target.innerHTML = '<div class="empty-state"><strong>โหลด Gallery ไม่สำเร็จ</strong><span>กรุณารีเฟรชหน้า หรือลองใหม่ภายหลัง</span></div>';
+  });
 
   filters?.addEventListener('click', event => { const button = event.target.closest('button[data-category]'); if (!button) return; category = button.dataset.category || 'all'; limit = 24; filters.querySelectorAll('button').forEach(node => { const current = node === button; node.classList.toggle('is-active', current); node.setAttribute('aria-pressed', String(current)); }); render(); });
   more?.addEventListener('click', () => { limit += 24; render(); });

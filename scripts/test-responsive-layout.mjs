@@ -18,9 +18,9 @@ for (const token of ["overflow-x: clip", "calc(100% - clamp(28px, 4vw, 64px))", 
 for (const token of ["aria-expanded={open}", "aria-controls={menuId}", "Escape", "app-side-links"]) assert.ok(appNav.includes(token), `Application navigation contract missing: ${token}`);
 for (const token of ["aria-expanded={open}", "aria-controls={menuId}", "Escape", "cms-nav-toggle"]) assert.ok(cmsNav.includes(token), `CMS navigation contract missing: ${token}`);
 for (const token of ["width={96}", "height={96}", "data-orientation={orientation}", "galleryImageVariants.role", "sizes="]) assert.ok(cmsPage.includes(token), `CMS image sizing contract missing: ${token}`);
-for (const token of ["width={640}", "height={480}", "loading=\"lazy\"", "sizes="]) assert.ok(lightbox.includes(token), `Gallery CLS/loading contract missing: ${token}`);
+for (const token of ["width={item.width ?? 640}", "height={item.height ?? 480}", "loading=\"lazy\"", "sizes="]) assert.ok(lightbox.includes(token), `Gallery CLS/loading contract missing: ${token}`);
 for (const token of ["thumbnailAvif", "displayAvif", "source.sizes", "image.srcset", "image.fetchPriority"]) assert.ok(publicJs.includes(token), `Public responsive image contract missing: ${token}`);
-for (const token of ["nathee-logo-thumbnail.webp", "sizes=\"(max-width: 680px) 250px", "width=\"1000\"", "height=\"1000\""]) assert.ok(publicHome.includes(token), `Hero responsive image contract missing: ${token}`);
+for (const token of ["hero-work-photo", "motorcycle-truck-loading-01-display.avif", "fetchpriority=\"high\"", "data-gallery-preview"]) assert.ok(publicHome.includes(token), `Hero responsive image contract missing: ${token}`);
 
 for (const path of ["app/app/companies/page.tsx", "app/app/jobs/page.tsx", "app/app/motorcycles/page.tsx", "app/app/yard/page.tsx", "app/app/audit/page.tsx"]) {
   const source = await read(path);

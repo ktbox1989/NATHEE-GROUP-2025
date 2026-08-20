@@ -9,7 +9,7 @@ type CategoryOption = { slug: string; label: string };
 const types: { value: CmsSectionType; label: string }[] = [
   { value: "HERO", label: "Hero / หัวหน้าเว็บ" }, { value: "CONTENT", label: "เนื้อหา" },
   { value: "FEATURES", label: "รายการจุดเด่น" }, { value: "GALLERY", label: "Gallery" },
-  { value: "CTA", label: "ปุ่มเรียกให้ติดต่อ" }, { value: "CONTACT", label: "ข้อมูลติดต่อ" },
+  { value: "FAQ", label: "คำถามที่พบบ่อย / FAQ" }, { value: "CTA", label: "ปุ่มเรียกให้ติดต่อ" }, { value: "CONTACT", label: "ข้อมูลติดต่อ" },
 ];
 
 export function SitePageEditor({ slug, initial, media, categories }: { slug: string; initial: CmsPageContent; media: MediaOption[]; categories: CategoryOption[] }) {
@@ -61,7 +61,7 @@ export function SitePageEditor({ slug, initial, media, categories }: { slug: str
       <label className="field full">เนื้อหา<textarea value={section.body} maxLength={2000} rows={4} onChange={(event) => patchSection(index, { body: event.target.value })} /></label>
       <label className="field">ภาพประกอบ<select value={section.imageItemId} onChange={(event) => patchSection(index, { imageItemId: event.target.value })}><option value="">ไม่ใช้ภาพ</option>{media.map((item) => <option value={item.id} key={item.id}>{item.label}</option>)}</select></label>
       {section.type === "GALLERY" && <><label className="field">หมวด Gallery<select value={section.galleryCategorySlug} onChange={(event) => patchSection(index, { galleryCategorySlug: event.target.value })}><option value="">ทุกหมวด</option>{categories.map((item) => <option value={item.slug} key={item.slug}>{item.label}</option>)}</select></label><label className="field">จำนวนภาพ<input type="number" min={1} max={24} value={section.galleryLimit} onChange={(event) => patchSection(index, { galleryLimit: Number(event.target.value) })} /></label></>}
-      {(section.type === "FEATURES" || section.type === "CONTACT") && <label className="field full">รายการ — หนึ่งบรรทัดต่อรายการ ใช้ | คั่นหัวข้อกับรายละเอียด<textarea rows={6} value={section.items.map((item) => `${item.title} | ${item.body}`).join("\n")} onChange={(event) => patchSection(index, { items: parseItems(event.target.value) })} placeholder="ขนส่งทั่วประเทศ | รองรับงานรายคันและงานล็อต" /></label>}
+      {(section.type === "FEATURES" || section.type === "CONTACT" || section.type === "FAQ") && <label className="field full">รายการ — หนึ่งบรรทัดต่อรายการ ใช้ | คั่นหัวข้อกับรายละเอียด<textarea rows={6} value={section.items.map((item) => `${item.title} | ${item.body}`).join("\n")} onChange={(event) => patchSection(index, { items: parseItems(event.target.value) })} placeholder="ขนส่งทั่วประเทศ | รองรับงานรายคันและงานล็อต" /></label>}
       <label className="field">ปุ่มหลัก — ข้อความ<input value={section.primaryLabel} maxLength={80} onChange={(event) => patchSection(index, { primaryLabel: event.target.value })} /></label><label className="field">ปุ่มหลัก — URL<input value={section.primaryHref} maxLength={300} placeholder="/contact หรือ tel:0631941191" onChange={(event) => patchSection(index, { primaryHref: event.target.value })} /></label>
       <label className="field">ปุ่มรอง — ข้อความ<input value={section.secondaryLabel} maxLength={80} onChange={(event) => patchSection(index, { secondaryLabel: event.target.value })} /></label><label className="field">ปุ่มรอง — URL<input value={section.secondaryHref} maxLength={300} placeholder="/gallery" onChange={(event) => patchSection(index, { secondaryHref: event.target.value })} /></label>
     </div></section>)}</div>

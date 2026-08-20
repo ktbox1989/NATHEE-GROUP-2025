@@ -1,0 +1,37 @@
+# Production quotation boundary
+
+Updated: 2026-08-21
+
+## Runtime split
+
+- `public-site/quotation/` is part of the static Z.com website. It may show verified telephone and Owner-supplied LINE contact methods, but it must not claim that an online request was stored.
+- The real online form is `/quotation` in the full Cloudflare application. `POST /api/quotation` requires the canonical same-origin runtime and D1 binding `DB`.
+- Do not copy the API route or application source into Z.com `public_html`. Z.com is the public-static component only.
+
+## Durable write contract
+
+Migration `0015_graceful_ben_urich` adds:
+
+- a unique public `request_key` for concurrent/retried submission idempotency;
+- an explicit source and consent timestamp;
+- database triggers requiring consent for `PUBLIC_WEBSITE` submissions;
+- immutable submission identity; and
+- a hard-delete prohibition for quotation records.
+
+The server validates and bounds every submitted field, rejects a honeypot value, records no success until the quotation and a redacted Audit Log commit together, and then returns the generated `QT-YYYY-NNNNNN` reference. Audit JSON excludes name, telephone, email, LINE ID, route and notes.
+
+The authenticated inbox `/app/quotations` is OWNER-only. It is keyset-bounded to 50 records and status changes write an Audit Log in the same D1 batch. Other roles receive no navigation item and are redirected by the server.
+
+## Production activation gates
+
+Before exposing the online form:
+
+1. Back up Production D1 and verify the migration ledger through `0014`.
+2. Dry-run then apply migration `0015` to the protected D1 runtime.
+3. Configure and verify canonical `APP_ORIGIN`, Supabase Auth, real OWNER mapping and R2 readiness.
+4. Verify `/api/health` includes the quotation unique index and all three safety triggers.
+5. Submit one authorized test request through the real browser, verify the D1 row and redacted Audit Log, then update its status from the OWNER inbox.
+6. Verify a repeated request key returns the same reference and never creates a second row.
+7. Add an approved anti-abuse provider (for example Cloudflare Turnstile/rate limiting) before advertising the form broadly. No provider credential or bypass is stored in this repository.
+
+Until every gate passes, deploy only the improved static sales pages. The static quotation page remains an honest telephone/LINE conversion path.

@@ -84,6 +84,39 @@ test("fresh migrations create every phase-one table", () => {
   db.close();
 });
 
+test("quotation migration is idempotent by request key and forbids hard delete", () => {
+  const db = createMigratedDatabase();
+  db.exec(`
+    INSERT INTO quote_requests
+      (id, request_number, request_key, contact_name, phone, origin, destination, quantity, consent_at)
+    VALUES
+      ('quote-a', 'QT-2026-000001', 'quote-123e4567-e89b-42d3-a456-426614174000', 'ผู้ติดต่อ', '0812345678', 'กรุงเทพฯ', 'เชียงใหม่', 2, CURRENT_TIMESTAMP);
+  `);
+  assert.throws(() => db.exec(`
+    INSERT INTO quote_requests
+      (id, request_number, request_key, contact_name, phone, origin, destination, quantity, consent_at)
+    VALUES
+      ('quote-b', 'QT-2026-000002', 'quote-123e4567-e89b-42d3-a456-426614174000', 'ผู้ติดต่อ', '0812345678', 'กรุงเทพฯ', 'เชียงใหม่', 2, CURRENT_TIMESTAMP);
+  `));
+  assert.throws(() => db.exec("DELETE FROM quote_requests WHERE id = 'quote-a'"));
+  assert.throws(() => db.exec("UPDATE quote_requests SET request_key = 'quote-123e4567-e89b-42d3-a456-426614174001' WHERE id = 'quote-a'"));
+  assert.throws(() => db.exec(`INSERT INTO quote_requests (id, request_number, source, contact_name, phone, origin, destination, quantity) VALUES ('quote-public-no-consent', 'QT-2026-000003', 'PUBLIC_WEBSITE', 'ผู้ติดต่อ', '0812345678', 'กรุงเทพฯ', 'เชียงใหม่', 2)`));
+  assert.equal(db.prepare("SELECT source FROM quote_requests WHERE id = 'quote-a'").get().source, "LEGACY");
+  db.close();
+});
+
+test("quotation migration preserves requests created before the public form", () => {
+  const db = new DatabaseSync(":memory:");
+  db.exec("PRAGMA foreign_keys = ON");
+  const migrationDirectory = fileURLToPath(new URL("../drizzle/", import.meta.url));
+  const earlierMigrations = readdirSync(migrationDirectory).filter((name) => name.endsWith(".sql") && name < "0015_").sort();
+  for (const migration of earlierMigrations) applyMigration(db, `${migrationDirectory}/${migration}`);
+  db.exec(`INSERT INTO quote_requests (id, request_number, contact_name, phone, origin, destination, quantity) VALUES ('legacy-quote', 'QT-2026-000099', 'ผู้ติดต่อเดิม', '0812345678', 'กรุงเทพฯ', 'ชลบุรี', 1)`);
+  applyMigration(db, `${migrationDirectory}/0015_graceful_ben_urich.sql`);
+  assert.deepEqual({ ...db.prepare("SELECT request_number, request_key, source, consent_at FROM quote_requests WHERE id = 'legacy-quote'").get() }, { request_number: "QT-2026-000099", request_key: null, source: "LEGACY", consent_at: null });
+  db.close();
+});
+
 test("role-system migration backfills legacy identities and enforces safe mappings", () => {
   const db = new DatabaseSync(":memory:");
   db.exec("PRAGMA foreign_keys = ON");

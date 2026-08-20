@@ -79,3 +79,13 @@ test("managed public pages fail safely without a D1 binding", async () => {
     assert.doesNotMatch(html, /owner123|staff123|abc123|nathee2025/i, path);
   }
 });
+
+test("quotation page exposes only the real durable submission path", async () => {
+  const response = await render("/quotation");
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  assert.match(html, /action="\/api\/quotation"/);
+  assert.match(html, /name="privacyConsent"/);
+  assert.match(html, /ออกเลขอ้างอิงเมื่อฐานข้อมูลรับข้อมูลสำเร็จเท่านั้น/);
+  assert.doesNotMatch(html, /ส่งสำเร็จ.*ตัวอย่าง|fake success/i);
+});

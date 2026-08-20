@@ -26,14 +26,27 @@ for (const route of routes) {
   if (!title || titles.has(title)) throw new Error(`${name} title missing/duplicate.`); titles.add(title);
   if (!description || descriptions.has(description)) throw new Error(`${name} description missing/duplicate.`); descriptions.add(description);
   const blocks = [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/gi)]; if (blocks.length !== 1) throw new Error(`${name} JSON-LD count failed.`);
-  try { const parsed = JSON.parse(blocks[0][1]); if (parsed?.["@context"] !== "https://schema.org" || !parsed?.["@type"]) throw new Error(); } catch { throw new Error(`${name} JSON-LD invalid.`); }
+  try {
+    const parsed = JSON.parse(blocks[0][1]);
+    const nodes = Array.isArray(parsed) ? parsed : [parsed];
+    if (!nodes.length || nodes.some((node) => node?.["@context"] !== "https://schema.org" || !node?.["@type"])) throw new Error();
+  } catch { throw new Error(`${name} JSON-LD invalid.`); }
 }
 
 const home = text.get("index.html");
 for (const token of ['href="tel:0631941191"', 'href="tel:0856802082"', 'href="/quotation/"', 'href="/gallery/"', 'href="/login/"']) if (!home.includes(token)) throw new Error(`Homepage CTA missing: ${token}`);
-for (const token of ['src="/assets/brand/nathee-logo-display.jpg"', 'href="/contact/#line"']) if (!home.includes(token)) throw new Error(`Homepage Owner media missing: ${token}`);
+for (const token of ['motorcycle-truck-loading-01-display', 'data-gallery-preview', 'href="/contact/#line"']) if (!home.includes(token)) throw new Error(`Homepage Owner media missing: ${token}`);
 const contact = text.get("contact/index.html");
 for (const token of ['id="line"', 'src="/assets/contact/line-qr-owner-supplied.png"', 'alt="QR Code LINE ที่ Owner มอบให้สำหรับติดต่อ NATHEE GROUP 2025"']) if (!contact.includes(token)) throw new Error(`Contact Owner media missing: ${token}`);
+for (const token of ['href="https://www.google.com/maps/search/?api=1&query=', 'ยืนยันจุดรับรถก่อนเดินทาง', 'href="tel:0631941191"']) if (!contact.includes(token)) throw new Error(`Contact navigation contract missing: ${token}`);
+const serviceRoutes = ["services/index.html", "motorcycle-transport/index.html", "international/index.html", "storage/index.html", "container-loading/index.html", "dealer-fleet/index.html"];
+for (const name of serviceRoutes) {
+  const html = text.get(name);
+  for (const token of ['class="process-grid"', 'class="gallery-preview"', 'class="faq-list"', 'href="/quotation/"']) if (!html.includes(token)) throw new Error(`${name} conversion content missing: ${token}`);
+  if ((html.match(/class="gallery-card"/g) ?? []).length < 1 || (html.match(/<details>/g) ?? []).length < 3) throw new Error(`${name} does not have real gallery and bounded FAQ content.`);
+}
+const about = text.get("about/index.html");
+for (const token of ["VERIFIED CAPABILITY", "พื้นที่ลาน", "4 ล้อและ 6 ล้อ", "nathee-six-wheel-truck-01", "Container", 'class="gallery-card"']) if (!about.includes(token)) throw new Error(`About commercial proof missing: ${token}`);
 const qrBytes = await readFile(join(root, "assets/contact/line-qr-owner-supplied.png"));
 if (createHash("sha256").update(qrBytes).digest("hex") !== "b2bae9fb2424bd2a316f942f56b95b75c7a767e898c778ebb241e3c952572de7") throw new Error("Owner-supplied LINE QR checksum changed.");
 if (/<form\b/i.test(home) || /type=["']password["']/i.test(home)) throw new Error("Unsupported form/login fields found.");

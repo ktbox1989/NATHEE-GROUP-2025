@@ -594,6 +594,38 @@ footer { border-top: 1px solid var(--border); background: #050611; color: var(--
 .cms-section-image[data-orientation="portrait"] img, .cms-section-image[data-orientation="square"] img { object-fit: contain; }
 .cms-gallery-section .public-gallery-grid { margin-top: 34px; }
 .cms-gallery-section .gallery-lightbox { z-index: 180; }
+.cms-faq-list { display: grid; gap: 12px; margin-top: 30px; }
+.cms-faq-list details { overflow: hidden; border: 1px solid var(--border); border-radius: 18px; background: rgba(255,255,255,.035); }
+.cms-faq-list summary { min-height: 54px; padding: 17px 52px 17px 20px; color: var(--text); cursor: pointer; font-weight: 800; }
+.cms-faq-list details p { margin: 0; padding: 0 20px 20px; color: var(--muted); line-height: 1.75; }
+.quotation-layout { display: grid; grid-template-columns: minmax(250px,.72fr) minmax(0,1.28fr); gap: clamp(26px,5vw,72px); align-items: start; }
+.quotation-form { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; padding: clamp(20px,3vw,34px); border: 1px solid var(--border); border-radius: 26px; background: rgba(255,255,255,.035); box-shadow: var(--shadow); }
+.quotation-form > label:not(.quotation-consent):not(.quotation-honeypot) { display: grid; gap: 8px; color: var(--muted); font-size: .92rem; font-weight: 700; }
+.quotation-form input, .quotation-form select, .quotation-form textarea { width: 100%; min-height: 48px; border: 1px solid var(--border); border-radius: 12px; padding: 11px 13px; color: var(--text); background: rgba(3,6,18,.88); font: inherit; }
+.quotation-form textarea { min-height: 130px; resize: vertical; }
+.quotation-form input:focus-visible, .quotation-form select:focus-visible, .quotation-form textarea:focus-visible { outline: 3px solid rgba(91,108,255,.38); outline-offset: 2px; }
+.quotation-extras, .quotation-notes, .quotation-consent, .quotation-form > button, .quotation-form > .form-error { grid-column: 1 / -1; }
+.quotation-extras { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; padding: 16px; border: 1px solid var(--border); border-radius: 16px; }
+.quotation-extras legend { padding-inline: 6px; color: var(--muted); font-weight: 800; }
+.quotation-extras label, .quotation-consent { display: flex; gap: 10px; align-items: flex-start; color: var(--muted); line-height: 1.5; }
+.quotation-extras input, .quotation-consent input { width: 20px; min-height: 20px; margin-top: 1px; flex: 0 0 auto; }
+.quotation-honeypot { position: absolute !important; left: -10000px !important; width: 1px !important; height: 1px !important; overflow: hidden !important; }
+.quotation-result { padding-bottom: 0; }
+.quotation-result .app-panel { padding: 24px; }
+.quotation-result strong { color: var(--text); font-size: 1.08em; }
+.quotation-admin-list { display: grid; gap: 16px; }
+.quotation-admin-card { display: grid; gap: 18px; }
+.quotation-admin-card > header { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
+.quotation-admin-card > header span, .quotation-admin-card dt { color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; }
+.quotation-admin-card > header h2 { margin-block: 3px; }
+.quotation-admin-card > header b { padding: 7px 10px; border: 1px solid var(--border); border-radius: 999px; color: var(--accent); font-size: .78rem; }
+.quotation-admin-card dl { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 12px; margin: 0; }
+.quotation-admin-card dl > div { min-width: 0; padding: 12px; border: 1px solid var(--border); border-radius: 14px; background: rgba(255,255,255,.025); }
+.quotation-admin-card dd { margin: 5px 0 0; overflow-wrap: anywhere; color: var(--text); }
+.quotation-admin-notes { margin: 0; padding: 14px; border-left: 3px solid var(--accent); color: var(--muted); white-space: pre-wrap; }
+.quotation-status-form { display: flex; gap: 12px; align-items: end; justify-content: flex-end; }
+.quotation-status-form label { display: grid; gap: 6px; color: var(--muted); font-size: .85rem; }
+.quotation-status-form select { min-height: 44px; border: 1px solid var(--border); border-radius: 10px; padding-inline: 10px; color: var(--text); background: var(--surface); }
 .cms-cta .shell { display: flex; align-items: end; justify-content: space-between; gap: 36px; padding: 34px; border: 1px solid var(--border-strong); border-radius: 26px; background: var(--gradient-soft); }
 .cms-cta .hero-actions { flex: 0 0 auto; margin: 0; }
 .cms-contact-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; margin-top: 32px; }
@@ -774,6 +806,11 @@ footer { border-top: 1px solid var(--border); background: #050611; color: var(--
   .cms-hero { min-height: 0; padding-block: 68px; }
   .cms-section { padding-block: 66px; }
   .cms-feature-grid, .cms-contact-grid, .site-page-grid { grid-template-columns: 1fr; }
+  .quotation-layout, .quotation-form { grid-template-columns: 1fr; }
+  .quotation-extras, .quotation-notes, .quotation-consent, .quotation-form > button, .quotation-form > .form-error { grid-column: auto; }
+  .quotation-admin-card dl { grid-template-columns: 1fr; }
+  .quotation-admin-card > header, .quotation-status-form { align-items: stretch; flex-direction: column; }
+  .quotation-status-form button, .quotation-status-form select { width: 100%; }
   .cms-cta .shell, .cms-publication-panel { align-items: stretch; flex-direction: column; }
   .cms-cta .hero-actions, .cms-publication-panel > div:last-child, .cms-publication-panel a, .cms-publication-panel form, .cms-publication-panel button { display: grid; width: 100%; }
   .site-editor-seo, .site-editor-save, .cms-revision-list article, .gallery-upload-queue article { grid-template-columns: 1fr; }

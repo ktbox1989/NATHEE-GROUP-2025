@@ -24,6 +24,7 @@ See [authentication activation](./docs/AUTH_SETUP.md) before creating the first 
 See [Gallery and Media Library boundaries](./docs/GALLERY_MEDIA_LIBRARY.md) before adding real photographs or applying Gallery migrations.
 Complete [the production go-live checklist](./docs/PRODUCTION_GO_LIVE.md) before opening the hosted system to staff or customers.
 See [the Production deployment architecture](./docs/DEPLOYMENT_ARCHITECTURE.md) for the evidence-backed boundary between the live Z.com public site and the not-yet-deployed application runtime.
+See [the Production quotation boundary](./docs/QUOTATION_BACKEND.md) before enabling the online form or applying migration `0015`.
 
 ## Repository layout
 

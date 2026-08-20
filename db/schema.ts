@@ -952,6 +952,8 @@ export const quoteRequests = sqliteTable(
   {
     id: text("id").primaryKey(),
     requestNumber: text("request_number").notNull(),
+    requestKey: text("request_key"),
+    source: text("source").notNull().default("LEGACY"),
     companyName: text("company_name"),
     contactName: text("contact_name").notNull(),
     phone: text("phone").notNull(),
@@ -964,12 +966,14 @@ export const quoteRequests = sqliteTable(
     desiredDate: text("desired_date"),
     extrasJson: text("extras_json").notNull().default("[]"),
     notes: text("notes"),
+    consentAt: text("consent_at"),
     status: text("status", { enum: QUOTE_STATUSES }).notNull().default("NEW"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
   (table) => [
     uniqueIndex("uq_quote_requests_request_number").on(table.requestNumber),
+    uniqueIndex("uq_quote_requests_request_key").on(table.requestKey).where(sql`${table.requestKey} IS NOT NULL`),
     index("idx_quote_requests_status_created").on(table.status, table.createdAt),
     check("ck_quote_requests_quantity_positive", sql`${table.quantity} > 0`),
     check(
