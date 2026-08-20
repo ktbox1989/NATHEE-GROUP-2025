@@ -6,7 +6,7 @@ Updated: 2026-08-21 (Asia/Bangkok)
 
 - Review branch: `codex/nathee-media-owner-2`
 - Integration baseline: `3cfd65a176cba858c6fd5d76cab61df5c78093f8`
-- Latest verified implementation milestone: Truthful operational reports and Audit keyset pagination (`323299219a61c6d50dfbe547afeb1e4337068749`)
+- Latest verified implementation milestone: Private motorcycle evidence display/thumbnail derivatives (`0f3f1829068dda7ded0d7256cc36846cc2180d50`)
 - Canonical repository: `ktbox1989/NATHEE-GROUP-2025`
 - Working rule: resolve the current checkpoint-document commit with `git rev-parse HEAD`; never infer Production deployment from source HEAD.
 
@@ -25,6 +25,15 @@ Updated: 2026-08-21 (Asia/Bangkok)
 - Full application Production acceptance: NOT PASSED
 
 ## Closed local milestones
+
+### Private motorcycle evidence derivatives (`0f3f182`)
+
+- New authorized motorcycle-image uploads retain the original private R2 object and also create bounded WebP Display (long edge 1,600px, at most 3 MB) and Thumbnail (long edge 640px, at most 1 MB) objects. AVIF is optional and content-negotiated only when the browser advertises support.
+- The authenticated image endpoint remains company/permission scoped and `private, no-store`. Thumbnail grids no longer request originals; inspection/POD links request Display. Existing rows with no variants safely fall back to their unchanged original object and are not rewritten or deleted.
+- Uploads use a cryptographically generated request key plus a database unique index. Concurrent/retried submissions resolve to one canonical image row; failed R2/D1 attempts compensating-delete only the objects they created and never report false success.
+- Additive migration `0020_awesome_quentin_quire` creates variant metadata, adds the nullable request key for legacy compatibility and makes motorcycle evidence/variant rows immutable and non-deletable. Preservation, constraints, duplicate-key, foreign-key and EXPLAIN coverage pass.
+- Verification: full tests 160/160 (96 unit + 64 integration), TypeScript PASS, ESLint PASS, Vinext Production build PASS, public SEO/Gallery/mobile/responsive/deployment guards PASS, scoped secret scan PASS and `git diff --check` PASS.
+- Production remains unchanged. Migration `0020`, the full app runtime and Auth/Owner mapping remain Production gates; no D1 row or R2 object was changed.
 
 ### Truthful operational reports and Audit keyset pagination (`3232992`)
 
@@ -98,7 +107,7 @@ Updated: 2026-08-21 (Asia/Bangkok)
 - Regression coverage validates structural contracts at 320, 375, 390, 768, 1024, 1366 and 1440px, five responsive data tables and all 54 responsive Gallery assets.
 - Verification: full tests 117/117 (68 unit + 49 integration), responsive/public guards PASS, Production build PASS, ESLint PASS, image-optimizer idempotency PASS and `git diff --check` PASS.
 - Browser screenshot acceptance remains pending because the bundled in-app browser service cannot start (`Trusted RPC dependency must resolve within a configured trusted code path`). This is recorded as an evidence blocker, not a visual PASS.
-- Remaining media risk: authenticated private evidence still downloads the original R2 object. A separate audited thumbnail/display variant contract is required before claiming private evidence byte optimization on mobile.
+- The private-evidence byte risk recorded at this milestone was resolved by `0f3f182`: new uploads create bounded derivatives and legacy rows use an explicit original fallback without data rewriting.
 - Deployment: source only. Z.com, Sites, Supabase, D1, R2, DNS and Production were not changed.
 
 ### Public website and deployment safety
@@ -217,7 +226,7 @@ Updated: 2026-08-21 (Asia/Bangkok)
 - Added a single allowlisted application-origin contract. Production accepts only `https://natheegroup2025.com`; private `*.chatgpt.site` previews and localhost are explicit non-Production cases.
 - Password recovery, invitations and the Auth callback no longer derive sensitive redirect destinations from the request Host. Same-origin mutation checks now reject Host-spoofed requests and a Production runtime without `APP_ORIGIN` fails closed.
 - Supabase public/admin configuration rejects placeholders, malformed URLs, secret/public key confusion and values outside the approved `sb_publishable_...` / `sb_secret_...` contract.
-- `/api/health` now requires five independent checks: public Auth, admin Auth, canonical origin, required D1 tables/indexes/triggers through migration `0016`, and a read-only R2 metadata probe. A bare database connection or binding name can no longer claim Production readiness.
+- `/api/health` now requires six independent checks: public Auth, admin Auth, canonical origin, required D1 tables/indexes/triggers through migration `0020`, a read-only R2 metadata probe and anti-abuse readiness. A bare database connection or binding name can no longer claim Production readiness.
 - This is source-only. No Supabase value, D1 migration, R2 object, Sites version, DNS record or Z.com Production file was changed.
 
 ### Exact confirmed Auth identity mapping
@@ -229,26 +238,26 @@ Updated: 2026-08-21 (Asia/Bangkok)
 
 ## Verified source gates
 
-- Full test suite: 133 passing
-- Authorization/unit/CMS/settings/search/config/readiness/identity/quotation/Turnstile tests: 78 passing
-- Render/schema/notification/yard/trip/container/inspection/POD/CMS/settings/query-plan tests: 55 passing
+- Full test suite: 160 passing
+- Authorization/unit/CMS/settings/search/config/readiness/identity/quotation/Turnstile/image-variant tests: 96 passing
+- Render/schema/notification/yard/trip/container/inspection/POD/CMS/settings/query-plan/migration tests: 64 passing
 - Production Vinext build: PASS
 - ESLint: PASS
 - Public SEO and deployment architecture guards: PASS
-- Migrations through `0016` packaged in `dist/.openai/drizzle/`: PASS
+- Migrations through `0020` packaged in `dist/.openai/drizzle/`: PASS
 
 ## Open Owner gates
 
 - Approve application routing model: apex edge routes or an application subdomain.
 - Supply/configure Supabase Production values through a secure hosting channel.
-- Backup and apply migrations `0001`–`0016` to the protected D1 runtime.
+- Backup and apply migrations `0001`–`0020` to the protected D1 runtime.
 - Verify private R2 readiness.
 - Bootstrap the real OWNER identity and accept two-company customer isolation.
 - Supply/configure Turnstile Production keys through the secure hosting channel, approve untrusted-file/malware handling, and add verified location/map data when supplied.
 
 ## Next autonomous work
 
-1. Close the Production activation gates: canonical app route, Supabase environment/callback, D1 backup+ledger+migrations `0001`–`0016`, R2 readiness, real OWNER mapping and approved quotation anti-abuse/untrusted-file controls.
+1. Close the Production activation gates: canonical app route, Supabase environment/callback, D1 backup+ledger+migrations `0001`–`0020`, R2 readiness, real OWNER mapping and approved quotation anti-abuse/untrusted-file controls.
 2. Run real browser acceptance for OWNER and two isolated customer companies before exposing `/app` publicly.
 3. Configure external LINE/email notification providers only after credentials, consent, retry and escalation policy are approved.
 4. Keep all new migrations unapplied until the Production backup/runtime gates are satisfied.

@@ -1,5 +1,15 @@
 # NATHEE GROUP 2025 — Work History
 
+## 2026-08-21 — Private motorcycle evidence derivatives
+
+- Implementation commit: `0f3f182`
+- Added a client/server evidence-image pipeline that retains the private original while creating bounded WebP Display/Thumbnail derivatives and optional AVIF. The authenticated grid requests Thumbnail, evidence/POD links request Display and legacy rows fall back to the unchanged original.
+- Added strict MIME signatures, SHA-256 metadata, mobile byte budgets, a decoded-pixel safety bound, real upload progress/cancel/error states and secure request-key idempotency. D1 and R2 failure compensation never reports success or deletes a pre-existing object.
+- Migration `0020_awesome_quentin_quire` is additive: legacy image rows remain unchanged with a nullable request key; the new variant table is indexed and evidence metadata becomes immutable/non-deletable.
+- Verification: full tests 160/160 (96 unit + 64 integration), TypeScript PASS, ESLint PASS, Vinext Production build PASS, public SEO/Gallery/mobile/responsive/deployment guards PASS, migration preservation/immutability/query-plan checks PASS, scoped secret scan PASS and `git diff --check` PASS.
+- Deployment: source only. No Z.com file, Sites version, Supabase value, D1 migration/row, R2 object, DNS or Production runtime changed.
+- Rollback: before apply, revert `0f3f182`. After `0020` is applied, keep the additive table/columns or use a reviewed forward migration; never hard-delete image/evidence metadata or R2 originals.
+
 ## 2026-08-21 — Truthful operational reports and Audit keyset pagination
 
 - Implementation commit: `3232992`
@@ -78,7 +88,7 @@
 - Generated 54 JPEG/WebP/AVIF thumbnail/display variants from the nine real Owner-supplied company photographs. The optimizer is idempotent, bounds mobile bytes and keeps factual Alt/caption metadata in the canonical manifest.
 - Verification: full tests 117/117 (68 unit + 49 integration), responsive contracts for 320/375/390/768/1024/1366/1440 PASS, public/SEO/deployment guards PASS, Production build PASS, ESLint PASS, optimizer idempotency PASS and `git diff --check` PASS.
 - Visual browser evidence is explicitly pending: the bundled browser service failed before connecting because its trusted RPC dependency could not resolve within a configured trusted code path. No screenshot PASS is claimed.
-- Remaining work: restore the approved browser runtime and capture the seven required viewports; separately design private R2 evidence thumbnail/display derivatives because authenticated evidence still serves the protected original object.
+- Remaining visual work: restore the approved browser runtime and capture the seven required viewports. The private evidence derivative gap was later closed in `0f3f182`.
 - Deployment: source only. No Push, Z.com pull, Production deploy, Supabase/D1/R2 mutation or DNS change was performed.
 - Rollback: revert implementation commit `22a5454`; no Production or data rollback is required.
 

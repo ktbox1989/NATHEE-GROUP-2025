@@ -6,7 +6,7 @@ runtime.
 
 ## 1. Platform resources
 
-- D1 binding `DB` exists and migrations `drizzle/0000` through `0019` have
+- D1 binding `DB` exists and migrations `drizzle/0000` through `0020` have
   each been applied exactly once in order. Verify the migration ledger before
   applying any missing file; never rerun the full chain blindly.
 - R2 binding `FILES` exists and is private.
@@ -64,7 +64,7 @@ Production is ready only when it returns HTTP 200 and all six checks are
 format. `adminAuthentication` independently validates that a server-only
 secret is configured. `canonicalOrigin` requires the exact canonical
 Production origin. `database` verifies representative tables, indexes and
-invariant triggers through migration `0019`, not merely that D1 answers a
+invariant triggers through migration `0020`, not merely that D1 answers a
 query. `storage` performs a read-only R2 metadata probe. `antiAbuse` requires both validated Turnstile runtime keys. The endpoint never
 returns credentials or connection strings.
 
@@ -74,8 +74,10 @@ returns credentials or connection strings.
 2. Owner creates one real customer company.
 3. Owner creates one transport job and one motorcycle.
 4. An authorized staff account updates one valid status step.
-5. Staff uploads a real image. The stored metadata must contain its SHA-256
-   checksum and the R2 object must remain private.
+5. Staff uploads a real image. The stored metadata must contain its SHA-256,
+   one original plus required Display/Thumbnail derivatives and one Audit row;
+   every R2 object must remain private. A repeated request key must not duplicate
+   metadata or objects.
 6. The customer account can see only its own company records and image.
 7. A second customer cannot open the first customer's motorcycle or image URL.
 8. Password recovery shows the same response for registered and unknown email
