@@ -4,7 +4,7 @@ set -Eeuo pipefail
 EXPECTED_USER="zptqqwps"
 PRODUCTION_ROOT="/home/zptqqwps/public_html/natheegroup2025.com"
 BACKUP_ROOT="/home/zptqqwps/backups/nathee"
-SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 BACKUP_DIR="${1:-}"
 
 # shellcheck source=scripts/lib/deploy-file-tools.sh

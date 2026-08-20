@@ -4,10 +4,11 @@ set -Eeuo pipefail
 EXPECTED_USER="zptqqwps"
 PRODUCTION_ROOT="/home/zptqqwps/public_html/natheegroup2025.com"
 BACKUP_ROOT="/home/zptqqwps/backups/nathee"
-SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
-REPO_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd -P)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd -P)"
 SOURCE_ROOT="$REPO_ROOT/public-site"
 LOCK_FILE="/home/zptqqwps/.nathee-deploy.lock"
+NATHEE_TEMP_PARENT="/home/zptqqwps"
 
 # shellcheck source=scripts/lib/deploy-file-tools.sh
 source "$SCRIPT_DIR/lib/deploy-file-tools.sh"
@@ -23,28 +24,41 @@ fail() {
 [[ -d "$SOURCE_ROOT" ]] || fail "public-site source is missing"
 [[ -d "$PRODUCTION_ROOT" ]] || fail "production root is missing"
 
-for required_command in flock tar cp mv mkdir mktemp find sha256sum cut curl grep dirname rm date git; do
-  command -v "$required_command" >/dev/null || fail "$required_command is required"
+for required_command in bash flock tar cp mv mkdir find sha256sum cut curl grep dirname rm date git; do
+  if command -v "$required_command" >/dev/null 2>&1; then
+    printf 'DEPLOY_CAPABILITY %s=PRESENT\n' "$required_command"
+  else
+    fail "$required_command is required"
+  fi
 done
+if command -v mktemp >/dev/null 2>&1; then
+  printf 'DEPLOY_CAPABILITY mktemp=PRESENT\n'
+else
+  printf 'DEPLOY_CAPABILITY mktemp=FALLBACK_SAFE_MKDIR\n'
+fi
 
 exec 9>"$LOCK_FILE"
 flock -n 9 || fail "another NATHEE deployment is already running"
 
-"$SCRIPT_DIR/verify-public-site.sh" "$SOURCE_ROOT"
+bash "$SCRIPT_DIR/verify-public-site.sh" "$SOURCE_ROOT"
 nathee_assert_safe_tree "$SOURCE_ROOT" || fail "release contains an unsafe or empty file tree"
 
 timestamp="$(date -u +%Y%m%d-%H%M%S)"
 backup_dir="$BACKUP_ROOT/$timestamp"
-stage_dir="$(mktemp -d "/home/zptqqwps/nathee-release-${timestamp}.XXXXXX")"
+stage_dir="$(nathee_make_temp_dir "nathee-release-${timestamp}")" || fail "could not create a safe staging directory"
 deployment_started=0
 deployment_succeeded=0
 
 cleanup() {
   local exit_code=$?
-  rm -rf -- "$stage_dir"
+  rm -rf "$stage_dir"
   if [[ $exit_code -ne 0 && $deployment_started -eq 1 && $deployment_succeeded -eq 0 ]]; then
     printf 'DEPLOY_ROLLBACK_START backup=%s\n' "$backup_dir" >&2
-    "$SCRIPT_DIR/rollback-zcom.sh" "$backup_dir" || printf 'DEPLOY_ROLLBACK_FAILED backup=%s\n' "$backup_dir" >&2
+    if bash "$SCRIPT_DIR/rollback-zcom.sh" "$backup_dir"; then
+      printf 'DEPLOY_ROLLBACK_PASS backup=%s\n' "$backup_dir" >&2
+    else
+      printf 'DEPLOY_ROLLBACK_FAILED backup=%s\n' "$backup_dir" >&2
+    fi
   fi
   exit "$exit_code"
 }
@@ -55,9 +69,10 @@ nathee_write_file_manifest "$SOURCE_ROOT" "$backup_dir/RELEASE_SHA256SUMS.txt" |
 [[ -s "$backup_dir/RELEASE_SHA256SUMS.txt" ]] || fail "release manifest is empty"
 nathee_write_created_manifest "$SOURCE_ROOT" "$PRODUCTION_ROOT" "$backup_dir/CREATED_FILES.txt" || fail "could not record release-created files"
 nathee_finalize_backup_metadata "$backup_dir" || fail "could not seal deployment metadata checksums"
+printf 'BACKUP_PATH=%s\n' "$backup_dir"
 
 nathee_stage_tree "$SOURCE_ROOT" "$stage_dir" || fail "could not stage release"
-"$SCRIPT_DIR/verify-public-site.sh" "$stage_dir"
+bash "$SCRIPT_DIR/verify-public-site.sh" "$stage_dir"
 nathee_verify_file_manifest "$stage_dir" "$backup_dir/RELEASE_SHA256SUMS.txt" || fail "staged release checksum mismatch"
 
 deployment_started=1
@@ -66,7 +81,7 @@ deployment_started=1
 nathee_apply_tree "$stage_dir" "$PRODUCTION_ROOT" "$timestamp" || fail "atomic release copy failed"
 nathee_verify_file_manifest "$PRODUCTION_ROOT" "$backup_dir/RELEASE_SHA256SUMS.txt" || fail "deployed release checksum mismatch"
 
-"$SCRIPT_DIR/postcheck-production.sh"
+bash "$SCRIPT_DIR/postcheck-production.sh"
 deployment_succeeded=1
 
 git -C "$REPO_ROOT" rev-parse HEAD > "$backup_dir/DEPLOYED_COMMIT"
