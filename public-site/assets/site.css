@@ -74,10 +74,11 @@ button { font: inherit; }
   display: grid;
   place-items: center;
   border-radius: 13px;
-  font: 800 21px/1 Arial, sans-serif;
-  color: var(--white);
-  background: linear-gradient(135deg, var(--blue), var(--cyan));
-  box-shadow: 0 10px 26px rgba(46,98,242,.32);
+  overflow: hidden;
+  color: transparent;
+  background: #05080f url("/assets/brand/nathee-logo-thumbnail.webp") center / cover no-repeat;
+  box-shadow: 0 10px 26px rgba(196,139,43,.24);
+  font-size: 0;
 }
 .brand strong { display: block; font: 700 14px/1.2 Arial, sans-serif; letter-spacing: 1.5px; }
 .brand small { display: block; margin-top: 4px; color: #aab7cf; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; }
@@ -148,6 +149,16 @@ button { font: inherit; }
 .trust-list li::before { content: "✓"; margin-right: 8px; color: #6ee7b7; font-weight: 800; }
 
 .hero-visual { position: relative; min-height: 480px; display: grid; place-items: center; }
+.hero-brand-art {
+  width: min(100%, 500px);
+  display: block;
+  overflow: hidden;
+  border: 1px solid rgba(231,181,82,.3);
+  border-radius: 30px;
+  background: #05080f;
+  box-shadow: 0 35px 90px rgba(0,0,0,.42);
+}
+.hero-brand-art img { width: 100%; height: auto; display: block; }
 .route-card {
   width: min(100%, 465px);
   padding: 25px;
@@ -221,6 +232,12 @@ button { font: inherit; }
 .contact-button strong, .contact-pending strong { font: 700 clamp(19px, 2.2vw, 25px) Arial, sans-serif; }
 .contact-pending { opacity: .68; }
 .contact-pending strong { font-family: inherit; font-size: 17px; }
+.line-contact-card { align-items: start; }
+.line-contact-copy { max-width: 540px; }
+.line-contact-copy p { color: var(--muted); }
+.line-qr-frame { width: min(100%, 390px); margin-inline: auto; padding: 18px; border: 1px solid var(--line); border-radius: 24px; background: var(--surface-strong); box-shadow: var(--shadow); }
+.line-qr-frame img { width: 100%; height: auto; display: block; border-radius: 14px; }
+.line-qr-frame p { margin: 14px 4px 0; color: var(--muted); font-size: 13px; text-align: center; }
 
 .member-status { padding: 65px 0; color: var(--white); background: #12203a; }
 .member-inner { display: flex; align-items: center; justify-content: space-between; gap: 45px; }
@@ -283,6 +300,7 @@ button { font: inherit; }
   .button { width: 100%; }
   .trust-list { display: grid; gap: 8px; }
   .hero-visual { min-height: 350px; }
+  .hero-brand-art { width: min(100%, 360px); border-radius: 23px; }
   .route-card { padding: 18px; border-radius: 23px; }
   .route-map { height: 210px; margin-block: 18px; }
   .floating-card { display: none; }

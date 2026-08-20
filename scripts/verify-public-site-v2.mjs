@@ -1,4 +1,5 @@
 import { readFile, readdir, lstat } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import { dirname, extname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -7,7 +8,7 @@ const root = resolve(process.argv[2] ?? join(repo, "public-site"));
 const routes = ["/", "/services/", "/motorcycle-transport/", "/international/", "/storage/", "/container-loading/", "/dealer-fleet/", "/gallery/", "/about/", "/contact/", "/quotation/"];
 const routeFile = route => route === "/" ? "index.html" : `${route.slice(1)}index.html`;
 const wrongDomain = ["natee", "group2025.com"].join("");
-const required = [".htaccess", "404.html", "favicon.svg", "robots.txt", "sitemap.xml", "assets/site.css", "assets/site.js", "assets/gallery.json", "login/index.html", "login-status.html", ...routes.map(routeFile)];
+const required = [".htaccess", "404.html", "favicon.svg", "robots.txt", "sitemap.xml", "assets/site.css", "assets/site.js", "assets/gallery.json", "assets/brand/nathee-logo-display.jpg", "assets/brand/nathee-logo-display.webp", "assets/brand/nathee-logo-thumbnail.jpg", "assets/brand/nathee-logo-thumbnail.webp", "assets/contact/line-qr-owner-supplied.png", "login/index.html", "login-status.html", ...routes.map(routeFile)];
 
 async function walk(directory) { const files = []; for (const entry of await readdir(directory, { withFileTypes: true })) { const path = join(directory, entry.name); if (entry.isSymbolicLink()) throw new Error(`Symbolic link forbidden: ${relative(root, path)}`); if (entry.isDirectory()) files.push(...await walk(path)); if (entry.isFile()) files.push(path); } return files; }
 for (const name of required) if (!(await lstat(join(root, name)).catch(() => null))?.isFile()) throw new Error(`Required file missing: ${name}`);
@@ -19,7 +20,7 @@ for (const [label, pattern] of forbidden) for (const [name, value] of text) if (
 const titles = new Set(), descriptions = new Set();
 for (const route of routes) {
   const name = routeFile(route), html = text.get(name), canonical = `https://natheegroup2025.com${route}`;
-  for (const token of [`<link rel="canonical" href="${canonical}">`, `<meta property="og:url" content="${canonical}">`, '<meta property="og:title"', '<meta property="og:description"', '<meta name="twitter:title"', '<meta name="twitter:description"', '<meta name="viewport" content="width=device-width, initial-scale=1">', '<script src="/assets/site.js" defer></script>']) if (!html.includes(token)) throw new Error(`${name} missing ${token}`);
+  for (const token of [`<link rel="canonical" href="${canonical}">`, `<meta property="og:url" content="${canonical}">`, '<meta property="og:title"', '<meta property="og:description"', '<meta property="og:image" content="https://natheegroup2025.com/assets/brand/nathee-logo-display.jpg">', '<meta name="twitter:card" content="summary_large_image">', '<meta name="twitter:image" content="https://natheegroup2025.com/assets/brand/nathee-logo-display.jpg">', '<meta name="twitter:title"', '<meta name="twitter:description"', '<meta name="viewport" content="width=device-width, initial-scale=1">', '<script src="/assets/site.js" defer></script>']) if (!html.includes(token)) throw new Error(`${name} missing ${token}`);
   if (!/<html lang="th">/i.test(html) || (html.match(/<h1\b/gi) ?? []).length !== 1 || (html.match(/rel="canonical"/gi) ?? []).length !== 1) throw new Error(`${name} semantic page contract failed.`);
   const title = html.match(/<title>([^<]+)<\/title>/i)?.[1], description = html.match(/<meta name="description" content="([^"]+)"/i)?.[1];
   if (!title || titles.has(title)) throw new Error(`${name} title missing/duplicate.`); titles.add(title);
@@ -30,6 +31,11 @@ for (const route of routes) {
 
 const home = text.get("index.html");
 for (const token of ['href="tel:0631941191"', 'href="tel:0856802082"', 'href="/quotation/"', 'href="/gallery/"', 'href="/login/"']) if (!home.includes(token)) throw new Error(`Homepage CTA missing: ${token}`);
+for (const token of ['src="/assets/brand/nathee-logo-display.jpg"', 'href="/contact/#line"']) if (!home.includes(token)) throw new Error(`Homepage Owner media missing: ${token}`);
+const contact = text.get("contact/index.html");
+for (const token of ['id="line"', 'src="/assets/contact/line-qr-owner-supplied.png"', 'alt="QR Code LINE ที่ Owner มอบให้สำหรับติดต่อ NATHEE GROUP 2025"']) if (!contact.includes(token)) throw new Error(`Contact Owner media missing: ${token}`);
+const qrBytes = await readFile(join(root, "assets/contact/line-qr-owner-supplied.png"));
+if (createHash("sha256").update(qrBytes).digest("hex") !== "b2bae9fb2424bd2a316f942f56b95b75c7a767e898c778ebb241e3c952572de7") throw new Error("Owner-supplied LINE QR checksum changed.");
 if (/<form\b/i.test(home) || /type=["']password["']/i.test(home)) throw new Error("Unsupported form/login fields found.");
 for (const [name, html] of text) if (extname(name) === ".html") for (const image of html.matchAll(/<img\b[^>]*>/gi)) if (!/\balt=["'][^"']*["']/i.test(image[0])) throw new Error(`Image alt missing in ${name}`);
 for (const name of ["login/index.html", "login-status.html", "404.html"]) if (!text.get(name).includes('<meta name="robots" content="noindex,nofollow,noarchive">')) throw new Error(`${name} noindex missing.`);
@@ -44,6 +50,9 @@ for (const item of gallery.items) {
   for (const field of ["thumbnail", "display", "thumbnailWebp", "thumbnailAvif", "displayWebp", "displayAvif"]) if (item[field]) await assertAsset(item[field], item.id);
   for (const field of ["companyId", "customerId", "vin", "registration", "storageKey"]) if (field in item) throw new Error(`Gallery item leaks ${field}: ${item.id}`);
 }
+const ownerMediaIds = ["motorcycle-truck-loading-01", "motorcycle-storage-yard-01", "nathee-yard-front-01", "motorcycle-yard-container-01", "motorcycle-storage-yard-02", "motorcycle-fleet-staging-01", "nathee-six-wheel-truck-01", "motorcycle-pickup-loading-01", "motorcycle-container-loading-01"];
+for (const id of ownerMediaIds) if (!ids.has(id)) throw new Error(`Owner-approved Gallery item missing: ${id}`);
+if (gallery.items.length !== ownerMediaIds.length) throw new Error(`Unexpected public Gallery item count: ${gallery.items.length}`);
 async function assertAsset(value, id) { if (typeof value !== "string" || !/^\/assets\/gallery\/[a-zA-Z0-9/_-]+\.(?:avif|webp|jpe?g|png)$/.test(value) || !(await lstat(join(root, value.slice(1))).catch(() => null))?.isFile()) throw new Error(`Gallery asset unsafe/missing: ${id} ${value}`); }
 
 const robots = text.get("robots.txt"), sitemap = text.get("sitemap.xml"), htaccess = text.get(".htaccess");

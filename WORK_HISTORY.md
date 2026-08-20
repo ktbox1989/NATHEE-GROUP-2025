@@ -1,5 +1,14 @@
 # NATHEE GROUP 2025 — Work History
 
+## 2026-08-21 — Owner brand artwork, LINE QR and expanded real-work Gallery
+
+- Added the Owner-supplied NATHEE GROUP 2025 artwork as the site-wide brand mark, homepage hero artwork and canonical social preview image.
+- Added seven more real operational photographs to the public Gallery, bringing the factual public release manifest to nine items across storage, large-batch, Dealer/Fleet, 4-wheel, 6-wheel and Container work.
+- Added the exact Owner-supplied LINE QR to the Contact page without inventing a LINE ID or external URL. Its SHA-256 is guarded in both local and Production postchecks.
+- Generated separate responsive JPEG/WebP display and thumbnail variants; the original QR is preserved byte-for-byte.
+- Deployment: source only until the guarded Z.com pull, verify, backup, deploy and live postcheck pass. The authenticated CMS/Media Library remains source-only pending Production Auth, D1 and R2 gates.
+- Rollback: restore the timestamped public-site backup or revert this commit; no application database or private customer evidence is changed.
+
 ## 2026-08-21 — Structured Site Content CMS and bounded Gallery batch upload
 
 - Added migration `0012` with stable page identities, immutable SHA-256 revisions, append-only publish/hide events, same-page publication enforcement, no-hard-delete triggers and explicit Site Content permissions.

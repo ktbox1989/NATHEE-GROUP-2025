@@ -102,12 +102,13 @@ Updated: 2026-08-21 (Asia/Bangkok)
 - Motorcycle detail now provides real inspection/finding/POD forms and bounded history. `/app/motorcycles/:id/documents` renders an authorized print/PDF record from the same source data.
 - Migration `0011` remains unapplied in Production.
 
-### Owner-supplied public Gallery photographs
+### Owner-supplied public Gallery photographs and brand assets
 
-- Added two real company-work photographs supplied and approved by the Owner: a two-level motorcycle truck load and a motorcycle storage yard.
-- Each photograph has a separate compressed thumbnail, factual Thai caption, descriptive alt text, a real Gallery category and deterministic featured ordering.
+- Added nine real company-work photographs supplied and approved by the Owner, covering motorcycle truck loading, storage yards, large-batch staging, 4-wheel and 6-wheel transport and Container loading.
+- Each photograph has separate responsive JPEG/WebP display and thumbnail variants, factual Thai captions, descriptive alt text, a real Gallery category and deterministic featured ordering.
+- Added the Owner-supplied NATHEE GROUP 2025 artwork to the site brand, homepage hero and social metadata. Added the exact Owner-supplied LINE QR to Contact without inventing a LINE ID or external URL; release checks lock its SHA-256.
 - The homepage Gallery preview and `/gallery/` consume the same versioned manifest. No location, date, customer identity or unverified performance claim was inferred.
-- The guarded Z.com public-site deployment and live postcheck passed for this public static release.
+- Production remains on the preceding public-site release until the guarded Z.com pull, backup, deploy and live postcheck pass.
 
 ### Structured Site Content CMS and Gallery batch workflow
 

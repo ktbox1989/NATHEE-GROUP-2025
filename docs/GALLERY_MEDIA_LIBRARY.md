@@ -41,6 +41,8 @@ The current Z.com public website is static and cannot safely host D1/R2 admin lo
 - no company IDs, customer IDs, VIN, registration or R2 storage keys;
 - all referenced image files exist before deployment.
 
+The current release source contains nine Owner-approved public work photographs with responsive JPEG/WebP display and thumbnail variants. The site-wide brand artwork and Owner-supplied LINE QR are separate public release assets. The QR remains byte-identical to the supplied file and is referenced without guessing a LINE account ID or external URL.
+
 An empty manifest produces an honest empty state. It must not be replaced with stock images or invented work. When real photographs are supplied and publishing consent is confirmed, create responsive thumbnail/display files, update the manifest and rerun both public verifiers.
 
 ## Production gates

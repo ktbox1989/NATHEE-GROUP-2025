@@ -13,7 +13,7 @@ fail() {
   exit 1
 }
 
-for required_command in curl grep awk tr wc rm mkdir find date; do
+for required_command in curl grep awk tr wc rm mkdir find date sha256sum; do
   command -v "$required_command" >/dev/null 2>&1 || fail "$required_command is required"
 done
 
@@ -74,18 +74,25 @@ fetch /quotation/ "$TMP_DIR/quotation.html"
 fetch /assets/site.css "$TMP_DIR/site.css"
 fetch /assets/site.js "$TMP_DIR/site.js"
 fetch /assets/gallery.json "$TMP_DIR/gallery.json"
+fetch /assets/brand/nathee-logo-display.webp "$TMP_DIR/nathee-logo-display.webp"
+fetch /assets/contact/line-qr-owner-supplied.png "$TMP_DIR/line-qr-owner-supplied.png"
+fetch /assets/gallery/motorcycle-container-loading-01-display.webp "$TMP_DIR/motorcycle-container-loading-01-display.webp"
 fetch /robots.txt "$TMP_DIR/robots.txt"
 fetch /sitemap.xml "$TMP_DIR/sitemap.xml"
 
 grep -Fq '<link rel="canonical" href="https://natheegroup2025.com/">' "$TMP_DIR/index.html" || fail "live canonical link is wrong"
 grep -Fq '<meta property="og:title"' "$TMP_DIR/index.html" || fail "live Open Graph title is missing"
 grep -Fq '<meta property="og:description"' "$TMP_DIR/index.html" || fail "live Open Graph description is missing"
+grep -Fq '<meta property="og:image" content="https://natheegroup2025.com/assets/brand/nathee-logo-display.jpg">' "$TMP_DIR/index.html" || fail "live Owner-supplied social image is missing"
 grep -Fq '<meta name="twitter:title"' "$TMP_DIR/index.html" || fail "live Twitter title is missing"
 grep -Fq '<meta name="twitter:description"' "$TMP_DIR/index.html" || fail "live Twitter description is missing"
 grep -Fq 'type="application/ld+json"' "$TMP_DIR/index.html" || fail "live structured data is missing"
 grep -Fq '"Organization"' "$TMP_DIR/index.html" || fail "live Organization structured data is missing"
 grep -Fq 'href="tel:0631941191"' "$TMP_DIR/index.html" || fail "live primary telephone link is missing"
 grep -Fq 'href="tel:0856802082"' "$TMP_DIR/index.html" || fail "live secondary telephone link is missing"
+grep -Fq 'src="/assets/brand/nathee-logo-display.jpg"' "$TMP_DIR/index.html" || fail "live homepage logo artwork is missing"
+grep -Fq 'href="/contact/#line"' "$TMP_DIR/index.html" || fail "live LINE QR entry is missing"
+grep -Fq 'src="/assets/contact/line-qr-owner-supplied.png"' "$TMP_DIR/contact.html" || fail "live LINE QR image is missing"
 grep -Fq 'https://natheegroup2025.com/sitemap.xml' "$TMP_DIR/robots.txt" || fail "live robots sitemap URL is wrong"
 grep -Fq 'Disallow: /login-status.html' "$TMP_DIR/robots.txt" || fail "live robots file does not exclude login status"
 grep -Fq 'Disallow: /login/' "$TMP_DIR/robots.txt" || fail "live robots file does not exclude login route"
@@ -105,6 +112,11 @@ for route in services motorcycle-transport international storage container-loadi
   grep -Fq 'type="application/ld+json"' "$TMP_DIR/$route.html" || fail "live /$route/ structured data is missing"
 done
 grep -Fq '"version": 1' "$TMP_DIR/gallery.json" || fail "live Gallery manifest version is wrong"
+for gallery_id in motorcycle-truck-loading-01 motorcycle-storage-yard-01 nathee-yard-front-01 motorcycle-yard-container-01 motorcycle-storage-yard-02 motorcycle-fleet-staging-01 nathee-six-wheel-truck-01 motorcycle-pickup-loading-01 motorcycle-container-loading-01; do
+  grep -Fq "\"id\": \"$gallery_id\"" "$TMP_DIR/gallery.json" || fail "live Gallery item is missing ($gallery_id)"
+done
+line_qr_sha="$(sha256sum "$TMP_DIR/line-qr-owner-supplied.png" | awk '{ print $1 }')"
+[[ "$line_qr_sha" == "b2bae9fb2424bd2a316f942f56b95b75c7a767e898c778ebb241e3c952572de7" ]] || fail "live Owner-supplied LINE QR checksum is wrong"
 
 index_bytes="$(wc -c < "$TMP_DIR/index.html" | tr -d ' ')"
 css_bytes="$(wc -c < "$TMP_DIR/site.css" | tr -d ' ')"
@@ -116,7 +128,8 @@ critical_bytes=$((index_bytes + css_bytes + js_bytes))
 [[ $critical_bytes -le 102400 ]] || fail "live critical payload exceeds mobile byte budget"
 grep -Fq '<script src="/assets/site.js" defer></script>' "$TMP_DIR/index.html" || fail "live JavaScript is not deferred"
 printf 'PRODUCTION_SEO_CONTENT_PASS pages=11 metadata=verified jsonld=verified sitemap=public-only\n'
-printf 'PRODUCTION_GALLERY_CONTENT_PASS manifest=v1 privacy=public-only\n'
+printf 'PRODUCTION_GALLERY_CONTENT_PASS manifest=v1 publishedItems=9 privacy=public-only\n'
+printf 'PRODUCTION_OWNER_MEDIA_PASS logo=live lineQr=checksum-verified galleryItems=9\n'
 printf 'PRODUCTION_MOBILE_BUDGET_PASS criticalBytes=%s budget=102400\n' "$critical_bytes"
 
 wrong_domain_regex='natee''group2025\.com'
