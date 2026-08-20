@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const siteRoot = resolve(process.argv[2] ?? join(repositoryRoot, "public-site"));
+const wrongDomain = ["natee", "group2025.com"].join("");
 
 const requiredFiles = [
   ".htaccess",
@@ -18,7 +19,7 @@ const requiredFiles = [
 ];
 
 const forbiddenPatterns = [
-  ["wrong canonical hostname", /https:\/\/nateegroup2025\.com/i],
+  ["wrong canonical hostname", new RegExp(`https://${wrongDomain.replace(".", "\\.")}`, "i")],
   ["placeholder phone", /02-000-0000/i],
   ["unverified LINE ID", /@natheegroup/i],
   ["fictional company", /ABC MOTOR/i],

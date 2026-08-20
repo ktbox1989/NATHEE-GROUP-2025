@@ -119,7 +119,8 @@ printf 'PRODUCTION_SEO_CONTENT_PASS pages=11 metadata=verified jsonld=verified s
 printf 'PRODUCTION_GALLERY_CONTENT_PASS manifest=v1 privacy=public-only\n'
 printf 'PRODUCTION_MOBILE_BUDGET_PASS criticalBytes=%s budget=102400\n' "$critical_bytes"
 
-forbidden_regex='https://nateegroup2025\.com|02-000-0000|@natheegroup|ABC MOTOR|abc123|owner123|staff123|nathee2025|1,000\+|10,000\+'
+wrong_domain_regex='natee''group2025\.com'
+forbidden_regex="https://$wrong_domain_regex|02-000-0000|@natheegroup|ABC MOTOR|abc123|owner123|staff123|nathee2025|1,000\\+|10,000\\+"
 if grep -RInE "$forbidden_regex" "$TMP_DIR"; then
   fail "live site exposes demo, placeholder, or wrong-domain content"
 fi

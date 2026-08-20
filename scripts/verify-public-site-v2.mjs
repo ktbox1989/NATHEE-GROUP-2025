@@ -6,13 +6,14 @@ const repo = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const root = resolve(process.argv[2] ?? join(repo, "public-site"));
 const routes = ["/", "/services/", "/motorcycle-transport/", "/international/", "/storage/", "/container-loading/", "/dealer-fleet/", "/gallery/", "/about/", "/contact/", "/quotation/"];
 const routeFile = route => route === "/" ? "index.html" : `${route.slice(1)}index.html`;
+const wrongDomain = ["natee", "group2025.com"].join("");
 const required = [".htaccess", "404.html", "favicon.svg", "robots.txt", "sitemap.xml", "assets/site.css", "assets/site.js", "assets/gallery.json", "login/index.html", "login-status.html", ...routes.map(routeFile)];
 
 async function walk(directory) { const files = []; for (const entry of await readdir(directory, { withFileTypes: true })) { const path = join(directory, entry.name); if (entry.isSymbolicLink()) throw new Error(`Symbolic link forbidden: ${relative(root, path)}`); if (entry.isDirectory()) files.push(...await walk(path)); if (entry.isFile()) files.push(path); } return files; }
 for (const name of required) if (!(await lstat(join(root, name)).catch(() => null))?.isFile()) throw new Error(`Required file missing: ${name}`);
 const files = await walk(root), text = new Map();
 for (const file of files) if (["", ".html", ".css", ".js", ".json", ".txt", ".xml", ".svg"].includes(extname(file).toLowerCase())) text.set(relative(root, file).replaceAll("\\", "/"), await readFile(file, "utf8"));
-const forbidden = [["wrong canonical host", /https:\/\/nateegroup2025\.com/i], ["placeholder phone", /02-000-0000/i], ["unverified LINE", /@natheegroup/i], ["demo company", /ABC MOTOR/i], ["browser database", /nathee-quotes|window\.storage|localStorage/i], ["demo credentials", /abc123|owner123|staff123|nathee2025/i], ["unverified claims", /10\+\s*ปี|1,000\+|10,000\+/i]];
+const forbidden = [["wrong canonical host", new RegExp(`https://${wrongDomain.replace(".", "\\.")}`, "i")], ["placeholder phone", /02-000-0000/i], ["unverified LINE", /@natheegroup/i], ["demo company", /ABC MOTOR/i], ["browser database", /nathee-quotes|window\.storage|localStorage/i], ["demo credentials", /abc123|owner123|staff123|nathee2025/i], ["unverified claims", /10\+\s*ปี|1,000\+|10,000\+/i]];
 for (const [label, pattern] of forbidden) for (const [name, value] of text) if (pattern.test(value)) throw new Error(`${label} found in ${name}`);
 
 const titles = new Set(), descriptions = new Set();

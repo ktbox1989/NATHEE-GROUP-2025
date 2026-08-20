@@ -4,9 +4,9 @@ The application code is ready for managed email/password authentication. Real lo
 
 ## 1. Create the authentication project
 
-Create a Supabase project owned by NATHEE GROUP. In Authentication URL configuration, set the production Site URL and allow these redirect paths:
+Create a Supabase project owned by NATHEE GROUP. In Authentication URL configuration, set the production Site URL to `https://natheegroup2025.com` and allow these redirect paths:
 
-- `https://YOUR-DOMAIN/auth/callback`
+- `https://natheegroup2025.com/auth/callback`
 - `http://localhost:3000/auth/callback` for local verification only
 
 Email/password must be enabled. Configure the sender name and email template before inviting customers.

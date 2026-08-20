@@ -45,7 +45,8 @@ if find "$SITE_DIR" -type l -print | grep -q .; then
   fail "symbolic links are not allowed"
 fi
 
-forbidden_regex='https://nateegroup2025\.com|02-000-0000|@natheegroup|ABC MOTOR|nathee-quotes|window\.storage|localStorage|abc123|owner123|staff123|nathee2025|1,000\+|10,000\+'
+wrong_domain_regex='natee''group2025\.com'
+forbidden_regex="https://$wrong_domain_regex|02-000-0000|@natheegroup|ABC MOTOR|nathee-quotes|window\.storage|localStorage|abc123|owner123|staff123|nathee2025|1,000\\+|10,000\\+"
 if grep -RInE -- "$forbidden_regex" "$SITE_DIR"; then
   fail "demo, placeholder, or wrong-domain content found"
 fi

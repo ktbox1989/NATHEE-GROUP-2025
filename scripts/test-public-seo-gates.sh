@@ -41,9 +41,15 @@ mv "$fixture/index.next" "$fixture/index.html"
 expect_rejected canonical_missing
 
 reset_fixture
-grep -v '"@type": "Organization"' "$fixture/index.html" > "$fixture/index.next"
+awk '{gsub(/"Organization"/, "BROKEN_ORGANIZATION"); print}' "$fixture/index.html" > "$fixture/index.next"
 mv "$fixture/index.next" "$fixture/index.html"
 expect_rejected structured_data_missing
+
+reset_fixture
+wrong_domain='natee''group2025.com'
+awk -v wrong="$wrong_domain" '{gsub(/natheegroup2025\.com/, wrong); print}' "$fixture/index.html" > "$fixture/index.next"
+mv "$fixture/index.next" "$fixture/index.html"
+expect_rejected canonical_domain_typo
 
 reset_fixture
 grep -v 'noindex,nofollow,noarchive' "$fixture/login-status.html" > "$fixture/login.next"
@@ -66,4 +72,4 @@ reset_fixture
 dd if=/dev/zero bs=1024 count=50 2>/dev/null | tr '\000' x >> "$fixture/index.html"
 expect_rejected mobile_budget_exceeded
 
-printf 'PUBLIC_SEO_GATES_TEST_PASS mutations=6 canonical=fail_closed jsonld=fail_closed noindex=fail_closed sitemap=fail_closed alt=fail_closed mobile_budget=fail_closed\n'
+printf 'PUBLIC_SEO_GATES_TEST_PASS mutations=7 canonical=fail_closed domain_typo=fail_closed jsonld=fail_closed noindex=fail_closed sitemap=fail_closed alt=fail_closed mobile_budget=fail_closed\n'

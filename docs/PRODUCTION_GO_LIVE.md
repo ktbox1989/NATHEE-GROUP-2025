@@ -28,7 +28,8 @@ database password, JWT signing secret, or private key must never be exposed as a
 Configure the final production domain in Supabase Auth and allow:
 
 ```text
-https://YOUR-PRODUCTION-DOMAIN/auth/callback
+Site URL: https://natheegroup2025.com
+Callback: https://natheegroup2025.com/auth/callback
 ```
 
 ## 3. First owner
