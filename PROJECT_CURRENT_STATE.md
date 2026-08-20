@@ -6,7 +6,7 @@ Updated: 2026-08-21 (Asia/Bangkok)
 
 - Review branch: `codex/nathee-media-owner-2`
 - Integration baseline: `3cfd65a176cba858c6fd5d76cab61df5c78093f8`
-- Latest verified implementation milestone: Responsive layout and public media-delivery optimization (`22a545435b8acede3f0541d69bf4ce77a434c8d1`)
+- Latest verified implementation milestone: Commercial proof, service conversion content and durable quotation intake (`c5fbaa5054065550feefd71c16daf091a0c5ad43`)
 - Canonical repository: `ktbox1989/NATHEE-GROUP-2025`
 - Working rule: resolve the current checkpoint-document commit with `git rev-parse HEAD`; never infer Production deployment from source HEAD.
 
@@ -15,7 +15,7 @@ Updated: 2026-08-21 (Asia/Bangkok)
 - Public static website: LIVE at `https://natheegroup2025.com/`
 - Z.com root: `/home/zptqqwps/public_html/natheegroup2025.com`
 - Public routes: 11, with mandatory SEO/noindex/mobile gates
-- Public Gallery Production: LIVE manifest v1 with the two Owner-supplied real photographs, responsive thumbnails, captions and Alt text
+- Public Gallery Production: LIVE manifest v1 with nine Owner-supplied real photographs, responsive thumbnails, captions and Alt text
 - Canonical `/login/`: static noindex status page, not real Auth
 - Canonical `/app`: 404
 - Canonical `/api/health`: 404
@@ -25,6 +25,17 @@ Updated: 2026-08-21 (Asia/Bangkok)
 - Full application Production acceptance: NOT PASSED
 
 ## Closed local milestones
+
+### Commercial proof and durable quotation intake (`c5fbaa5`)
+
+- Replaced public Home/Gallery loading placeholders with server-rendered Owner-approved photography. Home, Services, the five service detail routes, About and Contact use the same nine-item public manifest and 54 verified JPEG/WebP/AVIF variants.
+- Every service route has a unique SEO title/description, service-specific four-step workflow, related real Gallery proof, at least three factual FAQs, FAQPage structured data and quotation/telephone CTA. No price, capacity, delivery-time or performance statistic is invented.
+- About presents only capabilities visible in supplied evidence: working yard, large motorcycle staging, 4-wheel and 6-wheel transport and Container loading. Contact includes real telephone/LINE navigation and a Google Maps search-by-company-name action; no street address or map pin is claimed until Owner supplies a verified link.
+- Full App public Gallery sections and `/gallery` use the approved static manifest as a real-photo fallback when D1 is absent or empty, while D1 `PUBLIC` + `PUBLISHED` rows remain authoritative when available.
+- Added a real `/quotation` form and `POST /api/quotation` D1 path. Validation is bounded, same-origin, consented and honeypot-protected; a database-unique request key makes retries and concurrent submissions idempotent, and success appears only after the request and a redacted Audit record commit.
+- Added OWNER-only `/app/quotations` with bounded 50-record keyset pages and audited status updates. Migration `0015_graceful_ben_urich` preserves legacy rows, requires consent for public submissions, makes submission identity immutable and prohibits hard deletion.
+- Verification: full tests 125/125 (73 unit + 52 integration), TypeScript PASS, ESLint PASS, Production build PASS, public SEO/Gallery/mobile/responsive/deployment guards PASS, secret scan PASS and `git diff --check` PASS.
+- Deployment boundary: improved static pages are eligible for the existing guarded Z.com flow after integration. The online quotation form remains NOT Production-live until the separate Cloudflare runtime, Supabase Auth/Owner mapping, D1 backup plus migrations through `0015`, R2 and an approved anti-abuse control pass.
 
 ### Responsive layout and public media delivery (`22a5454`)
 
@@ -130,7 +141,7 @@ Updated: 2026-08-21 (Asia/Bangkok)
 - Added immutable content revisions with SHA-256 hashes, append-only publication events, same-page publication enforcement, Audit records and forward-only rollback by republishing an older revision.
 - Added explicit `site:read`, `site:write` and `site:publish` permissions. OWNER retains business-wide rights; every other internal role remains fail-closed and CUSTOMER roles receive no CMS access.
 - Added a bounded Gallery batch uploader for up to 20 real images per batch. Images are processed and uploaded sequentially, require title/Alt text, remain Draft until separately published and preserve completed Drafts when a later image fails.
-- Public CMS Gallery sections query only `PUBLIC` + `PUBLISHED` items, remain bounded to 24 images per section and fail safely to an honest empty state when Gallery storage is unavailable.
+- Public CMS Gallery sections query only `PUBLIC` + `PUBLISHED` D1 items, remain bounded to 24 images per section and fall back to the checked-in Owner-approved real-photo manifest when Gallery storage is unavailable or empty.
 - Kept Gallery media management separate from text editing so categories, Alt text, featured selection, ordering, visibility, responsive variants and audit history remain intact. The Site Content dashboard links directly to Media Library.
 - Migration `0012` adds Site Content pages/revisions/publication history and the new permissions. It remains unapplied in Production.
 
@@ -154,7 +165,7 @@ Updated: 2026-08-21 (Asia/Bangkok)
 - Added a single allowlisted application-origin contract. Production accepts only `https://natheegroup2025.com`; private `*.chatgpt.site` previews and localhost are explicit non-Production cases.
 - Password recovery, invitations and the Auth callback no longer derive sensitive redirect destinations from the request Host. Same-origin mutation checks now reject Host-spoofed requests and a Production runtime without `APP_ORIGIN` fails closed.
 - Supabase public/admin configuration rejects placeholders, malformed URLs, secret/public key confusion and values outside the approved `sb_publishable_...` / `sb_secret_...` contract.
-- `/api/health` now requires five independent checks: public Auth, admin Auth, canonical origin, required D1 tables/indexes/triggers through migration `0014`, and a read-only R2 metadata probe. A bare database connection or binding name can no longer claim Production readiness.
+- `/api/health` now requires five independent checks: public Auth, admin Auth, canonical origin, required D1 tables/indexes/triggers through migration `0015`, and a read-only R2 metadata probe. A bare database connection or binding name can no longer claim Production readiness.
 - This is source-only. No Supabase value, D1 migration, R2 object, Sites version, DNS record or Z.com Production file was changed.
 
 ### Exact confirmed Auth identity mapping
@@ -172,20 +183,20 @@ Updated: 2026-08-21 (Asia/Bangkok)
 - Production Vinext build: PASS
 - ESLint: PASS
 - Public SEO and deployment architecture guards: PASS
-- Migrations through `0014` packaged in `dist/.openai/drizzle/`: PASS
+- Migrations through `0015` packaged in `dist/.openai/drizzle/`: PASS
 
 ## Open Owner gates
 
 - Approve application routing model: apex edge routes or an application subdomain.
 - Supply/configure Supabase Production values through a secure hosting channel.
-- Backup and apply migrations `0001`–`0014` to the protected D1 runtime.
+- Backup and apply migrations `0001`–`0015` to the protected D1 runtime.
 - Verify private R2 readiness.
 - Bootstrap the real OWNER identity and accept two-company customer isolation.
 - Deploy the two approved Gallery photographs and add verified location/map data when supplied.
 
 ## Next autonomous work
 
-1. Stop adding broad local modules and close the Production activation gates: canonical app route, Supabase environment/callback, D1 backup+ledger+migrations `0001`–`0014`, R2 readiness and real OWNER mapping.
+1. Stop adding broad local modules and close the Production activation gates: canonical app route, Supabase environment/callback, D1 backup+ledger+migrations `0001`–`0015`, R2 readiness, real OWNER mapping and approved quotation anti-abuse control.
 2. Run real browser acceptance for OWNER and two isolated customer companies before exposing `/app` publicly.
 3. Configure external LINE/email notification providers only after credentials, consent, retry and escalation policy are approved.
 4. Keep all new migrations unapplied until the Production backup/runtime gates are satisfied.

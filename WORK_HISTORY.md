@@ -1,5 +1,15 @@
 # NATHEE GROUP 2025 — Work History
 
+## 2026-08-21 — Commercial proof and durable quotation intake
+
+- Implementation commit: `c5fbaa5`
+- Replaced public Gallery/loading placeholders with nine real Owner-approved company photographs rendered in initial HTML, and reused the same manifest as the Full App public-media fallback.
+- Expanded every public service route with unique SEO content, workflow, related real Gallery, FAQ/structured data and conversion CTA. About now documents only photographed yard/fleet/loading capability; Contact provides verified phone/LINE and a fail-closed company-name Maps search without inventing an address.
+- Added a real D1 quotation form/API, concurrent-safe request-key idempotency, consent/source invariants, redacted Audit, hard-delete protection and OWNER-only bounded quotation inbox/status workflow in additive migration `0015`.
+- Verification: full tests 125/125, TypeScript PASS, ESLint PASS, Production build PASS, responsive/SEO/Gallery/deployment guards PASS, scoped secret scan PASS and `git diff --check` PASS.
+- Deployment: no Production, DNS, Supabase, D1 or R2 change was made. Static Z.com release may proceed only after main integration and the existing backup/verify/postcheck flow. The Full App quotation backend remains gated by Cloudflare runtime/Auth/D1/R2/anti-abuse acceptance.
+- Remaining Owner input: exact verified Google Maps share link or street address; current public navigation intentionally asks the visitor to confirm the point by phone/LINE.
+
 ## 2026-08-21 — Responsive layout and real-photo delivery hardening
 
 - Preserved the current premium baseline while adding fluid max-width containers, responsive type/gutters, 44px mobile controls, overflow protection and accessible collapsible navigation to the public CMS and authenticated app shells.
