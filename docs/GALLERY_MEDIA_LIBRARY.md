@@ -30,6 +30,8 @@ The admin batch uploader accepts at most 20 images at a time and processes them 
 
 Every queued image owns one secure `gallery-upload-<UUID>` request key for its entire retry lifetime. The API has a matching database unique index and returns the canonical row on duplicate/concurrent retry. The browser marks `DONE` only for HTTP 2xx JSON containing `ok=true`, a non-empty `galleryItemId` and a boolean duplicate flag; redirect HTML, incomplete JSON, Auth failure and validation failure remain visible errors. This prevents a followed redirect from fabricating a successful Draft.
 
+The server does not trust browser-provided image geometry. It reads dimensions from the uploaded JPEG, PNG, WebP, AVIF, HEIC or HEIF bytes, rejects malformed or over-80-million-pixel artifacts and requires Display/Thumbnail claims to match exactly before saving immutable metadata. Candidate R2 keys are registered before each write; a failed D1/R2 path attempts every cleanup and reports uncertainty rather than silently succeeding.
+
 The read route negotiates AVIF/WebP with `Accept`, sends immutable-style public caching only for public/published items, and sends `private, no-store` for authorized private items.
 
 ## Static Z.com release manifest

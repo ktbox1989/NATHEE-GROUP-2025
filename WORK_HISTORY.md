@@ -1,5 +1,14 @@
 # NATHEE GROUP 2025 — Work History
 
+## 2026-08-21 — Server-verified image artifacts and R2 compensation
+
+- Implementation commit: `5629c21`
+- Replaced browser-trusted image dimensions with dimensions parsed from the stored JPEG, PNG, WebP, AVIF, HEIC or HEIF bytes. Display/Thumbnail claims must exactly match; originals receive authoritative dimensions even when the client omits them. Oversized decoded geometry fails before R2/D1 persistence.
+- Registered each Gallery, motorcycle-evidence and quotation object key before its R2 write so a timeout after a server-side commit remains compensatable. Cleanup is all-settled; the image APIs distinguish cleanup uncertainty and retry reconciliation from a confirmed durable success.
+- Verification: full tests 172/172 (105 unit + 67 integration), TypeScript PASS, ESLint PASS, Vinext Production build PASS, public SEO/Gallery/mobile/responsive/deployment guards PASS, real JPEG/WebP/AVIF artifact checks PASS, scoped secret scan PASS and `git diff --check` PASS.
+- Deployment: source only. No migration, Z.com file, Sites version, Auth setting, D1 row, R2 object, DNS or Production runtime changed.
+- Rollback: revert `5629c21`; no schema rollback is required. Do not delete existing Gallery, evidence or quotation objects while rolling back application code.
+
 ## 2026-08-21 — Fail-closed Gallery batch uploads
 
 - Implementation commit: `ab3c868`

@@ -6,7 +6,7 @@ Updated: 2026-08-21 (Asia/Bangkok)
 
 - Review branch: `codex/nathee-media-owner-2`
 - Integration baseline: `3cfd65a176cba858c6fd5d76cab61df5c78093f8`
-- Latest verified implementation milestone: Fail-closed Gallery batch uploads (`ab3c868681f2e14e9bb1a9f458c5df29de6d25e7`)
+- Latest verified implementation milestone: Server-verified image artifacts and R2 compensation (`5629c21b26860c89ba5a25b126e6750e73c6b452`)
 - Canonical repository: `ktbox1989/NATHEE-GROUP-2025`
 - Working rule: resolve the current checkpoint-document commit with `git rev-parse HEAD`; never infer Production deployment from source HEAD.
 
@@ -25,6 +25,14 @@ Updated: 2026-08-21 (Asia/Bangkok)
 - Full application Production acceptance: NOT PASSED
 
 ## Closed local milestones
+
+### Server-verified image artifacts and R2 compensation (`5629c21`)
+
+- Closed a data-correctness gap shared by Gallery and private motorcycle evidence: the server previously verified MIME signatures but persisted width/height supplied by the browser. New uploads now derive JPEG, PNG, WebP and ISO-media (AVIF/HEIC/HEIF) dimensions from the actual bytes, reject mismatched client claims and reject decoded geometry above 80 million pixels.
+- Verified the parser against the real checked-in JPEG, WebP and AVIF release variants (1600×900). Persisted responsive metadata now describes the stored artifact rather than an untrusted request field, protecting aspect ratio, layout stability and evidence review.
+- Gallery, evidence and quotation object writes now register every candidate key before the potentially ambiguous R2 call. Cleanup uses all-settled compensation; image routes report cleanup uncertainty explicitly and never throw past reconciliation or claim an unproved success.
+- Verification: full tests 172/172 (105 unit + 67 integration), TypeScript PASS, ESLint PASS, Vinext Production build PASS, public SEO/Gallery/mobile/responsive/deployment guards PASS, real-artifact dimension checks PASS, scoped secret scan PASS and `git diff --check` PASS.
+- No migration was added and Production remains unchanged. Real R2/browser acceptance still requires the gated full application runtime, Auth/Owner mapping and existing migrations.
 
 ### Fail-closed Gallery batch uploads (`ab3c868`)
 
