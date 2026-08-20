@@ -95,6 +95,7 @@ export const TRIP_STATUSES = ["DRAFT", "PLANNED", "LOADING", "IN_TRANSIT", "ARRI
 export const TRIP_ASSIGNMENT_STATES = ["ASSIGNED", "LOADED", "UNLOADED", "RELEASED"] as const;
 export const CONTAINER_TYPES = ["20FT", "40FT", "40HC"] as const;
 export const CONTAINER_STATUSES = ["DRAFT", "PLANNED", "LOADING", "SEALED", "IN_TRANSIT", "ARRIVED", "UNLOADING", "COMPLETED", "CANCELLED"] as const;
+export const CONTAINER_ASSIGNMENT_STATES = ["ASSIGNED", "LOADED", "UNLOADED", "RELEASED"] as const;
 
 const createdAt = () =>
   text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`);
@@ -458,6 +459,38 @@ export const tripMotorcycleAssignments = sqliteTable(
   ],
 );
 
+export const containerMotorcycleAssignments = sqliteTable(
+  "container_motorcycle_assignments",
+  {
+    id: text("id").primaryKey(),
+    requestKey: text("request_key").notNull(),
+    containerId: text("container_id").notNull().references(() => shippingContainers.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    motorcycleId: text("motorcycle_id").notNull().references(() => motorcycles.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    companyId: text("company_id").notNull().references(() => companies.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    state: text("state", { enum: CONTAINER_ASSIGNMENT_STATES }).notNull().default("ASSIGNED"),
+    assignedBy: text("assigned_by").notNull().references(() => users.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    assignedAt: text("assigned_at").notNull(),
+    loadedAt: text("loaded_at"),
+    unloadedAt: text("unloaded_at"),
+    releasedAt: text("released_at"),
+    releaseReason: text("release_reason"),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    uniqueIndex("uq_container_assignments_request_key").on(table.requestKey),
+    uniqueIndex("uq_container_assignments_motorcycle_active").on(table.motorcycleId).where(sql`${table.releasedAt} IS NULL`),
+    index("idx_container_assignments_container_state").on(table.containerId, table.state, table.assignedAt, table.id),
+    index("idx_container_assignments_company_active").on(table.companyId, table.assignedAt).where(sql`${table.releasedAt} IS NULL`),
+    check("ck_container_assignments_state", sql`${table.state} IN ('ASSIGNED', 'LOADED', 'UNLOADED', 'RELEASED')`),
+    check("ck_container_assignments_release", sql`(${table.state} = 'RELEASED') = (${table.releasedAt} IS NOT NULL)`),
+    check("ck_container_assignments_loaded", sql`${table.state} NOT IN ('LOADED', 'UNLOADED') OR ${table.loadedAt} IS NOT NULL`),
+    check("ck_container_assignments_unloaded", sql`${table.state} <> 'UNLOADED' OR ${table.unloadedAt} IS NOT NULL`),
+    check("ck_container_assignments_time_order", sql`${table.loadedAt} IS NULL OR ${table.loadedAt} >= ${table.assignedAt}`),
+    check("ck_container_assignments_unload_order", sql`${table.unloadedAt} IS NULL OR (${table.loadedAt} IS NOT NULL AND ${table.unloadedAt} >= ${table.loadedAt})`),
+    check("ck_container_assignments_release_reason", sql`${table.state} <> 'RELEASED' OR length(${table.releaseReason}) BETWEEN 3 AND 500`),
+  ],
+);
+
 export const yardZones = sqliteTable(
   "yard_zones",
   {
@@ -790,3 +823,4 @@ export type TripStatus = (typeof TRIP_STATUSES)[number];
 export type TripAssignmentState = (typeof TRIP_ASSIGNMENT_STATES)[number];
 export type ContainerType = (typeof CONTAINER_TYPES)[number];
 export type ContainerStatus = (typeof CONTAINER_STATUSES)[number];
+export type ContainerAssignmentState = (typeof CONTAINER_ASSIGNMENT_STATES)[number];

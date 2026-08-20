@@ -71,6 +71,13 @@
       "when": 1787249492619,
       "tag": "0009_container_registry",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1787250009394,
+      "tag": "0010_container_motorcycle_loads",
+      "breakpoints": true
     }
   ]
 }

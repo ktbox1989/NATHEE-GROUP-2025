@@ -50,6 +50,7 @@ test("fresh migrations create every phase-one table", () => {
   assert.deepEqual(tables, [
     "audit_logs",
     "companies",
+    "container_motorcycle_assignments",
     "container_status_events",
     "gallery_categories",
     "gallery_image_variants",
@@ -224,7 +225,7 @@ test("truck and trip constraints preserve fleet identity, time order and immutab
   db.close();
 });
 
-test("container registry preserves ISO identity and stays draft until load invariants exist", () => {
+test("container registry preserves ISO identity and refuses planning before a real load assignment", () => {
   const db = createMigratedDatabase();
   db.exec(`
     INSERT INTO users (id, external_auth_id, email, display_name, role)
@@ -242,7 +243,7 @@ test("container registry preserves ISO identity and stays draft until load invar
     VALUES ('container-b', '0198f708-44a3-7ef7-8d4f-4f477922ad02', 'container-public-b', 'BAD-NUMBER', '20FT', 'Port', 'Country', 'owner-container')
   `));
   assert.throws(() => db.exec("UPDATE shipping_containers SET container_number = 'CSQU3054391' WHERE id = 'container-a'"), /identity is immutable/);
-  assert.throws(() => db.exec("UPDATE shipping_containers SET status = 'PLANNED' WHERE id = 'container-a'"), /lifecycle requires/);
+  assert.throws(() => db.exec("UPDATE shipping_containers SET status = 'PLANNED' WHERE id = 'container-a'"), /readiness/);
   assert.throws(() => db.exec("DELETE FROM shipping_containers WHERE id = 'container-a'"), /cannot be deleted/);
   const plan = db.prepare("EXPLAIN QUERY PLAN SELECT id FROM shipping_containers WHERE status = ? ORDER BY created_at, id LIMIT 51").all("DRAFT").map((row) => String(row.detail)).join(" ");
   assert.match(plan, /idx_shipping_containers_status_created/);
