@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { QrScanner } from "@/components/qr-scanner";
 import { getDb } from "@/db";
 import { companies, motorcycles, transportJobs } from "@/db/schema";
-import { can } from "@/lib/authorization";
+import { can, isCustomerRole } from "@/lib/authorization";
 import { requireActor } from "@/lib/current-actor";
 import { motorcycleStatusLabels } from "@/lib/labels";
 import { parseMotorcycleQrToken } from "@/lib/qr";
@@ -17,12 +17,13 @@ type ScanPageProps = {
 
 export default async function ScanPage({ searchParams }: ScanPageProps) {
   const actor = await requireActor("/app/scan");
-  const policyCompany = actor.role === "CUSTOMER" ? actor.companyId : undefined;
+  const customerRole = isCustomerRole(actor.role);
+  const policyCompany = customerRole ? actor.companyId : undefined;
   if (!can(actor, "motorcycles:read", policyCompany)) redirect("/app");
 
   const { code } = await searchParams;
   const publicId = code === undefined ? null : parseMotorcycleQrToken(code);
-  const customerScope = actor.role === "CUSTOMER" && actor.companyId
+  const customerScope = customerRole && actor.companyId
     ? eq(motorcycles.companyId, actor.companyId)
     : undefined;
   const record = publicId

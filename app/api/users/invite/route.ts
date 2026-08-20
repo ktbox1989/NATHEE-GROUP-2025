@@ -1,10 +1,10 @@
 import { and, eq } from "drizzle-orm";
 import { NextResponse, type NextRequest } from "next/server";
 import { getDb } from "@/db";
-import { auditLogs, companies, userPermissions, users, USER_ROLES } from "@/db/schema";
+import { auditLogs, companies, userPermissions, userRoleAssignments, users, USER_ROLES } from "@/db/schema";
 import type { UserRole } from "@/db/schema";
 import { makeAuditRecord } from "@/lib/audit";
-import { PERMISSIONS } from "@/lib/authorization";
+import { isCustomerRole, legacyRoleFor, PERMISSIONS, usesExplicitPermissions } from "@/lib/authorization";
 import type { Permission } from "@/lib/authorization";
 import { getCurrentActor } from "@/lib/current-actor";
 import { isSameOrigin } from "@/lib/same-origin";
@@ -20,12 +20,13 @@ export async function POST(request: NextRequest) {
   const displayName = String(form.get("displayName") ?? "").trim();
   const email = String(form.get("email") ?? "").trim().toLowerCase();
   const rawRole = String(form.get("role") ?? "");
-  const companyId = String(form.get("companyId") ?? "") || null;
+  const requestedCompanyId = String(form.get("companyId") ?? "") || null;
   if (!displayName || !email || !USER_ROLES.includes(rawRole as UserRole)) {
     return NextResponse.redirect(new URL("/app/users?error=invalid", request.url), 303);
   }
   const role = rawRole as UserRole;
-  if (role === "CUSTOMER" && !companyId) {
+  const companyId = isCustomerRole(role) ? requestedCompanyId : null;
+  if (isCustomerRole(role) && !companyId) {
     return NextResponse.redirect(new URL("/app/users?error=company", request.url), 303);
   }
 
@@ -34,7 +35,7 @@ export async function POST(request: NextRequest) {
     const company = await db.select({ id: companies.id }).from(companies).where(and(eq(companies.id, companyId), eq(companies.status, "ACTIVE"))).get();
     if (!company) return NextResponse.redirect(new URL("/app/users?error=company", request.url), 303);
   }
-  const selectedPermissions = role === "STAFF"
+  const selectedPermissions = usesExplicitPermissions(role)
     ? form.getAll("permissions").map(String).filter((value): value is Permission => PERMISSIONS.includes(value as Permission))
     : [];
 
@@ -57,7 +58,8 @@ export async function POST(request: NextRequest) {
   const id = crypto.randomUUID();
   try {
     await db.batch([
-      db.insert(users).values({ id, externalAuthId: authUserId, email, displayName, role, companyId }),
+      db.insert(users).values({ id, externalAuthId: authUserId, email, displayName, role: legacyRoleFor(role), companyId }),
+      db.insert(userRoleAssignments).values({ userId: id, role, assignedBy: actor.userId }),
       ...selectedPermissions.map((permission) => db.insert(userPermissions).values({ userId: id, permission, grantedBy: actor.userId })),
       db.insert(auditLogs).values(makeAuditRecord({ actor, action: "INVITE", entityType: "user", entityId: id, companyId, after: { email, displayName, role, companyId, permissions: selectedPermissions } })),
     ]);

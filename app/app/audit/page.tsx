@@ -2,13 +2,14 @@ import { desc, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { getDb } from "@/db";
 import { auditLogs, companies, users } from "@/db/schema";
+import { can } from "@/lib/authorization";
 import { requireActor } from "@/lib/current-actor";
 
 export const dynamic = "force-dynamic";
 
 export default async function AuditPage() {
   const actor = await requireActor("/app/audit");
-  if (actor.role !== "OWNER") redirect("/app");
+  if (!can(actor, "audit:read")) redirect("/app");
   const rows = await getDb()
     .select({
       id: auditLogs.id,

@@ -6,7 +6,7 @@ Responsive public website and motorcycle-logistics operations platform for deskt
 
 - Public-site visual baseline migrated from the original prototype.
 - Email/password login, logout, recovery, and password-update flows use managed Supabase Auth with server-managed cookies.
-- OWNER, capability-based STAFF, and company-bound CUSTOMER permissions are enforced on the server.
+- OWNER plus ADMIN, STAFF, SALE, WAREHOUSE, CHECKER, DRIVER and ACCOUNTING roles use server-enforced capabilities; CUSTOMER_ADMIN and CUSTOMER_VIEWER are company-bound on every read.
 - Customer companies, transport jobs, motorcycles, private images, status timeline, member invitations, and audit log are implemented as the first vertical slice.
 - Opaque motorcycle QR lookup, mobile camera scanning, and permission-gated single/bounded-batch label printing are implemented without placing VIN, registration, or customer data in the QR payload.
 - Yard operations include real zones, capacity-aware placement, current-location lookup, append-only movement history, optimistic stale-write protection, and audit records.
@@ -49,8 +49,8 @@ Node.js 22.13 or newer is required.
 ## Data boundaries
 
 - OWNER can access all company records.
-- STAFF receives explicit capabilities; the role does not grant every action automatically.
-- CUSTOMER access requires a mapped company and is restricted to read-only records belonging to that company.
+- Every non-owner internal role receives explicit capabilities; its role name alone does not grant an action.
+- CUSTOMER_ADMIN and CUSTOMER_VIEWER require a mapped company and are currently restricted to read-only records belonging to that company.
 - Permissions are enforced in server code. Client-side menus are presentation only.
 - Operational records are cancelled or archived rather than silently deleted, and material changes must produce audit entries.
 - Business writes and their audit entries are committed together. Status changes also use an optimistic current-status check to prevent concurrent devices from skipping the workflow.

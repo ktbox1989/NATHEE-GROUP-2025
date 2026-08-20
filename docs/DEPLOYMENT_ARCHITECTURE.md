@@ -13,7 +13,7 @@ application, API, database, storage or authentication is deployed.
 | Login/Auth frontend | `app/login/`, `app/api/auth/`, `app/auth/callback/` | No accepted canonical runtime. `https://natheegroup2025.com/login/` is only a noindex status page. | `LOGIN_STATIC_PLACEHOLDER` |
 | OWNER/STAFF/CUSTOMER application | `app/app/`, `app/portal/` | No accepted canonical runtime; `https://natheegroup2025.com/app` returned 404 | `FULL_APPLICATION_NOT_DEPLOYED` |
 | Backend/API | `app/api/`, `worker/` | No accepted canonical runtime; `https://natheegroup2025.com/api/health` returned 404 | `BACKEND_API_NOT_DEPLOYED` |
-| Database/migrations | `db/`, `drizzle/0000` through `0003` | A protected Sites D1 has the ten `0000` base tables, but no verified migration ledger and no `0001` Yard or `0002`/`0003` Gallery tables | `DATABASE_NOT_PRODUCTION_VERIFIED` |
+| Database/migrations | `db/`, `drizzle/0000` through `0004` | A protected Sites D1 has the ten `0000` base tables, but no verified migration ledger and no `0001` Yard, `0002`/`0003` Gallery or `0004` canonical role-assignment tables | `DATABASE_NOT_PRODUCTION_VERIFIED` |
 | QR / label printing | QR API, scanner, single and bounded-batch label pages in source | No Production URL because application runtime is absent | Source/build only |
 | Notifications | No route, table, provider adapter or delivery worker found | None | `NOTIFICATIONS_MISSING` |
 | Managed Gallery/Media Library | `app/app/gallery/`, Gallery APIs, migrations `0002`/`0003`, R2 metadata | None | Source/build only; migrations and R2 not Production-verified |
@@ -64,7 +64,7 @@ presence of Node or PHP on Z.com would not provide Cloudflare D1/R2 bindings.
    with real D1/R2 bindings.
 3. Keep the application private until `/api/health` returns HTTP 200 with
    `authentication`, `database`, and `storage` all `true`.
-4. Apply migrations `0000` through `0003` once, in order, with a migration
+4. Apply migrations `0000` through `0004` once, in order, with a migration
    ledger and pre-migration backup. Never copy or edit an applied migration.
 5. Configure Supabase Site URL and callback for the final public routing model,
    then create the real OWNER mapping. No demo account is allowed.
@@ -124,7 +124,8 @@ all three readiness checks are true. A public-site `DEPLOY_PASS` or
 - Supabase Production Auth values are absent from the current Sites runtime and
   its callback has not been runtime-verified.
 - D1 has only the ten base tables; migration ledger, `0001` Yard,
-  `0002`/`0003` Gallery and R2 runtime readiness are not verified.
+  `0002`/`0003` Gallery, `0004` role assignments and R2 runtime readiness are
+  not verified.
 - Real OWNER mapping and CUSTOMER cross-company isolation are not accepted.
 - Notification delivery has not been implemented.
 - No real public Gallery photograph is present in the static manifest.

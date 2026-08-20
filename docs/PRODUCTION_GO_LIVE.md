@@ -6,8 +6,9 @@ runtime.
 
 ## 1. Platform resources
 
-- D1 binding `DB` exists and migration `drizzle/0000_harsh_speed_demon.sql`
-  has been applied exactly once.
+- D1 binding `DB` exists and migrations `drizzle/0000` through `0004` have
+  each been applied exactly once in order. Verify the migration ledger before
+  applying any missing file; never rerun the full chain blindly.
 - R2 binding `FILES` exists and is private.
 - The deployed database contains the Phase 1 tables listed in
   `AUDIT_AND_MIGRATION_PLAN.md`.

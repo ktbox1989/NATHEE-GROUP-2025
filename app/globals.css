@@ -109,7 +109,8 @@ footer { border-top: 1px solid var(--border); background: #050611; color: var(--
 .app-brand b { font-size: 14px; font-weight: 620; }
 .app-role { padding: 4px 11px; border: 1px solid var(--border-strong); border-radius: 999px; background: var(--gradient-soft); color: #d6ccff; font-family: var(--font-mono); font-size: 9px; letter-spacing: .08em; }
 .app-role.OWNER { border-color: rgba(251,191,36,.45); background: rgba(251,191,36,.1); color: #fde68a; }
-.app-role.CUSTOMER { border-color: rgba(52,211,153,.42); background: rgba(52,211,153,.08); color: #a7f3d0; }
+.app-role.ADMIN { border-color: rgba(251,191,36,.35); background: rgba(251,191,36,.07); color: #fef3c7; }
+.app-role.CUSTOMER_ADMIN, .app-role.CUSTOMER_VIEWER { border-color: rgba(52,211,153,.42); background: rgba(52,211,153,.08); color: #a7f3d0; }
 .app-spacer { flex: 1; }
 .app-who { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.3; }
 .app-who b { font-size: 12.5px; font-weight: 600; }

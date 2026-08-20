@@ -4,7 +4,7 @@ import { and, asc, desc, eq, isNull } from "drizzle-orm";
 import { notFound, redirect } from "next/navigation";
 import { getDb } from "@/db";
 import { companies, motorcycleImages, motorcycles, statusEvents, transportJobs, users, yardPlacements, yardZones } from "@/db/schema";
-import { can } from "@/lib/authorization";
+import { can, isCustomerRole } from "@/lib/authorization";
 import { requireActor } from "@/lib/current-actor";
 import { motorcycleStatusLabels } from "@/lib/labels";
 import { allowedTransitions } from "@/lib/status-transitions";
@@ -22,7 +22,7 @@ export default async function MotorcycleDetailPage({ params, searchParams }: Mot
   const query = await searchParams;
   const actor = await requireActor(`/app/motorcycles/${id}`);
   const db = getDb();
-  const customerScope = actor.role === "CUSTOMER" && actor.companyId
+  const customerScope = isCustomerRole(actor.role) && actor.companyId
     ? eq(motorcycles.companyId, actor.companyId)
     : undefined;
   const record = await db

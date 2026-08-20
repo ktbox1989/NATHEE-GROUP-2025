@@ -3,7 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getDb } from "@/db";
 import { companies, transportJobs } from "@/db/schema";
-import { can } from "@/lib/authorization";
+import { can, isCustomerRole } from "@/lib/authorization";
 import { requireActor } from "@/lib/current-actor";
 
 export const dynamic = "force-dynamic";
@@ -14,11 +14,12 @@ type JobsPageProps = {
 
 export default async function JobsPage({ searchParams }: JobsPageProps) {
   const actor = await requireActor("/app/jobs");
-  const policyCompany = actor.role === "CUSTOMER" ? actor.companyId : undefined;
+  const customerRole = isCustomerRole(actor.role);
+  const policyCompany = customerRole ? actor.companyId : undefined;
   if (!can(actor, "jobs:read", policyCompany)) redirect("/app");
   const params = await searchParams;
   const db = getDb();
-  const scope = actor.role === "CUSTOMER" && actor.companyId
+  const scope = customerRole && actor.companyId
     ? eq(transportJobs.companyId, actor.companyId)
     : undefined;
   const rows = await db
@@ -52,7 +53,7 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
   return (
     <>
       <div className="app-page-head">
-        <div><p>TRANSPORT JOBS</p><h1>งานขนส่ง</h1><span>{actor.role === "CUSTOMER" ? "งานของบริษัทคุณเท่านั้น" : "เปิดงานและติดตามความคืบหน้า"}</span></div>
+        <div><p>TRANSPORT JOBS</p><h1>งานขนส่ง</h1><span>{customerRole ? "งานของบริษัทคุณเท่านั้น" : "เปิดงานและติดตามความคืบหน้า"}</span></div>
       </div>
       {params.status === "created" && <div className="form-message success page-message">เปิดงานขนส่งเรียบร้อยแล้ว</div>}
       {params.error && <div className="form-message error page-message">เปิดงานไม่สำเร็จ กรุณาตรวจสอบข้อมูล</div>}

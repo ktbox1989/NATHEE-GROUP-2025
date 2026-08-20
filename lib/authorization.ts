@@ -1,3 +1,10 @@
+import {
+  CUSTOMER_USER_ROLES,
+  INTERNAL_USER_ROLES,
+  type LegacyUserRole,
+  type UserRole,
+} from "../db/schema.ts";
+
 export const PERMISSIONS = [
   "companies:read",
   "companies:write",
@@ -19,7 +26,7 @@ export const PERMISSIONS = [
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
-export type Role = "OWNER" | "STAFF" | "CUSTOMER";
+export type Role = UserRole;
 
 export type Actor = {
   userId: string;
@@ -45,6 +52,29 @@ export class AuthorizationError extends Error {
   }
 }
 
+export function isCustomerRole(role: Role): boolean {
+  return CUSTOMER_USER_ROLES.includes(role as (typeof CUSTOMER_USER_ROLES)[number]);
+}
+
+export function isInternalRole(role: Role): boolean {
+  return INTERNAL_USER_ROLES.includes(role as (typeof INTERNAL_USER_ROLES)[number]);
+}
+
+export function usesExplicitPermissions(role: Role): boolean {
+  return role !== "OWNER" && isInternalRole(role);
+}
+
+export function legacyRoleFor(role: Role): LegacyUserRole {
+  if (role === "OWNER") return "OWNER";
+  return isCustomerRole(role) ? "CUSTOMER" : "STAFF";
+}
+
+export function effectiveRoleFromLegacy(role: LegacyUserRole): Role {
+  if (role === "OWNER") return "OWNER";
+  if (role === "CUSTOMER") return "CUSTOMER_VIEWER";
+  return "STAFF";
+}
+
 export function can(
   actor: Actor,
   permission: Permission,
@@ -52,7 +82,7 @@ export function can(
 ): boolean {
   if (actor.role === "OWNER") return true;
 
-  if (actor.role === "STAFF") {
+  if (usesExplicitPermissions(actor.role)) {
     return actor.permissions?.includes(permission) ?? false;
   }
 

@@ -3,7 +3,7 @@ import { asc, desc, eq, notInArray } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { getDb } from "@/db";
 import { companies, motorcycles, transportJobs } from "@/db/schema";
-import { can } from "@/lib/authorization";
+import { can, isCustomerRole } from "@/lib/authorization";
 import { requireActor } from "@/lib/current-actor";
 import { motorcycleStatusLabels } from "@/lib/labels";
 
@@ -15,11 +15,12 @@ type MotorcyclesPageProps = {
 
 export default async function MotorcyclesPage({ searchParams }: MotorcyclesPageProps) {
   const actor = await requireActor("/app/motorcycles");
-  const policyCompany = actor.role === "CUSTOMER" ? actor.companyId : undefined;
+  const customerRole = isCustomerRole(actor.role);
+  const policyCompany = customerRole ? actor.companyId : undefined;
   if (!can(actor, "motorcycles:read", policyCompany)) redirect("/app");
   const params = await searchParams;
   const db = getDb();
-  const scope = actor.role === "CUSTOMER" && actor.companyId
+  const scope = customerRole && actor.companyId
     ? eq(motorcycles.companyId, actor.companyId)
     : undefined;
   const rows = await db
@@ -62,7 +63,7 @@ export default async function MotorcyclesPage({ searchParams }: MotorcyclesPageP
   return (
     <>
       <div className="app-page-head">
-        <div><p>MOTORCYCLE RECORDS</p><h1>รถจักรยานยนต์</h1><span>{actor.role === "CUSTOMER" ? "รถของบริษัทคุณเท่านั้น" : "ทะเบียนรถ รูปภาพ สถานะ และ Timeline"}</span></div>
+        <div><p>MOTORCYCLE RECORDS</p><h1>รถจักรยานยนต์</h1><span>{customerRole ? "รถของบริษัทคุณเท่านั้น" : "ทะเบียนรถ รูปภาพ สถานะ และ Timeline"}</span></div>
       </div>
       {params.status === "created" && <div className="form-message success page-message">เพิ่มรถเข้าระบบเรียบร้อยแล้ว</div>}
       {params.error && <div className="form-message error page-message">เพิ่มรถไม่สำเร็จ กรุณาตรวจสอบ Job, VIN และเลขเครื่อง</div>}

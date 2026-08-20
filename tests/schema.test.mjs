@@ -60,10 +60,49 @@ test("fresh migrations create every phase-one table", () => {
     "status_events",
     "transport_jobs",
     "user_permissions",
+    "user_role_assignments",
     "users",
     "yard_placements",
     "yard_zones",
   ]);
+  db.close();
+});
+
+test("role-system migration backfills legacy identities and enforces safe mappings", () => {
+  const db = new DatabaseSync(":memory:");
+  db.exec("PRAGMA foreign_keys = ON");
+  const migrationDirectory = fileURLToPath(new URL("../drizzle/", import.meta.url));
+  applyMigration(db, `${migrationDirectory}/0000_harsh_speed_demon.sql`);
+  db.exec(`
+    INSERT INTO companies (id, code, legal_name, display_name)
+    VALUES ('company-a', 'CUS-A', 'บริษัท เอ จำกัด', 'บริษัท เอ');
+    INSERT INTO users (id, external_auth_id, email, display_name, role, company_id)
+    VALUES
+      ('owner-a', 'auth-owner-a', 'owner@example.test', 'Owner', 'OWNER', NULL),
+      ('staff-a', 'auth-staff-a', 'staff@example.test', 'Staff', 'STAFF', NULL),
+      ('customer-a', 'auth-customer-a', 'customer@example.test', 'Customer', 'CUSTOMER', 'company-a');
+  `);
+  applyMigration(db, `${migrationDirectory}/0004_role_system_foundation.sql`);
+
+  assert.deepEqual(
+    db.prepare("SELECT user_id, role FROM user_role_assignments ORDER BY user_id").all().map((row) => ({ ...row })),
+    [
+      { user_id: "customer-a", role: "CUSTOMER_VIEWER" },
+      { user_id: "owner-a", role: "OWNER" },
+      { user_id: "staff-a", role: "STAFF" },
+    ],
+  );
+
+  db.exec(`
+    INSERT INTO users (id, external_auth_id, email, display_name, role)
+    VALUES ('admin-a', 'auth-admin-a', 'admin@example.test', 'Admin', 'STAFF');
+    INSERT INTO user_role_assignments (user_id, role, assigned_by)
+    VALUES ('admin-a', 'ADMIN', 'owner-a');
+  `);
+  assert.throws(() => db.exec("UPDATE user_role_assignments SET role = 'CUSTOMER_ADMIN' WHERE user_id = 'admin-a'"));
+  assert.throws(() => db.exec("UPDATE users SET company_id = NULL WHERE id = 'customer-a'"));
+  assert.throws(() => db.exec("INSERT INTO user_role_assignments (user_id, role) VALUES ('missing', 'DRIVER')"));
+  assert.deepEqual(db.prepare("PRAGMA foreign_key_check").all(), []);
   db.close();
 });
 

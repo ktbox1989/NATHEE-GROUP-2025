@@ -44,7 +44,7 @@ VALUES
   ('GENERATE-A-NEW-UUID', 'SUPABASE-USER-UUID', 'owner@example.com', 'Owner name', 'OWNER', 'ACTIVE');
 ```
 
-After that owner signs in, all STAFF and CUSTOMER accounts should be created from **สมาชิก / สิทธิ์**. The system sends an invitation, records the server-side role, requires a company for CUSTOMER, and assigns explicit capabilities to STAFF.
+After that owner signs in, all internal and customer accounts should be created from **สมาชิก / สิทธิ์**. The system sends an invitation, records the canonical role in `user_role_assignments`, requires a company for CUSTOMER_ADMIN and CUSTOMER_VIEWER, and assigns explicit capabilities to every non-owner internal role. Migration `0004_role_system_foundation` maps legacy CUSTOMER identities to least-privilege CUSTOMER_VIEWER without locking out existing OWNER or STAFF accounts.
 
 ## 5. Acceptance check
 

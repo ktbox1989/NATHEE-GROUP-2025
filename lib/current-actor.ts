@@ -2,8 +2,13 @@ import { and, eq, like } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 import { getDb } from "@/db";
-import { userPermissions, users } from "@/db/schema";
-import type { Actor, Permission } from "@/lib/authorization";
+import { userPermissions, userRoleAssignments, users } from "@/db/schema";
+import {
+  effectiveRoleFromLegacy,
+  usesExplicitPermissions,
+  type Actor,
+  type Permission,
+} from "@/lib/authorization";
 import { safeReturnTo } from "@/lib/safe-return-to";
 import { getSupabaseConfig } from "@/lib/supabase/config";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -22,9 +27,19 @@ const resolveCurrentActor = cache(async (): Promise<CurrentActor | null> => {
   if (error || !authUser?.email) return null;
 
   const db = getDb();
+  const actorSelection = {
+    id: users.id,
+    externalAuthId: users.externalAuthId,
+    email: users.email,
+    displayName: users.displayName,
+    companyId: users.companyId,
+    legacyRole: users.role,
+    assignedRole: userRoleAssignments.role,
+  };
   let appUser = await db
-    .select()
+    .select(actorSelection)
     .from(users)
+    .leftJoin(userRoleAssignments, eq(userRoleAssignments.userId, users.id))
     .where(
       and(
         eq(users.externalAuthId, authUser.id),
@@ -35,8 +50,9 @@ const resolveCurrentActor = cache(async (): Promise<CurrentActor | null> => {
 
   if (!appUser) {
     const pendingUser = await db
-      .select()
+      .select(actorSelection)
       .from(users)
+      .leftJoin(userRoleAssignments, eq(userRoleAssignments.userId, users.id))
       .where(
         and(
           eq(users.email, authUser.email.toLowerCase()),
@@ -56,16 +72,18 @@ const resolveCurrentActor = cache(async (): Promise<CurrentActor | null> => {
             eq(users.externalAuthId, pendingUser.externalAuthId),
           ),
         )
-        .returning()
+        .returning({ id: users.id })
         .get();
-      appUser = result ?? null;
+      appUser = result ? { ...pendingUser, externalAuthId: authUser.id } : null;
     }
   }
 
   if (!appUser) return null;
 
+  const effectiveRole = appUser.assignedRole ?? effectiveRoleFromLegacy(appUser.legacyRole);
+
   const permissionRows =
-    appUser.role === "STAFF"
+    usesExplicitPermissions(effectiveRole)
       ? await db
           .select({ permission: userPermissions.permission })
           .from(userPermissions)
@@ -75,7 +93,7 @@ const resolveCurrentActor = cache(async (): Promise<CurrentActor | null> => {
 
   return {
     userId: appUser.id,
-    role: appUser.role,
+    role: effectiveRole,
     companyId: appUser.companyId,
     permissions: permissionRows.map((row) => row.permission as Permission),
     email: appUser.email,

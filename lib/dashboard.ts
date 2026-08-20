@@ -1,7 +1,7 @@
 import { count, eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { motorcycles, transportJobs } from "@/db/schema";
-import { can } from "@/lib/authorization";
+import { can, isCustomerRole } from "@/lib/authorization";
 import type { CurrentActor } from "@/lib/current-actor";
 
 export type DashboardMetrics = {
@@ -24,7 +24,7 @@ export async function getDashboardMetrics(
     delivered: 0,
     issues: 0,
   };
-  const scopeCompanyId = actor.role === "CUSTOMER" ? actor.companyId : null;
+  const scopeCompanyId = isCustomerRole(actor.role) ? actor.companyId : null;
   const companyForPolicy = scopeCompanyId ?? undefined;
   const db = getDb();
 

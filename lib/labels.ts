@@ -2,8 +2,15 @@ import type { MotorcycleStatus, UserRole } from "@/db/schema";
 
 export const roleLabels: Record<UserRole, string> = {
   OWNER: "เจ้าของระบบ",
+  ADMIN: "ผู้ดูแลระบบ",
   STAFF: "พนักงาน",
-  CUSTOMER: "ลูกค้าบริษัท",
+  SALE: "ฝ่ายขาย",
+  WAREHOUSE: "คลัง / ลาน",
+  CHECKER: "เจ้าหน้าที่ตรวจรถ",
+  DRIVER: "พนักงานขับรถ",
+  ACCOUNTING: "บัญชี",
+  CUSTOMER_ADMIN: "ผู้ดูแลบริษัทลูกค้า",
+  CUSTOMER_VIEWER: "ผู้ชมข้อมูลลูกค้า",
 };
 
 export const motorcycleStatusLabels: Record<MotorcycleStatus, string> = {

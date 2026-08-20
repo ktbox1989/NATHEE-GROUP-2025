@@ -29,7 +29,7 @@ Matching copies under `C:\Users\gmkai\Desktop\wng` have identical SHA-256 hashes
 ### `nathee-system-step1-login.html`
 
 - Login view and responsive application shell.
-- OWNER, STAFF, and CUSTOMER navigation definitions.
+- OWNER, internal operational roles, and company-bound customer-role navigation definitions.
 - Role-specific dashboard layouts.
 - Menu placeholders for customers, quotations, transport jobs, motorcycles, yard, users, reports, and audit log.
 
@@ -115,7 +115,7 @@ Images and future documents belong in object storage; the database stores only s
 ### Tenant isolation rules
 
 - OWNER can access all companies and records.
-- STAFF receives explicit capabilities; role alone must not silently grant destructive actions.
+- ADMIN, STAFF, SALE, WAREHOUSE, CHECKER, DRIVER and ACCOUNTING receive explicit capabilities; role alone must not silently grant destructive actions.
 - CUSTOMER must have a `company_id` and may read only records whose `company_id` matches the server-side user mapping.
 - Client-provided `company_id`, role, record owner, and status transition are never trusted.
 - Accepted operational records are archived/cancelled instead of physically deleted; material changes create audit entries.
@@ -138,7 +138,7 @@ Exception states such as `ISSUE`, `DAMAGED`, `WAITING_DOCUMENTS`, and `CANCELLED
 ### Milestone 1 — Authentication, roles, and company boundary
 
 - Connect a production identity provider.
-- Map authenticated identities to OWNER, STAFF, or CUSTOMER records.
+- Map authenticated identities to canonical `user_role_assignments`; legacy CUSTOMER maps to CUSTOMER_VIEWER until Owner explicitly promotes it.
 - Add server-side route and action guards.
 - Implement company creation/editing and customer-user assignment.
 - Test the full role/company authorization matrix.

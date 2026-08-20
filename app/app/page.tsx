@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { can } from "@/lib/authorization";
+import { can, isCustomerRole } from "@/lib/authorization";
 import { requireActor } from "@/lib/current-actor";
 import { getDashboardMetrics } from "@/lib/dashboard";
 
@@ -8,11 +8,12 @@ export const dynamic = "force-dynamic";
 export default async function DashboardPage() {
   const actor = await requireActor("/app");
   const metrics = await getDashboardMetrics(actor);
-  const policyCompany = actor.role === "CUSTOMER" ? actor.companyId : undefined;
+  const customerRole = isCustomerRole(actor.role);
+  const policyCompany = customerRole ? actor.companyId : undefined;
   const canReadJobs = can(actor, "jobs:read", policyCompany);
   const canReadMotorcycles = can(actor, "motorcycles:read", policyCompany);
   const companyCopy =
-    actor.role === "CUSTOMER"
+    customerRole
       ? "ภาพรวมงานและรถของบริษัทคุณ"
       : "ภาพรวมการปฏิบัติงานจากข้อมูลจริง";
 

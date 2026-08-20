@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { AppNav, type AppNavItem } from "@/components/app-nav";
-import { can } from "@/lib/authorization";
+import { can, isCustomerRole } from "@/lib/authorization";
 import { requireActor } from "@/lib/current-actor";
 import { roleLabels } from "@/lib/labels";
 
@@ -13,7 +13,7 @@ export default async function OperationsLayout({
   children: ReactNode;
 }) {
   const actor = await requireActor("/app");
-  const policyCompany = actor.role === "CUSTOMER" ? actor.companyId : undefined;
+  const policyCompany = isCustomerRole(actor.role) ? actor.companyId : undefined;
   const items: AppNavItem[] = [{ href: "/app", label: "Dashboard", icon: "📊" }];
 
   if (can(actor, "companies:read", policyCompany)) {
@@ -34,6 +34,8 @@ export default async function OperationsLayout({
   }
   if (actor.role === "OWNER") {
     items.push({ href: "/app/users", label: "สมาชิก / สิทธิ์", icon: "👥" });
+  }
+  if (can(actor, "audit:read")) {
     items.push({ href: "/app/audit", label: "Audit Log", icon: "🔍" });
   }
 

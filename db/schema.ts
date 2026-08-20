@@ -9,7 +9,19 @@ import {
   uniqueIndex,
 } from "drizzle-orm/sqlite-core";
 
-export const USER_ROLES = ["OWNER", "STAFF", "CUSTOMER"] as const;
+export const LEGACY_USER_ROLES = ["OWNER", "STAFF", "CUSTOMER"] as const;
+export const INTERNAL_USER_ROLES = [
+  "OWNER",
+  "ADMIN",
+  "STAFF",
+  "SALE",
+  "WAREHOUSE",
+  "CHECKER",
+  "DRIVER",
+  "ACCOUNTING",
+] as const;
+export const CUSTOMER_USER_ROLES = ["CUSTOMER_ADMIN", "CUSTOMER_VIEWER"] as const;
+export const USER_ROLES = [...INTERNAL_USER_ROLES, ...CUSTOMER_USER_ROLES] as const;
 export const STAFF_PERMISSIONS = [
   "companies:read",
   "companies:write",
@@ -114,7 +126,7 @@ export const users = sqliteTable(
     email: text("email").notNull(),
     username: text("username"),
     displayName: text("display_name").notNull(),
-    role: text("role", { enum: USER_ROLES }).notNull(),
+    role: text("role", { enum: LEGACY_USER_ROLES }).notNull(),
     companyId: text("company_id").references(() => companies.id, {
       onDelete: "restrict",
       onUpdate: "cascade",
@@ -140,6 +152,29 @@ export const users = sqliteTable(
     check(
       "ck_users_status",
       sql`${table.status} IN ('ACTIVE', 'INACTIVE', 'ARCHIVED')`,
+    ),
+  ],
+);
+
+export const userRoleAssignments = sqliteTable(
+  "user_role_assignments",
+  {
+    userId: text("user_id")
+      .primaryKey()
+      .references(() => users.id, { onDelete: "cascade", onUpdate: "cascade" }),
+    role: text("role", { enum: USER_ROLES }).notNull(),
+    assignedBy: text("assigned_by").references(() => users.id, {
+      onDelete: "restrict",
+      onUpdate: "cascade",
+    }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    index("idx_user_role_assignments_role").on(table.role),
+    check(
+      "ck_user_role_assignments_role",
+      sql`${table.role} IN ('OWNER', 'ADMIN', 'STAFF', 'SALE', 'WAREHOUSE', 'CHECKER', 'DRIVER', 'ACCOUNTING', 'CUSTOMER_ADMIN', 'CUSTOMER_VIEWER')`,
     ),
   ],
 );
@@ -527,6 +562,7 @@ export const auditLogs = sqliteTable(
 );
 
 export type UserRole = (typeof USER_ROLES)[number];
+export type LegacyUserRole = (typeof LEGACY_USER_ROLES)[number];
 export type MotorcycleStatus = (typeof MOTORCYCLE_STATUSES)[number];
 export type ImageCategory = (typeof IMAGE_CATEGORIES)[number];
 export type YardZoneStatus = (typeof YARD_ZONE_STATUSES)[number];
