@@ -64,6 +64,13 @@
       "when": 1787248259498,
       "tag": "0008_trip_motorcycle_loads",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1787249492619,
+      "tag": "0009_container_registry",
+      "breakpoints": true
     }
   ]
 }

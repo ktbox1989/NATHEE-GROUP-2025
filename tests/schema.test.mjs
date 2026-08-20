@@ -50,6 +50,7 @@ test("fresh migrations create every phase-one table", () => {
   assert.deepEqual(tables, [
     "audit_logs",
     "companies",
+    "container_status_events",
     "gallery_categories",
     "gallery_image_variants",
     "gallery_items",
@@ -58,6 +59,7 @@ test("fresh migrations create every phase-one table", () => {
     "notifications",
     "quote_requests",
     "sequence_counters",
+    "shipping_containers",
     "status_events",
     "transport_jobs",
     "trip_motorcycle_assignments",
@@ -218,6 +220,32 @@ test("truck and trip constraints preserve fleet identity, time order and immutab
        'truck-a', 'A', 'B', 'owner-a')
   `));
   assert.throws(() => db.exec("DELETE FROM trips WHERE id = 'trip-a'"));
+  assert.deepEqual(db.prepare("PRAGMA foreign_key_check").all(), []);
+  db.close();
+});
+
+test("container registry preserves ISO identity and stays draft until load invariants exist", () => {
+  const db = createMigratedDatabase();
+  db.exec(`
+    INSERT INTO users (id, external_auth_id, email, display_name, role)
+    VALUES ('owner-container', 'auth-owner-container', 'container@example.test', 'Owner', 'OWNER');
+    INSERT INTO shipping_containers
+      (id, request_key, public_id, container_number, seal_number, type, capacity_motorcycles, port, country, created_by)
+    VALUES
+      ('container-a', '0198f708-44a3-7ef7-8d4f-4f477922ad01', 'container-public-a', 'CSQU3054383', 'SEAL-001', '40HC', 120, 'Laem Chabang', 'Japan', 'owner-container');
+    INSERT INTO container_status_events (id, container_id, previous_status, new_status, note, created_by)
+    VALUES ('container-event-a', 'container-a', NULL, 'DRAFT', 'สร้างทะเบียนตู้', 'owner-container');
+  `);
+  assert.throws(() => db.exec(`
+    INSERT INTO shipping_containers
+      (id, request_key, public_id, container_number, type, port, country, created_by)
+    VALUES ('container-b', '0198f708-44a3-7ef7-8d4f-4f477922ad02', 'container-public-b', 'BAD-NUMBER', '20FT', 'Port', 'Country', 'owner-container')
+  `));
+  assert.throws(() => db.exec("UPDATE shipping_containers SET container_number = 'CSQU3054391' WHERE id = 'container-a'"), /identity is immutable/);
+  assert.throws(() => db.exec("UPDATE shipping_containers SET status = 'PLANNED' WHERE id = 'container-a'"), /lifecycle requires/);
+  assert.throws(() => db.exec("DELETE FROM shipping_containers WHERE id = 'container-a'"), /cannot be deleted/);
+  const plan = db.prepare("EXPLAIN QUERY PLAN SELECT id FROM shipping_containers WHERE status = ? ORDER BY created_at, id LIMIT 51").all("DRAFT").map((row) => String(row.detail)).join(" ");
+  assert.match(plan, /idx_shipping_containers_status_created/);
   assert.deepEqual(db.prepare("PRAGMA foreign_key_check").all(), []);
   db.close();
 });

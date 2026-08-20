@@ -93,6 +93,8 @@ export const TRUCK_TYPES = ["FOUR_WHEEL", "SIX_WHEEL", "OTHER"] as const;
 export const TRUCK_STATUSES = ["ACTIVE", "MAINTENANCE", "INACTIVE"] as const;
 export const TRIP_STATUSES = ["DRAFT", "PLANNED", "LOADING", "IN_TRANSIT", "ARRIVED", "COMPLETED", "CANCELLED"] as const;
 export const TRIP_ASSIGNMENT_STATES = ["ASSIGNED", "LOADED", "UNLOADED", "RELEASED"] as const;
+export const CONTAINER_TYPES = ["20FT", "40FT", "40HC"] as const;
+export const CONTAINER_STATUSES = ["DRAFT", "PLANNED", "LOADING", "SEALED", "IN_TRANSIT", "ARRIVED", "UNLOADING", "COMPLETED", "CANCELLED"] as const;
 
 const createdAt = () =>
   text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`);
@@ -326,6 +328,57 @@ export const tripStatusEvents = sqliteTable(
     index("idx_trip_status_events_trip_created").on(table.tripId, table.createdAt),
     check("ck_trip_status_events_previous", sql`${table.previousStatus} IS NULL OR ${table.previousStatus} IN ('DRAFT', 'PLANNED', 'LOADING', 'IN_TRANSIT', 'ARRIVED', 'COMPLETED', 'CANCELLED')`),
     check("ck_trip_status_events_new", sql`${table.newStatus} IN ('DRAFT', 'PLANNED', 'LOADING', 'IN_TRANSIT', 'ARRIVED', 'COMPLETED', 'CANCELLED')`),
+  ],
+);
+
+export const shippingContainers = sqliteTable(
+  "shipping_containers",
+  {
+    id: text("id").primaryKey(),
+    requestKey: text("request_key").notNull(),
+    publicId: text("public_id").notNull(),
+    containerNumber: text("container_number").notNull(),
+    sealNumber: text("seal_number"),
+    type: text("type", { enum: CONTAINER_TYPES }).notNull(),
+    capacityMotorcycles: integer("capacity_motorcycles"),
+    port: text("port").notNull(),
+    country: text("country").notNull(),
+    status: text("status", { enum: CONTAINER_STATUSES }).notNull().default("DRAFT"),
+    notes: text("notes"),
+    createdBy: text("created_by").notNull().references(() => users.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    uniqueIndex("uq_shipping_containers_request_key").on(table.requestKey),
+    uniqueIndex("uq_shipping_containers_public_id").on(table.publicId),
+    uniqueIndex("uq_shipping_containers_number").on(table.containerNumber),
+    index("idx_shipping_containers_status_created").on(table.status, table.createdAt, table.id),
+    check("ck_shipping_containers_number", sql`length(${table.containerNumber}) = 11 AND ${table.containerNumber} GLOB '[A-Z][A-Z][A-Z][UJZ][0-9][0-9][0-9][0-9][0-9][0-9][0-9]'`),
+    check("ck_shipping_containers_seal", sql`${table.sealNumber} IS NULL OR length(${table.sealNumber}) BETWEEN 2 AND 50`),
+    check("ck_shipping_containers_type", sql`${table.type} IN ('20FT', '40FT', '40HC')`),
+    check("ck_shipping_containers_capacity", sql`${table.capacityMotorcycles} IS NULL OR ${table.capacityMotorcycles} BETWEEN 1 AND 1000`),
+    check("ck_shipping_containers_port", sql`length(${table.port}) BETWEEN 2 AND 100`),
+    check("ck_shipping_containers_country", sql`length(${table.country}) BETWEEN 2 AND 100`),
+    check("ck_shipping_containers_status", sql`${table.status} IN ('DRAFT', 'PLANNED', 'LOADING', 'SEALED', 'IN_TRANSIT', 'ARRIVED', 'UNLOADING', 'COMPLETED', 'CANCELLED')`),
+  ],
+);
+
+export const containerStatusEvents = sqliteTable(
+  "container_status_events",
+  {
+    id: text("id").primaryKey(),
+    containerId: text("container_id").notNull().references(() => shippingContainers.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    previousStatus: text("previous_status", { enum: CONTAINER_STATUSES }),
+    newStatus: text("new_status", { enum: CONTAINER_STATUSES }).notNull(),
+    note: text("note"),
+    createdBy: text("created_by").notNull().references(() => users.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    index("idx_container_status_events_container_created").on(table.containerId, table.createdAt),
+    check("ck_container_status_events_previous", sql`${table.previousStatus} IS NULL OR ${table.previousStatus} IN ('DRAFT', 'PLANNED', 'LOADING', 'SEALED', 'IN_TRANSIT', 'ARRIVED', 'UNLOADING', 'COMPLETED', 'CANCELLED')`),
+    check("ck_container_status_events_new", sql`${table.newStatus} IN ('DRAFT', 'PLANNED', 'LOADING', 'SEALED', 'IN_TRANSIT', 'ARRIVED', 'UNLOADING', 'COMPLETED', 'CANCELLED')`),
   ],
 );
 
@@ -735,3 +788,5 @@ export type TruckType = (typeof TRUCK_TYPES)[number];
 export type TruckStatus = (typeof TRUCK_STATUSES)[number];
 export type TripStatus = (typeof TRIP_STATUSES)[number];
 export type TripAssignmentState = (typeof TRIP_ASSIGNMENT_STATES)[number];
+export type ContainerType = (typeof CONTAINER_TYPES)[number];
+export type ContainerStatus = (typeof CONTAINER_STATUSES)[number];

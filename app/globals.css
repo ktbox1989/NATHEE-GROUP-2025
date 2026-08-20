@@ -212,6 +212,17 @@ footer { border-top: 1px solid var(--border); background: #050611; color: var(--
 .trip-status-filters a.active { border-color: var(--border-strong); background: var(--gradient-soft); color: #fff; }
 .trip-create-grid .record-form { align-content: start; margin-bottom: 0; }
 .truck-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; }
+.container-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; }
+.container-card { min-height: 210px; padding: 18px; }
+.container-card > div { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.container-card > div b { color: #c4b5fd; font-family: var(--font-mono); font-size: 12px; letter-spacing: .04em; }
+.container-card h2 { margin-top: 22px; font-family: var(--font-display); font-size: 17px; }
+.container-card > p { margin-top: 3px; color: var(--muted); font-size: 11px; }
+.container-card dl { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; margin-top: 15px; }
+.container-card dl > div { padding: 9px; border: 1px solid var(--border); border-radius: 9px; }
+.container-card dt { color: var(--muted); font-size: 9px; }
+.container-card dd { margin-top: 2px; font-size: 11px; }
+.container-card > small { display: block; margin-top: 13px; color: var(--muted); font-size: 9px; }
 .truck-card { min-height: 156px; padding: 17px; }
 .truck-card > div { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .truck-card > div b { color: #c4b5fd; font-family: var(--font-mono); font-size: 12px; }
@@ -490,6 +501,7 @@ footer { border-top: 1px solid var(--border); background: #050611; color: var(--
   .trip-create-grid { grid-template-columns: 1fr; }
   .trip-discovery-tools { grid-template-columns: 1fr; }
   .truck-grid, .trip-card dl { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .container-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
   .trip-overview-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
   .trip-capacity-card { grid-column: 1 / -1; }
   .trip-workflow-form { grid-template-columns: 1fr auto; }
@@ -544,6 +556,7 @@ footer { border-top: 1px solid var(--border); background: #050611; color: var(--
   .notification-actions { grid-column: 2; }
   .notification-actions form, .notification-actions button, .notification-actions a { width: 100%; }
   .truck-grid, .trip-card dl { grid-template-columns: 1fr; }
+  .container-grid { grid-template-columns: 1fr; }
   .trip-card-head { flex-direction: column; }
   .trip-actions, .trip-actions form { display: grid; width: 100%; }
   .trip-actions input, .trip-actions button { width: 100%; }

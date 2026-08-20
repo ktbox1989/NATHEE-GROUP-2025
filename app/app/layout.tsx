@@ -37,6 +37,7 @@ export default async function OperationsLayout({
   if (can(actor, "jobs:read", policyCompany)) {
     items.push({ href: "/app/jobs", label: "งานขนส่ง", icon: "📦" });
     if (isInternalRole(actor.role)) items.push({ href: "/app/trips", label: "เที่ยววิ่ง / รถขนส่ง", icon: "🚚" });
+    if (isInternalRole(actor.role)) items.push({ href: "/app/containers", label: "ตู้คอนเทนเนอร์", icon: "🚢" });
   }
   if (can(actor, "motorcycles:read", policyCompany)) {
     items.push({ href: "/app/motorcycles", label: "รถจักรยานยนต์", icon: "🏍️" });
