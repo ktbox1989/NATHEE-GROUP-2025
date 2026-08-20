@@ -7,6 +7,10 @@
   application and are not copied into the static web root.
 - Production business data must never be stored in the static site or browser
   storage.
+- `DEPLOY_PASS` and `PRODUCTION_POSTCHECK_PASS` in this runbook cover only the
+  public static component. They must never be reported as full-system success.
+- See `DEPLOYMENT_ARCHITECTURE.md` for the application runtime and activation
+  gates.
 
 ## Verified paths
 
@@ -30,8 +34,10 @@ cd /home/zptqqwps/nathee-deploy
 bash scripts/verify-public-site.sh
 bash scripts/test-deploy-file-tools.sh
 bash scripts/test-public-seo-gates.sh
+bash scripts/probe-zcom-runtime.sh
 bash scripts/deploy-zcom.sh
 bash scripts/postcheck-production.sh
+bash scripts/audit-production-components.sh
 ```
 
 The deploy script:

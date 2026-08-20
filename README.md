@@ -20,6 +20,7 @@ See [the audit and migration plan](./docs/AUDIT_AND_MIGRATION_PLAN.md) for evide
 See [authentication activation](./docs/AUTH_SETUP.md) before creating the first real account.
 See [Gallery and Media Library boundaries](./docs/GALLERY_MEDIA_LIBRARY.md) before adding real photographs or applying Gallery migrations.
 Complete [the production go-live checklist](./docs/PRODUCTION_GO_LIVE.md) before opening the hosted system to staff or customers.
+See [the Production deployment architecture](./docs/DEPLOYMENT_ARCHITECTURE.md) for the evidence-backed boundary between the live Z.com public site and the not-yet-deployed application runtime.
 
 ## Repository layout
 
@@ -63,5 +64,7 @@ Node.js 22.13 or newer is required.
 ## Z.com public website
 
 The cPanel-hosted public website is intentionally separate from the authenticated logistics application. Deploy it only from the reviewed staging clone at `/home/zptqqwps/nathee-deploy`; the deploy script creates a complete backup, verifies checksums, preserves unknown Production files, runs live checks, and restores the backup automatically on failure.
+
+`DEPLOY_PASS` from the Z.com script means only that the public static website was deployed. It is not evidence that Login, `/app`, `/api`, D1, R2, QR, Gallery management or notifications are running.
 
 See [the Z.com deployment runbook](./docs/ZCOM_DEPLOYMENT.md). Do not copy application source, credentials, databases, or private uploads into `public_html`.

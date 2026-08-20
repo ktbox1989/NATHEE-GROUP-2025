@@ -28,6 +28,8 @@ staging_changes="$(git -C "$REPO_ROOT" status --porcelain --untracked-files=all)
 [[ -z "$staging_changes" ]] || fail "staging worktree is dirty; deploy only an exact pulled commit"
 source_commit="$(git -C "$REPO_ROOT" rev-parse HEAD)" || fail "could not resolve staging commit"
 printf 'DEPLOY_SOURCE_COMMIT=%s\n' "$source_commit"
+printf 'DEPLOY_SCOPE=PUBLIC_STATIC_WEBSITE_ONLY\n'
+printf 'FULL_APPLICATION_DEPLOYED=NO\n'
 
 for required_command in bash tar cp mv mkdir rmdir find sha256sum cut curl grep awk tr wc dirname rm date git; do
   if command -v "$required_command" >/dev/null 2>&1; then
@@ -110,4 +112,4 @@ nathee_verify_file_manifest "$PRODUCTION_ROOT" "$backup_dir/RELEASE_SHA256SUMS.t
 bash "$SCRIPT_DIR/postcheck-production.sh"
 git -C "$REPO_ROOT" rev-parse HEAD > "$backup_dir/DEPLOYED_COMMIT"
 deployment_succeeded=1
-printf 'DEPLOY_PASS commit=%s backup=%s\n' "$(git -C "$REPO_ROOT" rev-parse --short=12 HEAD)" "$backup_dir"
+printf 'DEPLOY_PASS component=public-static-site commit=%s backup=%s fullApplication=NOT_DEPLOYED\n' "$(git -C "$REPO_ROOT" rev-parse --short=12 HEAD)" "$backup_dir"

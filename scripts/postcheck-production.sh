@@ -187,4 +187,7 @@ grep -Eiq '^x-robots-tag:[[:space:]]*noindex,[[:space:]]*nofollow,[[:space:]]*no
   || fail "404 X-Robots-Tag is missing"
 
 printf 'PRODUCTION_NOINDEX_PASS login=header+meta clean-login=header+meta 404=header+meta\n'
-printf 'PRODUCTION_POSTCHECK_PASS domain=%s publicRoutes=11\n' "$DOMAIN"
+printf 'PRODUCTION_COMPONENT public-static-site=LIVE root=%s routes=11\n' "$BASE_URL"
+printf 'PRODUCTION_COMPONENT login-auth=STATIC_PLACEHOLDER_ONLY url=%s/login/\n' "$BASE_URL"
+printf 'PRODUCTION_COMPONENT full-application=NOT_CHECKED_BY_PUBLIC_POSTCHECK\n'
+printf 'PRODUCTION_POSTCHECK_PASS component=public-static-site domain=%s publicRoutes=11 fullApplication=NOT_CLAIMED\n' "$DOMAIN"
