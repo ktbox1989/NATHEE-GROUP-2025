@@ -19,6 +19,12 @@ test("server-renders the NATHEE public website without demo data", async () => {
   const response = await render();
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
+  assert.equal(response.headers.get("x-content-type-options"), "nosniff");
+  assert.equal(response.headers.get("x-frame-options"), "DENY");
+  assert.equal(
+    response.headers.get("referrer-policy"),
+    "strict-origin-when-cross-origin",
+  );
 
   const html = await response.text();
   assert.match(html, /<title>NATHEE GROUP 2025 \| Motorcycle Logistics<\/title>/i);

@@ -41,8 +41,24 @@ const worker = {
       }, allowedWidths);
     }
 
-    return handler.fetch(request, env, ctx);
+    const response = await handler.fetch(request, env, ctx);
+    return applySecurityHeaders(request, response);
   },
 };
+
+function applySecurityHeaders(request: Request, response: Response): Response {
+  response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  response.headers.set("X-Content-Type-Options", "nosniff");
+  response.headers.set("X-Frame-Options", "DENY");
+  response.headers.set("Permissions-Policy", "camera=(self), geolocation=(), microphone=()");
+  response.headers.set("Cross-Origin-Opener-Policy", "same-origin");
+  if (new URL(request.url).protocol === "https:") {
+    response.headers.set(
+      "Strict-Transport-Security",
+      "max-age=31536000; includeSubDomains",
+    );
+  }
+  return response;
+}
 
 export default worker;

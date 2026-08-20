@@ -7,12 +7,13 @@ import type { ImageCategory } from "@/db/schema";
 import { makeAuditRecord } from "@/lib/audit";
 import { can } from "@/lib/authorization";
 import { getCurrentActor } from "@/lib/current-actor";
+import {
+  hasExpectedImageSignature,
+  sha256Hex,
+  SUPPORTED_IMAGE_TYPES,
+} from "@/lib/image-validation";
 import { isSameOrigin } from "@/lib/same-origin";
 
-const allowedTypes = new Map([
-  ["image/jpeg", "jpg"], ["image/png", "png"], ["image/webp", "webp"],
-  ["image/heic", "heic"], ["image/heif", "heif"],
-]);
 const allowedCategories = new Set(["FRONT", "REAR", "LEFT", "RIGHT", "DAMAGE", "DELIVERY", "OTHER"]);
 
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
@@ -28,19 +29,25 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   const form = await request.formData();
   const file = form.get("image");
   const category = String(form.get("category") ?? "OTHER").toUpperCase();
-  if (!(file instanceof File) || file.size < 1 || file.size > 10 * 1024 * 1024 || !allowedTypes.has(file.type) || !allowedCategories.has(category)) {
+  if (!(file instanceof File) || file.size < 1 || file.size > 10 * 1024 * 1024 || !SUPPORTED_IMAGE_TYPES.has(file.type) || !allowedCategories.has(category)) {
     return NextResponse.redirect(new URL(`/app/motorcycles/${id}?error=image`, request.url), 303);
   }
 
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  if (bytes.byteLength !== file.size || !hasExpectedImageSignature(bytes, file.type)) {
+    return NextResponse.redirect(new URL(`/app/motorcycles/${id}?error=image_type`, request.url), 303);
+  }
+
   const imageId = crypto.randomUUID();
-  const extension = allowedTypes.get(file.type)!;
+  const extension = SUPPORTED_IMAGE_TYPES.get(file.type)!;
+  const checksum = await sha256Hex(bytes);
   const storageKey = `companies/${motorcycle.companyId}/motorcycles/${id}/${imageId}.${extension}`;
-  await env.FILES.put(storageKey, file.stream(), {
+  await env.FILES.put(storageKey, bytes, {
     httpMetadata: { contentType: file.type },
-    customMetadata: { motorcycleId: id, companyId: motorcycle.companyId, uploadedBy: actor.userId },
+    customMetadata: { motorcycleId: id, companyId: motorcycle.companyId, uploadedBy: actor.userId, checksum },
   });
   try {
-    const metadata = { id: imageId, motorcycleId: id, companyId: motorcycle.companyId, storageKey, category: category as ImageCategory, contentType: file.type, byteSize: file.size, uploadedBy: actor.userId };
+    const metadata = { id: imageId, motorcycleId: id, companyId: motorcycle.companyId, storageKey, category: category as ImageCategory, contentType: file.type, byteSize: file.size, checksum, uploadedBy: actor.userId };
     await db.batch([
       db.insert(motorcycleImages).values(metadata),
       db.insert(auditLogs).values(makeAuditRecord({ actor, action: "UPLOAD_IMAGE", entityType: "motorcycle_image", entityId: imageId, companyId: motorcycle.companyId, after: { motorcycleId: id, category, contentType: file.type, byteSize: file.size } })),

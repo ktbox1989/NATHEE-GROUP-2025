@@ -14,6 +14,7 @@ Responsive public website and motorcycle-logistics operations platform for deskt
 
 See [the audit and migration plan](./docs/AUDIT_AND_MIGRATION_PLAN.md) for evidence from the source HTML and the implementation roadmap.
 See [authentication activation](./docs/AUTH_SETUP.md) before creating the first real account.
+Complete [the production go-live checklist](./docs/PRODUCTION_GO_LIVE.md) before opening the hosted system to staff or customers.
 
 ## Commands
 
