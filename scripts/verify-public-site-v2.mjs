@@ -65,6 +65,7 @@ for (const [name, html] of text) if (extname(name) === ".html") for (const match
 const bytes = { home: Buffer.byteLength(home), css: Buffer.byteLength(text.get("assets/site.css")), js: Buffer.byteLength(text.get("assets/site.js")) }; const critical = bytes.home + bytes.css + bytes.js;
 if (bytes.home > 45 * 1024 || bytes.css > 40 * 1024 || bytes.js > 16 * 1024 || critical > 100 * 1024) throw new Error(`Mobile byte budget exceeded ${JSON.stringify(bytes)}`);
 const css = text.get("assets/site.css"); if (!css.includes("@media (max-width: 980px)") || !css.includes("@media (max-width: 680px)")) throw new Error("Responsive breakpoints missing.");
+for (const token of ['figure.dataset.orientation', "ratio < .88 ? 'portrait'", '.gallery-card[data-orientation="portrait"] img', 'object-fit: contain', 'width: min(100%, 280px)']) if (!(token.startsWith('.') || token.startsWith('object') || token.startsWith('width') ? css : text.get("assets/site.js")).includes(token)) throw new Error(`Responsive Owner media sizing missing: ${token}`);
 
 console.log(`PUBLIC_SITE_VERIFY_PASS files=${files.length} publicRoutes=${routes.length}`);
 console.log(`PUBLIC_SEO_VERIFY_PASS pages=${routes.length} uniqueTitles=${titles.size} uniqueDescriptions=${descriptions.size} sitemap=public-only noindex=verified`);

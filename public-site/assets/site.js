@@ -70,6 +70,7 @@
 
   function card(item, index, canOpen) {
     const figure = document.createElement('figure'); figure.className = 'gallery-card';
+    const ratio = item.width / item.height; figure.dataset.orientation = ratio > 1.12 ? 'landscape' : ratio < .88 ? 'portrait' : 'square';
     const button = document.createElement('button'); button.type = 'button'; button.setAttribute('aria-label', `เปิดภาพขนาดใหญ่: ${text(item.alt, 300)}`); button.append(picture(item, true));
     if (canOpen) button.addEventListener('click', () => open(index)); else button.disabled = true;
     const caption = document.createElement('figcaption'); const label = document.createElement('span'); label.textContent = text(item.categoryLabel, 80); const title = document.createElement('strong'); title.textContent = text(item.title, 160); caption.append(label, title);

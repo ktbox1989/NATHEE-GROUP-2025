@@ -1,5 +1,11 @@
 # NATHEE GROUP 2025 — Work History
 
+## 2026-08-21 — Responsive Owner media sizing
+
+- Reduced the homepage brand artwork and LINE QR footprint so they support the content instead of dominating it on mobile or desktop.
+- Added deterministic landscape/portrait/square Gallery orientation handling from real manifest dimensions. Portrait and square work photographs now remain fully visible in bounded cards instead of being aggressively cropped.
+- Kept the original and responsive media files unchanged; this is a presentation-only repair with no CMS, Auth, database or Storage contract change.
+
 ## 2026-08-21 — Owner brand artwork, LINE QR and expanded real-work Gallery
 
 - Added the Owner-supplied NATHEE GROUP 2025 artwork as the site-wide brand mark, homepage hero artwork and canonical social preview image.
