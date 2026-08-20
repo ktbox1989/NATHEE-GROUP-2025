@@ -1,4 +1,4 @@
-import { and, asc, count, eq, gt, isNull, or, sql } from "drizzle-orm";
+import { and, asc, count, eq, gt, isNotNull, isNull, ne, or, sql, type SQL } from "drizzle-orm";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getDb } from "@/db";
@@ -133,38 +133,38 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
   const capacityAvailable = activeCount < effectiveCapacity;
   const assignableTrip = ["DRAFT", "PLANNED"].includes(trip.status);
 
+  const queryEligible = (searchFilter?: SQL) => db
+    .select({
+      id: motorcycles.id,
+      sequenceNumber: motorcycles.sequenceNumber,
+      make: motorcycles.make,
+      model: motorcycles.model,
+      registration: motorcycles.registration,
+      jobNumber: transportJobs.jobNumber,
+      companyName: companies.displayName,
+    })
+    .from(motorcycles)
+    .innerJoin(transportJobs, eq(transportJobs.id, motorcycles.jobId))
+    .innerJoin(companies, eq(companies.id, motorcycles.companyId))
+    .leftJoin(
+      tripMotorcycleAssignments,
+      and(eq(tripMotorcycleAssignments.motorcycleId, motorcycles.id), isNull(tripMotorcycleAssignments.releasedAt)),
+    )
+    .where(and(eq(motorcycles.currentStatus, "SCHEDULED"), isNull(tripMotorcycleAssignments.id), searchFilter))
+    .orderBy(asc(transportJobs.jobNumber), asc(motorcycles.sequenceNumber))
+    .limit(101)
+    .all();
   const eligibleRows = canManage && assignableTrip && capacityAvailable
-    ? await db
-        .select({
-          id: motorcycles.id,
-          sequenceNumber: motorcycles.sequenceNumber,
-          make: motorcycles.make,
-          model: motorcycles.model,
-          registration: motorcycles.registration,
-          jobNumber: transportJobs.jobNumber,
-          companyName: companies.displayName,
+    ? motorcycleSearch
+      ? await Promise.all([
+          queryEligible(sql`${transportJobs.jobNumber} GLOB ${`${motorcycleSearch.toUpperCase()}*`}`),
+          queryEligible(sql`${motorcycles.publicId} GLOB ${`${motorcycleSearch.toLowerCase()}*`}`),
+          queryEligible(and(isNotNull(motorcycles.registration), ne(motorcycles.registration, ""), sql`${motorcycles.registration} GLOB ${`${motorcycleSearch}*`}`)),
+        ]).then((groups) => {
+          const uniqueRows = new Map(groups.flat().map((motorcycle) => [motorcycle.id, motorcycle]));
+          return [...uniqueRows.values()].sort((left, right) => left.jobNumber.localeCompare(right.jobNumber) || left.sequenceNumber - right.sequenceNumber).slice(0, 101);
         })
-        .from(motorcycles)
-        .innerJoin(transportJobs, eq(transportJobs.id, motorcycles.jobId))
-        .innerJoin(companies, eq(companies.id, motorcycles.companyId))
-        .leftJoin(
-          tripMotorcycleAssignments,
-          and(eq(tripMotorcycleAssignments.motorcycleId, motorcycles.id), isNull(tripMotorcycleAssignments.releasedAt)),
-        )
-        .where(and(
-          eq(motorcycles.currentStatus, "SCHEDULED"),
-          isNull(tripMotorcycleAssignments.id),
-          motorcycleSearch
-            ? or(
-                sql`${transportJobs.jobNumber} GLOB ${`${motorcycleSearch.toUpperCase()}*`}`,
-                sql`${motorcycles.publicId} GLOB ${`${motorcycleSearch.toLowerCase()}*`}`,
-                sql`${motorcycles.registration} GLOB ${`${motorcycleSearch}*`}`,
-              )
-            : undefined,
-        ))
-        .orderBy(asc(transportJobs.jobNumber), asc(motorcycles.sequenceNumber))
-        .limit(101)
-        .all()
+      : await queryEligible()
     : [];
   const eligibleTruncated = eligibleRows.length > 100;
   const eligible = eligibleRows.slice(0, 100);

@@ -1,11 +1,11 @@
-import { and, asc, desc, eq, lt, or } from "drizzle-orm";
+import { and, asc, desc, eq, isNotNull, lt, ne, or, sql } from "drizzle-orm";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getDb } from "@/db";
-import { trips, trucks, userRoleAssignments, users, TRUCK_TYPES } from "@/db/schema";
+import { trips, trucks, userRoleAssignments, users, TRIP_STATUSES, TRUCK_TYPES, type TripStatus } from "@/db/schema";
 import { can, isInternalRole } from "@/lib/authorization";
 import { requireActor } from "@/lib/current-actor";
-import { TRIP_PAGE_SIZE } from "@/lib/trips";
+import { normalizeLoadBoardSearch, TRIP_PAGE_SIZE } from "@/lib/trips";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +24,7 @@ const tripStatusLabels = {
   CANCELLED: "ยกเลิก",
 } as const;
 
-type Props = { searchParams: Promise<{ status?: string; error?: string; before?: string; beforeId?: string }> };
+type Props = { searchParams: Promise<{ status?: string; error?: string; before?: string; beforeId?: string; tripStatus?: string; truckQ?: string }> };
 
 export default async function TripsPage({ searchParams }: Props) {
   const actor = await requireActor("/app/trips");
@@ -32,10 +32,24 @@ export default async function TripsPage({ searchParams }: Props) {
   const params = await searchParams;
   const cursor = parseCursor(params.before, params.beforeId);
   if (cursor === null) notFound();
+  const truckSearch = normalizeLoadBoardSearch(params.truckQ ?? "");
+  if (truckSearch === undefined) notFound();
+  const selectedTripStatus = params.tripStatus ?? "";
+  if (selectedTripStatus && !TRIP_STATUSES.includes(selectedTripStatus as TripStatus)) notFound();
   const db = getDb();
   const cursorFilter = cursor
     ? or(lt(trips.createdAt, cursor.createdAt), and(eq(trips.createdAt, cursor.createdAt), lt(trips.id, cursor.id)))
     : undefined;
+  const tripStatusFilter = selectedTripStatus ? eq(trips.status, selectedTripStatus as TripStatus) : undefined;
+  const truckRowsPromise = truckSearch
+    ? Promise.all([
+        db.select().from(trucks).where(sql`${trucks.code} GLOB ${`${truckSearch.toUpperCase()}*`}`).orderBy(asc(trucks.code)).limit(101).all(),
+        db.select().from(trucks).where(and(isNotNull(trucks.registration), ne(trucks.registration, ""), sql`${trucks.registration} GLOB ${`${truckSearch}*`}`)).orderBy(asc(trucks.registration)).limit(101).all(),
+      ]).then(([codeRows, registrationRows]) => {
+        const uniqueRows = new Map([...codeRows, ...registrationRows].map((truck) => [truck.id, truck]));
+        return [...uniqueRows.values()].sort((left, right) => left.code.localeCompare(right.code)).slice(0, 101);
+      })
+    : db.select().from(trucks).orderBy(asc(trucks.code)).limit(101).all();
   const [tripRows, truckRows, driverRows] = await Promise.all([
     db.select({
       id: trips.id,
@@ -55,11 +69,11 @@ export default async function TripsPage({ searchParams }: Props) {
       .from(trips)
       .innerJoin(trucks, eq(trucks.id, trips.truckId))
       .leftJoin(users, eq(users.id, trips.driverUserId))
-      .where(cursorFilter)
+      .where(and(cursorFilter, tripStatusFilter))
       .orderBy(desc(trips.createdAt), desc(trips.id))
       .limit(TRIP_PAGE_SIZE + 1)
       .all(),
-    db.select().from(trucks).orderBy(asc(trucks.code)).limit(200).all(),
+    truckRowsPromise,
     db.select({ id: users.id, displayName: users.displayName })
       .from(users)
       .innerJoin(userRoleAssignments, eq(userRoleAssignments.userId, users.id))
@@ -71,7 +85,9 @@ export default async function TripsPage({ searchParams }: Props) {
   const hasMore = tripRows.length > TRIP_PAGE_SIZE;
   const rows = tripRows.slice(0, TRIP_PAGE_SIZE);
   const next = rows.at(-1);
-  const activeTrucks = truckRows.filter((truck) => truck.status === "ACTIVE");
+  const trucksTruncated = truckRows.length > 100;
+  const visibleTrucks = truckRows.slice(0, 100);
+  const activeTrucks = visibleTrucks.filter((truck) => truck.status === "ACTIVE");
   const canWrite = can(actor, "jobs:write");
   const truckRequestKey = crypto.randomUUID();
   const tripRequestKey = crypto.randomUUID();
@@ -85,6 +101,15 @@ export default async function TripsPage({ searchParams }: Props) {
       {params.status === "trip_exists" && <div className="login-notice page-message">คำขอนี้สร้างเที่ยวแล้ว ระบบไม่สร้างเที่ยวซ้ำ</div>}
       {params.status === "trip_updated" && <div className="form-message success page-message">อัปเดตสถานะเที่ยวและบันทึก Audit แล้ว</div>}
       {params.error && <div className="form-message error page-message" role="alert">บันทึกไม่สำเร็จ กรุณาตรวจข้อมูล รถ คนขับ ลำดับสถานะ หรือข้อมูลที่ถูกแก้จากอีกหน้าจอ</div>}
+
+      <section className="trip-discovery-tools">
+        <form className="trip-load-search" action="/app/trips" method="get" role="search">
+          {selectedTripStatus && <input type="hidden" name="tripStatus" value={selectedTripStatus} />}
+          <label htmlFor="truckQ">ค้นหารถขนส่งด้วยรหัสรถหรือทะเบียน (ขึ้นต้นด้วย)</label>
+          <div><input id="truckQ" name="truckQ" minLength={2} maxLength={50} defaultValue={truckSearch ?? ""} placeholder="เช่น NG-01 หรือ 1กข" /><button type="submit">ค้นหารถ</button>{truckSearch && <Link href={`/app/trips${selectedTripStatus ? `?tripStatus=${selectedTripStatus}` : ""}`}>ล้าง</Link>}</div>
+        </form>
+        <nav className="trip-status-filters" aria-label="กรองสถานะเที่ยว"><Link className={!selectedTripStatus ? "active" : ""} href={`/app/trips${truckSearch ? `?truckQ=${encodeURIComponent(truckSearch)}` : ""}`}>ทั้งหมด</Link>{TRIP_STATUSES.map((status) => <Link className={selectedTripStatus === status ? "active" : ""} href={`/app/trips?tripStatus=${status}${truckSearch ? `&truckQ=${encodeURIComponent(truckSearch)}` : ""}`} key={status}>{tripStatusLabels[status]}</Link>)}</nav>
+      </section>
 
       {canWrite && <section className="trip-create-grid">
         <form className="record-form" action="/api/trucks" method="post">
@@ -113,7 +138,8 @@ export default async function TripsPage({ searchParams }: Props) {
       </section>}
 
       <section className="detail-section"><div className="detail-section-head"><div><p>FLEET</p><h2>รถขนส่ง</h2></div><span>สูงสุด 200 คันในหน้าจัดการ</span></div>
-        <div className="truck-grid">{truckRows.map((truck) => <article className="app-panel truck-card" key={truck.id}><div><b>{truck.code}</b><span className="status-pill">{truck.status}</span></div><h3>{truckTypeLabels[truck.type]}</h3><p>{truck.registration || "ยังไม่มีทะเบียน"}</p><small>ความจุ {truck.capacityMotorcycles ?? "ยังไม่ยืนยัน"} คัน</small></article>)}{!truckRows.length && <div className="app-panel app-empty"><div>🚚</div><h2>ยังไม่มีรถขนส่ง</h2><p>บันทึกรถจริงก่อนเริ่มวางเที่ยว</p></div>}</div>
+        <div className="truck-grid">{visibleTrucks.map((truck) => <article className="app-panel truck-card" key={truck.id}><div><b>{truck.code}</b><span className="status-pill">{truck.status}</span></div><h3>{truckTypeLabels[truck.type]}</h3><p>{truck.registration || "ยังไม่มีทะเบียน"}</p><small>ความจุ {truck.capacityMotorcycles ?? "ยังไม่ยืนยัน"} คัน</small></article>)}{!visibleTrucks.length && <div className="app-panel app-empty"><div>🚚</div><h2>{truckSearch ? "ไม่พบรถตรงกับคำค้น" : "ยังไม่มีรถขนส่ง"}</h2><p>{truckSearch ? "ตรวจรหัสรถหรือทะเบียนแล้วค้นหาอีกครั้ง" : "บันทึกรถจริงก่อนเริ่มวางเที่ยว"}</p></div>}</div>
+        {trucksTruncated && <div className="login-notice page-message">พบรถมากกว่า 100 รายการ กรุณาค้นหาด้วยรหัสรถหรือทะเบียนเพื่อเลือกคันที่ต้องการ</div>}
       </section>
 
       <section className="detail-section"><div className="detail-section-head"><div><p>TRIPS</p><h2>เที่ยวล่าสุด</h2></div><span>{rows.length} รายการในหน้านี้</span></div>
@@ -122,7 +148,7 @@ export default async function TripsPage({ searchParams }: Props) {
           <dl><div><dt>รถ</dt><dd>{trip.truckCode}<small>{trip.truckRegistration || "ไม่มีทะเบียน"}</small></dd></div><div><dt>คนขับ</dt><dd>{trip.driverName || "ยังไม่กำหนด"}</dd></div><div><dt>กำหนดออก</dt><dd>{formatThaiDateTime(trip.plannedDepartureAt)}</dd></div><div><dt>กำหนดถึง</dt><dd>{formatThaiDateTime(trip.plannedArrivalAt)}</dd></div></dl>
           <Link className="trip-detail-link" href={`/app/trips/${trip.id}`}>เปิด Load Board และ Timeline →</Link>
         </article>)}</div> : <div className="app-panel app-empty"><div>🛣️</div><h2>ยังไม่มีเที่ยววิ่ง</h2><p>สร้างเที่ยวจากรถขนส่งจริง ระบบจะไม่แสดงรายการตัวอย่าง</p></div>}
-        <nav className="batch-navigation" aria-label="หน้าเที่ยววิ่ง"><span>แสดงสูงสุด {TRIP_PAGE_SIZE} เที่ยวต่อหน้า</span>{hasMore && next && <Link className="button button-glass button-small" href={`/app/trips?before=${encodeURIComponent(next.createdAt)}&beforeId=${encodeURIComponent(next.id)}`}>หน้าถัดไป</Link>}</nav>
+        <nav className="batch-navigation" aria-label="หน้าเที่ยววิ่ง"><span>แสดงสูงสุด {TRIP_PAGE_SIZE} เที่ยวต่อหน้า</span>{hasMore && next && <Link className="button button-glass button-small" href={`/app/trips?before=${encodeURIComponent(next.createdAt)}&beforeId=${encodeURIComponent(next.id)}${selectedTripStatus ? `&tripStatus=${selectedTripStatus}` : ""}${truckSearch ? `&truckQ=${encodeURIComponent(truckSearch)}` : ""}`}>หน้าถัดไป</Link>}</nav>
       </section>
     </>
   );

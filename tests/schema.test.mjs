@@ -231,6 +231,29 @@ test("active trip planning uses truck and status indexes", () => {
   db.close();
 });
 
+test("fleet prefix lookup remains bounded and index-backed", () => {
+  const db = createMigratedDatabase();
+  const codePlan = db.prepare("EXPLAIN QUERY PLAN SELECT id FROM trucks WHERE code GLOB ? ORDER BY code LIMIT 101").all("NG-*").map((row) => String(row.detail)).join(" ");
+  const registrationPlan = db.prepare("EXPLAIN QUERY PLAN SELECT id FROM trucks WHERE registration IS NOT NULL AND registration <> '' AND registration GLOB ? ORDER BY registration LIMIT 101").all("1กข*").map((row) => String(row.detail)).join(" ");
+  assert.match(codePlan, /SEARCH trucks USING INDEX uq_trucks_code/);
+  assert.match(registrationPlan, /SEARCH trucks USING INDEX uq_trucks_registration/);
+  db.close();
+});
+
+test("eligible motorcycle prefix lookups use field-specific indexes", () => {
+  const db = createMigratedDatabase();
+  const commonJoin = " FROM motorcycles m JOIN transport_jobs j ON j.id = m.job_id LEFT JOIN trip_motorcycle_assignments a ON a.motorcycle_id = m.id AND a.released_at IS NULL ";
+  const commonScope = " AND m.current_status = 'SCHEDULED' AND a.id IS NULL LIMIT 101";
+  const jobPlan = db.prepare(`EXPLAIN QUERY PLAN SELECT m.id${commonJoin}WHERE j.job_number GLOB ?${commonScope}`).all("JOB-*").map((row) => String(row.detail)).join(" ");
+  const publicIdPlan = db.prepare(`EXPLAIN QUERY PLAN SELECT m.id${commonJoin}WHERE m.public_id GLOB ?${commonScope}`).all("public-*").map((row) => String(row.detail)).join(" ");
+  const registrationPlan = db.prepare(`EXPLAIN QUERY PLAN SELECT m.id${commonJoin}WHERE m.registration IS NOT NULL AND m.registration <> '' AND m.registration GLOB ?${commonScope}`).all("1กข*").map((row) => String(row.detail)).join(" ");
+  assert.match(jobPlan, /uq_transport_jobs_job_number/);
+  assert.match(publicIdPlan, /uq_motorcycles_public_id/);
+  assert.match(registrationPlan, /idx_motorcycles_registration/);
+  assert.match(`${jobPlan} ${publicIdPlan} ${registrationPlan}`, /uq_trip_assignments_motorcycle_active/);
+  db.close();
+});
+
 test("yard migration preserves existing staff permissions", () => {
   const db = new DatabaseSync(":memory:");
   db.exec("PRAGMA foreign_keys = ON");
