@@ -1,5 +1,15 @@
 # NATHEE GROUP 2025 — Work History
 
+## 2026-08-21 — Opaque operational QR identities and labels
+
+- Implementation commit: `55de6ab`
+- Extended the secure QR system from Motorcycle to Job, Yard, Truck and Trip with distinct type prefixes and 128-bit opaque public IDs. Labels never expose sequential primary keys or rely on client-side authorization.
+- Added authenticated SVG endpoints, responsive print labels and a unified scanner backed by real database lookups. Customer scope is limited to its own Job/Motorcycle while operational Yard/Truck/Trip records remain internal-only.
+- Migration `0018_unknown_blonde_phantom` uses additive/backfill steps for populated Job/Yard tables, canonicalizes pre-Production Truck/Trip IDs and adds unique indexes plus validation/immutability triggers. Preservation, malformed-ID, mutation and index query-plan tests cover every entity type.
+- Verification: full tests 147/147 (86 unit + 61 integration), TypeScript PASS, ESLint PASS, Vinext Production build PASS, public SEO/Gallery/mobile/responsive/deployment guards PASS, scoped secret scan PASS and `git diff --check` PASS.
+- Deployment: source only. No Z.com file, Sites version, Supabase value, D1 migration/row, R2 object, DNS or Production runtime changed. Production activation requires the existing application routing/Auth gates plus reviewed D1 backup, dry-run and one-time migration `0018`.
+- Rollback: revert `55de6ab` before applying `0018`. After apply, restore the reviewed D1 backup or use a forward migration; never replace public identities in-place after labels have been issued.
+
 ## 2026-08-21 — Atomic motorcycle CSV/XLSX import and reconciliation
 
 - Implementation commit: `c314e6f`

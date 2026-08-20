@@ -6,7 +6,7 @@ Updated: 2026-08-21 (Asia/Bangkok)
 
 - Review branch: `codex/nathee-media-owner-2`
 - Integration baseline: `3cfd65a176cba858c6fd5d76cab61df5c78093f8`
-- Latest verified implementation milestone: Atomic motorcycle CSV/XLSX imports (`c314e6f569dce1ee0872c272987bafa32b92c927`)
+- Latest verified implementation milestone: Opaque operational QR identities and labels (`55de6ab3064874fdb2bd102da894f611bc2474fa`)
 - Canonical repository: `ktbox1989/NATHEE-GROUP-2025`
 - Working rule: resolve the current checkpoint-document commit with `git rev-parse HEAD`; never infer Production deployment from source HEAD.
 
@@ -25,6 +25,14 @@ Updated: 2026-08-21 (Asia/Bangkok)
 - Full application Production acceptance: NOT PASSED
 
 ## Closed local milestones
+
+### Opaque operational QR identities and labels (`55de6ab`)
+
+- Extended the existing motorcycle QR contract to Job, Yard, Truck and Trip using type-prefixed 128-bit opaque public identities; sequential database IDs and business numbers are never encoded in labels.
+- Added authenticated same-origin SVG routes, permission-scoped printable labels and a single scanner that resolves all five entity types from real D1 records. Customers may resolve only their own company Job/Motorcycle; Yard, Truck and Trip remain internal-only and unauthorized records use the same not-found response.
+- Migration `0018_unknown_blonde_phantom` safely backfills Job/Yard identities without rebuilding populated tables, canonicalizes pre-Production Truck/Trip identities and enforces valid, unique, immutable identities with indexed lookups and database triggers.
+- Verification: full tests 147/147 (86 unit + 61 integration), TypeScript PASS, ESLint PASS, Vinext Production build PASS, public SEO/Gallery/mobile/responsive/deployment guards PASS, migration preservation/format/immutability/query-plan checks PASS, scoped secret scan PASS and `git diff --check` PASS.
+- Production remains unchanged. Migration `0018`, Auth/Owner mapping and dynamic application routing are still Production gates; no QR identity or operational record was created in Production.
 
 ### Atomic motorcycle CSV/XLSX imports (`c314e6f`)
 
