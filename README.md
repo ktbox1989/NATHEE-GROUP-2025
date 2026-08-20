@@ -30,6 +30,11 @@ See [the Motorcycle Bulk Import contract](./docs/MOTORCYCLE_BULK_IMPORT.md) befo
 
 See [the Operational QR contract](./docs/OPERATIONAL_QR.md) before applying migration `0018` or printing Job/Yard/Truck/Trip labels.
 
+The authenticated [Print Center](./docs/PRINT_CENTER.md) provides bounded,
+index-backed lookup for real Job, Motorcycle, Yard, Truck, Trip and Container
+records. It links only to print/document surfaces whose Backend data already
+exists and explicitly does not fabricate Invoice or finance reports.
+
 ## Repository layout
 
 - `public-site/` — verified static company website for the current Z.com hosting.

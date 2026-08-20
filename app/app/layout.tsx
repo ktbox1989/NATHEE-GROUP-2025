@@ -43,6 +43,9 @@ export default async function OperationsLayout({
     items.push({ href: "/app/motorcycles", label: "รถจักรยานยนต์", icon: "🏍️" });
     items.push({ href: "/app/scan", label: "สแกน QR", icon: "⌗" });
   }
+  if (isInternalRole(actor.role) && can(actor, "documents:read")) {
+    items.push({ href: "/app/print-center", label: "ศูนย์พิมพ์", icon: "🖨️" });
+  }
   if (can(actor, "yard:read")) {
     items.push({ href: "/app/yard", label: "จัดการลาน", icon: "🅿️" });
   }
