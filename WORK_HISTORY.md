@@ -1,5 +1,15 @@
 # NATHEE GROUP 2025 — Work History
 
+## 2026-08-21 — Truthful operational reports and Audit keyset pagination
+
+- Implementation commit: `3232992`
+- Added an authorization-scoped operational report backed only by current D1 Job, Motorcycle, Trip, Container and Yard rows. Customer output is tenant-scoped; internal-only sections require existing permissions, and absent statuses or unimplemented financial definitions are never synthesized.
+- Made the report responsive and printable, with the actual render time and a warning to verify source records/Audit before decisions.
+- Replaced the Audit latest-200 query with 50-row `(created_at, id)` keyset pages. Additive migration `0019_supreme_imperial_guard` adds only `idx_audit_logs_created_id`; preservation and query-plan tests require existing history to survive and the chronological query to use that index.
+- Verification: full tests 153/153 (90 unit + 63 integration), TypeScript PASS, ESLint PASS, Vinext Production build PASS, public SEO/Gallery/mobile/responsive/deployment guards PASS, scoped secret scan PASS and `git diff --check` PASS.
+- Deployment: source only. No Z.com file, Sites version, Supabase value, D1 migration/row, R2 object, DNS or Production runtime changed.
+- Rollback: revert `3232992` before applying `0019`. After apply, retain the harmless index or remove it only through a reviewed forward migration; never delete Audit history.
+
 ## 2026-08-21 — Bounded real-data Print Center
 
 - Implementation commit: `28b8c6c`

@@ -6,7 +6,7 @@ Updated: 2026-08-21 (Asia/Bangkok)
 
 - Review branch: `codex/nathee-media-owner-2`
 - Integration baseline: `3cfd65a176cba858c6fd5d76cab61df5c78093f8`
-- Latest verified implementation milestone: Bounded real-data Print Center (`28b8c6c`)
+- Latest verified implementation milestone: Truthful operational reports and Audit keyset pagination (`323299219a61c6d50dfbe547afeb1e4337068749`)
 - Canonical repository: `ktbox1989/NATHEE-GROUP-2025`
 - Working rule: resolve the current checkpoint-document commit with `git rev-parse HEAD`; never infer Production deployment from source HEAD.
 
@@ -25,6 +25,15 @@ Updated: 2026-08-21 (Asia/Bangkok)
 - Full application Production acceptance: NOT PASSED
 
 ## Closed local milestones
+
+### Truthful operational reports and Audit keyset pagination (`3232992`)
+
+- Added `/app/reports` with current-state Job, Motorcycle, Trip, Container and Yard aggregates calculated from authorized D1 rows. Customer roles receive only their company Job/Motorcycle counts; missing statuses remain absent and no KPI, finance, SLA or Invoice values are invented.
+- Reports are responsive and printable with a render timestamp. The UI states its operational-only boundary and keeps finance reporting blocked until authoritative tables and business policy exist.
+- Replaced the Audit UI's fixed latest-200 read with descending `(created_at, id)` keyset pages of 50. Additive migration `0019_supreme_imperial_guard` adds the chronological index only; preservation and EXPLAIN tests prove existing Audit history remains and pagination is index-backed.
+- Runtime readiness now requires the `0019` index and stays degraded if Production schema is behind.
+- Verification: full tests 153/153 (90 unit + 63 integration), TypeScript PASS, ESLint PASS, Vinext Production build PASS, public SEO/Gallery/mobile/responsive/deployment guards PASS, scoped secret scan PASS and `git diff --check` PASS.
+- Production remains unchanged. Migration `0019`, the full app runtime and Auth/Owner mapping remain Production gates.
 
 ### Bounded real-data Print Center (`28b8c6c`)
 
