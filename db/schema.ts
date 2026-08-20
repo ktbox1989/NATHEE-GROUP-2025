@@ -129,6 +129,9 @@ export const companies = sqliteTable(
   (table) => [
     uniqueIndex("uq_companies_code").on(table.code),
     index("idx_companies_status").on(table.status),
+    index("idx_companies_display_name_code").on(table.displayName, table.code),
+    index("idx_companies_status_code").on(table.status, table.code),
+    index("idx_companies_status_display_name_code").on(table.status, table.displayName, table.code),
     check(
       "ck_companies_status",
       sql`${table.status} IN ('ACTIVE', 'INACTIVE', 'ARCHIVED')`,
@@ -161,6 +164,8 @@ export const users = sqliteTable(
     uniqueIndex("uq_users_username").on(table.username),
     index("idx_users_company_role").on(table.companyId, table.role),
     index("idx_users_status").on(table.status),
+    index("idx_users_status_display_name_id").on(table.status, table.displayName, table.id),
+    index("idx_users_status_email_id").on(table.status, table.email, table.id),
     check(
       "ck_customer_requires_company",
       sql`${table.role} <> 'CUSTOMER' OR ${table.companyId} IS NOT NULL`,
@@ -250,6 +255,8 @@ export const transportJobs = sqliteTable(
   (table) => [
     uniqueIndex("uq_transport_jobs_job_number").on(table.jobNumber),
     index("idx_transport_jobs_company_created").on(table.companyId, table.createdAt),
+    index("idx_transport_jobs_created_id").on(table.createdAt, table.id),
+    index("idx_transport_jobs_company_created_id").on(table.companyId, table.createdAt, table.id),
     index("idx_transport_jobs_status").on(table.status),
     check(
       "ck_transport_jobs_status",

@@ -1,5 +1,14 @@
 # NATHEE GROUP 2025 — Work History
 
+## 2026-08-21 — Bounded Company, Job and Driver directories
+
+- Replaced unbounded Company/Job reads and the 200-user Driver preload with 50-record pages and safe indexed prefix search over Company code/name and active Driver name/email.
+- Added stable cursor pagination for Jobs and Companies, bounded option lists, explicit truncation states and server-side validation that rejects wildcard/control-character scans.
+- Added migration `0014_past_sphinx` with seven query-backed indexes. The migration is additive and does not rewrite Company, Job or User records.
+- Verification: full tests 110/110, migration-preservation and query-plan checks PASS, Vinext production build PASS, ESLint PASS, public SEO/deployment guards PASS.
+- Deployment: source only. Migration `0014` and Dynamic App routes were not deployed; Z.com remains the public static component only.
+- Rollback: revert this commit before applying `0014`. After apply, keep the indexes or remove them only in a reviewed forward migration; no business row rollback is required.
+
 ## 2026-08-21 — Revisioned global Site Settings
 
 - Added a single authenticated settings surface for brand/legal name, abbreviation, tagline, optional published Gallery logo, verified phones, bounded public navigation, Login label and Footer.

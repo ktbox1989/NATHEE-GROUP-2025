@@ -360,6 +360,53 @@ test("company and status queries use the compound motorcycle index", () => {
   db.close();
 });
 
+test("company, job and driver directory lookups stay bounded on dedicated indexes", () => {
+  const db = createMigratedDatabase();
+  seedCoreRecords(db);
+  db.exec(`
+    INSERT INTO users (id, external_auth_id, email, display_name, role, status)
+    VALUES ('driver-a', 'auth-driver-a', 'driver@example.test', 'สมชาย คนขับ', 'STAFF', 'ACTIVE');
+    INSERT INTO user_role_assignments (user_id, role, assigned_by)
+    VALUES ('driver-a', 'DRIVER', 'owner-a');
+  `);
+
+  const companyCodePlan = queryPlan(db, "SELECT id FROM companies WHERE status = ? AND code GLOB ? ORDER BY code LIMIT 51", "ACTIVE", "CUS*");
+  const companyNamePlan = queryPlan(db, "SELECT id FROM companies WHERE status = ? AND display_name GLOB ? ORDER BY display_name, code LIMIT 51", "ACTIVE", "บริษัท*");
+  const allJobsPlan = queryPlan(db, "SELECT id FROM transport_jobs ORDER BY created_at DESC, id DESC LIMIT 51");
+  const companyJobsPlan = queryPlan(db, "SELECT id FROM transport_jobs WHERE company_id = ? ORDER BY created_at DESC, id DESC LIMIT 51", "company-a");
+  const driverNamePlan = queryPlan(db, `
+    SELECT u.id FROM users u
+    INNER JOIN user_role_assignments r ON r.user_id = u.id
+    WHERE u.status = ? AND r.role = ? AND u.display_name GLOB ?
+    ORDER BY u.display_name, u.id LIMIT 51
+  `, "ACTIVE", "DRIVER", "สมชาย*");
+
+  assert.match(companyCodePlan, /idx_companies_status_code/);
+  assert.match(companyNamePlan, /idx_companies_status_display_name_code/);
+  assert.match(allJobsPlan, /idx_transport_jobs_created_id/);
+  assert.match(companyJobsPlan, /idx_transport_jobs_company_created_id/);
+  assert.match(driverNamePlan, /idx_users_status_display_name_id|idx_user_role_assignments_role/);
+  db.close();
+});
+
+test("migration 0014 adds directory indexes without rewriting existing records", () => {
+  const db = new DatabaseSync(":memory:");
+  db.exec("PRAGMA foreign_keys = ON");
+  const migrationDirectory = fileURLToPath(new URL("../drizzle/", import.meta.url));
+  const migrations = readdirSync(migrationDirectory).filter((name) => name.endsWith(".sql")).sort();
+  for (const migration of migrations.filter((name) => name < "0014_")) applyMigration(db, `${migrationDirectory}/${migration}`);
+  seedCoreRecords(db);
+  const before = db.prepare("SELECT (SELECT COUNT(*) FROM companies) AS companies, (SELECT COUNT(*) FROM transport_jobs) AS jobs, (SELECT COUNT(*) FROM users) AS users").get();
+
+  applyMigration(db, `${migrationDirectory}/0014_past_sphinx.sql`);
+
+  const after = db.prepare("SELECT (SELECT COUNT(*) FROM companies) AS companies, (SELECT COUNT(*) FROM transport_jobs) AS jobs, (SELECT COUNT(*) FROM users) AS users").get();
+  const indexes = db.prepare("SELECT name FROM sqlite_schema WHERE type = 'index' AND name IN ('idx_companies_display_name_code', 'idx_companies_status_code', 'idx_companies_status_display_name_code', 'idx_users_status_display_name_id', 'idx_users_status_email_id', 'idx_transport_jobs_created_id', 'idx_transport_jobs_company_created_id')").all().map((row) => row.name);
+  assert.deepEqual({ ...after }, { ...before });
+  assert.equal(indexes.length, 7);
+  db.close();
+});
+
 test("active yard queries use the partial zone index", () => {
   const db = createMigratedDatabase();
   seedCoreRecords(db);
@@ -438,3 +485,7 @@ test("gallery metadata migration preserves existing items and leaves unknown fie
   assert.deepEqual({ ...row }, { title: "ภาพเดิม", taken_at: null, location: null, public_job_reference: null });
   db.close();
 });
+
+function queryPlan(db, sql, ...params) {
+  return db.prepare(`EXPLAIN QUERY PLAN ${sql}`).all(...params).map((row) => String(row.detail)).join(" ");
+}

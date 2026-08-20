@@ -5,7 +5,7 @@ Updated: 2026-08-21 (Asia/Bangkok)
 ## Source checkpoint
 
 - Branch: `main`
-- Latest verified implementation milestone: Revisioned global Site Settings plus full textual public-page CMS coverage (resolve the final commit with `git rev-parse HEAD`)
+- Latest verified implementation milestone: Bounded Company, Job and Driver directories plus revisioned global Site Settings (resolve the final commit with `git rev-parse HEAD`)
 - Canonical repository: `ktbox1989/NATHEE-GROUP-2025`
 - Working rule: resolve the current checkpoint-document commit with `git rev-parse HEAD`; never infer Production deployment from source HEAD.
 
@@ -129,32 +129,38 @@ Updated: 2026-08-21 (Asia/Bangkok)
 - Public pages fail safely to verified source defaults when D1 is absent, a revision is malformed or the selected logo is no longer `PUBLIC` + `PUBLISHED`. Structured Organization data and Open Graph site identity use the same published settings.
 - Migration `0013_wakeful_moon_knight` adds append-only global setting revisions/publication history. It remains unapplied in Production.
 
+### Bounded Company, Job and Driver directories
+
+- Company and Transport Job pages now use 50-record bounded pages instead of loading every Production row. Job pagination uses a stable `created_at` + `id` cursor, while the Company directory uses its unique code cursor.
+- Job creation searches active companies by safe code/name prefixes and never renders more than 50 options. Trip planning searches active DRIVER identities by name/email only when requested instead of preloading 200 users.
+- Wildcards, control characters, one-character scans and oversized search terms fail closed. Multiple indexed prefix queries are merged and deduplicated without an unbounded OR scan.
+- Migration `0014_past_sphinx` adds only the seven indexes proven by these real queries. Upgrade tests preserve pre-existing Company, Job and User counts, and query-plan tests verify bounded index use. It remains unapplied in Production.
+
 ## Verified source gates
 
-- Full test suite: 106 passing
-- Authorization/unit/CMS/settings parser tests: 59 passing
-- Render/schema/notification/yard/trip/container/inspection/POD/CMS/settings/query-plan tests: 47 passing
+- Full test suite: 110 passing
+- Authorization/unit/CMS/settings/search parser tests: 61 passing
+- Render/schema/notification/yard/trip/container/inspection/POD/CMS/settings/query-plan tests: 49 passing
 - Production Vinext build: PASS
 - ESLint: PASS
 - Public SEO and deployment architecture guards: PASS
-- Migrations through `0013` packaged in `dist/.openai/drizzle/`: PASS
+- Migrations through `0014` packaged in `dist/.openai/drizzle/`: PASS
 
 ## Open Owner gates
 
 - Approve application routing model: apex edge routes or an application subdomain.
 - Supply/configure Supabase Production values through a secure hosting channel.
-- Backup and apply migrations `0001`–`0013` to the protected D1 runtime.
+- Backup and apply migrations `0001`–`0014` to the protected D1 runtime.
 - Verify private R2 readiness.
 - Bootstrap the real OWNER identity and accept two-company customer isolation.
 - Deploy the two approved Gallery photographs and add verified location/map data when supplied.
 
 ## Next autonomous work
 
-1. Stop adding broad local modules and close the Production activation gates: canonical app route, Supabase environment/callback, D1 backup+ledger+migrations `0001`–`0013`, R2 readiness and real OWNER mapping.
+1. Stop adding broad local modules and close the Production activation gates: canonical app route, Supabase environment/callback, D1 backup+ledger+migrations `0001`–`0014`, R2 readiness and real OWNER mapping.
 2. Run real browser acceptance for OWNER and two isolated customer companies before exposing `/app` publicly.
-3. Add bounded Company Search and indexed Driver Search before large customer/staff rollout; current selectors remain deliberately capped.
-4. Configure external LINE/email notification providers only after credentials, consent, retry and escalation policy are approved.
-5. Keep all new migrations unapplied until the Production backup/runtime gates are satisfied.
+3. Configure external LINE/email notification providers only after credentials, consent, retry and escalation policy are approved.
+4. Keep all new migrations unapplied until the Production backup/runtime gates are satisfied.
 
 ## Prohibited claims
 
