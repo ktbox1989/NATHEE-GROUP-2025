@@ -1,5 +1,14 @@
 # NATHEE GROUP 2025 — Work History
 
+## 2026-08-21 — Bounded multipart uploads before parsing
+
+- Implementation commit: `c9f20f7`
+- Added one fail-closed multipart contract to Gallery, private motorcycle evidence, signed POD, motorcycle imports and the public quotation endpoint. It validates media boundary and explicit request length against each endpoint's byte budget before any body parse.
+- Missing/invalid/zero lengths can no longer become an accepted zero through JavaScript number conversion; unsupported, length-required and too-large responses remain distinct for JSON upload clients while HTML forms retain safe redirects.
+- Verification: full tests 174/174 (106 unit + 68 integration), TypeScript PASS, ESLint PASS, Vinext Production build PASS, public SEO/Gallery/mobile/responsive/deployment guards PASS, scoped secret scan PASS and `git diff --check` PASS.
+- Deployment: source only. No migration, Z.com file, Sites version, Auth setting, D1 row, R2 object, DNS or Production runtime changed.
+- Rollback: revert `c9f20f7`; no schema or object rollback is required.
+
 ## 2026-08-21 — Server-verified image artifacts and R2 compensation
 
 - Implementation commit: `5629c21`

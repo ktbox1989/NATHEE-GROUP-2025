@@ -22,6 +22,8 @@ The server validates and bounds every submitted field, rejects a honeypot value,
 
 Turnstile is fail-closed. Both `NEXT_PUBLIC_TURNSTILE_SITE_KEY` and server-only `TURNSTILE_SECRET_KEY` must pass format checks before the form is rendered or `/api/health` can pass. The API posts the token to Siteverify with a UUID idempotency key, a five-second timeout and at most one safe retry; it accepts only `success=true`, action `quotation` and the exact configured application hostname. The secret never enters a public environment name, URL, rendered page, Audit record or repository value. Tokens remain single-use and expire according to [Cloudflare's server-side validation contract](https://developers.cloudflare.com/turnstile/get-started/server-side-validation/).
 
+The endpoint also requires a real `multipart/form-data` boundary and an explicit positive `Content-Length` within the 22 MB request budget before parsing the body. A missing or malformed length cannot be treated as zero, and an oversized request cannot reach attachment decoding or D1/R2 work.
+
 The authenticated inbox `/app/quotations` is OWNER-only. It is keyset-bounded to 50 records and status changes write an Audit Log in the same D1 batch. Other roles receive no navigation item and are redirected by the server.
 
 Migration `0016_numerous_shatterstar` adds private quotation attachments without rewriting an existing quotation:

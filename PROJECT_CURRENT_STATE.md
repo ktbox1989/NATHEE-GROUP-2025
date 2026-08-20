@@ -6,7 +6,7 @@ Updated: 2026-08-21 (Asia/Bangkok)
 
 - Review branch: `codex/nathee-media-owner-2`
 - Integration baseline: `3cfd65a176cba858c6fd5d76cab61df5c78093f8`
-- Latest verified implementation milestone: Server-verified image artifacts and R2 compensation (`5629c21b26860c89ba5a25b126e6750e73c6b452`)
+- Latest verified implementation milestone: Bounded multipart uploads before parsing (`c9f20f7edc75e998cce192931d4112411e1c87a2`)
 - Canonical repository: `ktbox1989/NATHEE-GROUP-2025`
 - Working rule: resolve the current checkpoint-document commit with `git rev-parse HEAD`; never infer Production deployment from source HEAD.
 
@@ -25,6 +25,14 @@ Updated: 2026-08-21 (Asia/Bangkok)
 - Full application Production acceptance: NOT PASSED
 
 ## Closed local milestones
+
+### Bounded multipart uploads before parsing (`c9f20f7`)
+
+- Closed a request-budget bypass: several heavy endpoints converted a missing `Content-Length` to zero and then parsed the multipart body. Gallery, private evidence, signed POD, motorcycle import and public quotation now share one fail-closed contract before `request.formData()`.
+- The contract requires `multipart/form-data` with a non-empty bounded boundary and an explicit positive integer byte length. Missing/invalid length returns 411, unsupported media returns 415 and over-budget payload returns 413 (or the existing safe form error redirect).
+- Static coverage requires all five heavy routes to keep the shared guard, while unit coverage checks quoted boundaries, missing/zero/fractional lengths and exact/over-limit sizes.
+- Verification: full tests 174/174 (106 unit + 68 integration), TypeScript PASS, ESLint PASS, Vinext Production build PASS, public SEO/Gallery/mobile/responsive/deployment guards PASS, scoped secret scan PASS and `git diff --check` PASS.
+- No migration was added and Production remains unchanged. Real browser/Cloudflare multipart acceptance remains part of the gated application runtime acceptance.
 
 ### Server-verified image artifacts and R2 compensation (`5629c21`)
 
@@ -264,9 +272,9 @@ Updated: 2026-08-21 (Asia/Bangkok)
 
 ## Verified source gates
 
-- Full test suite: 168 passing
-- Authorization/unit/CMS/settings/search/config/readiness/identity/quotation/Turnstile/image/POD-signature tests: 103 passing
-- Render/schema/notification/yard/trip/container/inspection/POD/CMS/settings/query-plan/migration tests: 65 passing
+- Full test suite: 174 passing
+- Authorization/unit/CMS/settings/search/config/readiness/identity/quotation/Turnstile/image/POD-signature tests: 106 passing
+- Render/schema/notification/yard/trip/container/inspection/POD/CMS/settings/query-plan/migration tests: 68 passing
 - Production Vinext build: PASS
 - ESLint: PASS
 - Public SEO and deployment architecture guards: PASS
