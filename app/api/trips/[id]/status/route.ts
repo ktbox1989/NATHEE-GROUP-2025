@@ -1,11 +1,11 @@
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { NextResponse, type NextRequest } from "next/server";
 import { getD1, getDb } from "@/db";
-import { trips, TRIP_STATUSES, type TripStatus } from "@/db/schema";
+import { motorcycles, tripMotorcycleAssignments, trips, TRIP_STATUSES, type TripStatus } from "@/db/schema";
 import { can, isInternalRole } from "@/lib/authorization";
 import { getCurrentActor } from "@/lib/current-actor";
 import { isSameOrigin } from "@/lib/same-origin";
-import { canTransitionTrip } from "@/lib/trips";
+import { canTransitionTrip, tripReadinessIssue } from "@/lib/trips";
 
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   if (!isSameOrigin(request)) return new NextResponse("Forbidden", { status: 403 });
@@ -23,11 +23,22 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   const newStatus = rawStatus as TripStatus;
   if (!canTransitionTrip(trip.status, newStatus) || (newStatus === "CANCELLED" && !note)) return redirect(request, "error", "invalid_transition");
 
+  const assignments = await getDb()
+    .select({ state: tripMotorcycleAssignments.state, motorcycleStatus: motorcycles.currentStatus })
+    .from(tripMotorcycleAssignments)
+    .innerJoin(motorcycles, eq(motorcycles.id, tripMotorcycleAssignments.motorcycleId))
+    .where(and(eq(tripMotorcycleAssignments.tripId, id), isNull(tripMotorcycleAssignments.releasedAt)))
+    .all();
+  if (tripReadinessIssue(newStatus, assignments)) return redirect(request, "error", "trip_not_ready");
+
   const now = new Date().toISOString();
   const eventId = crypto.randomUUID();
   const auditId = crypto.randomUUID();
   const setDeparture = newStatus === "IN_TRANSIT" ? 1 : 0;
   const setArrival = newStatus === "ARRIVED" || newStatus === "COMPLETED" ? 1 : 0;
+  const releaseFrom = newStatus === "CANCELLED" ? "ASSIGNED" : newStatus === "COMPLETED" ? "UNLOADED" : null;
+  const releaseReason = newStatus === "CANCELLED" ? "TRIP_CANCELLED" : newStatus === "COMPLETED" ? "TRIP_COMPLETED" : null;
+  const expectedReleased = releaseFrom ? assignments.length : 0;
   try {
     const d1 = getD1();
     const results = await d1.batch([
@@ -61,8 +72,35 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         now,
         eventId,
       ),
+      d1.prepare(`
+        INSERT INTO audit_logs
+          (id, actor_user_id, company_id, action, entity_type, entity_id, before_json, after_json, reason, created_at)
+        SELECT lower(hex(randomblob(16))), ?, company_id, 'STATUS_CHANGE',
+               'trip_motorcycle_assignment', id, ?, ?, ?, ?
+        FROM trip_motorcycle_assignments
+        WHERE trip_id = ? AND released_at IS NULL AND state = ?
+      `).bind(
+        actor.userId,
+        JSON.stringify({ state: releaseFrom }),
+        JSON.stringify({ state: "RELEASED" }),
+        releaseReason,
+        now,
+        id,
+        releaseFrom,
+      ),
+      d1.prepare(`
+        UPDATE trip_motorcycle_assignments
+        SET state = 'RELEASED', released_at = ?, release_reason = ?, updated_at = ?
+        WHERE trip_id = ? AND released_at IS NULL AND state = ?
+      `).bind(now, releaseReason, now, id, releaseFrom),
     ]);
-    if ((results[0].meta.changes ?? 0) !== 1 || (results[1].meta.changes ?? 0) !== 1 || (results[2].meta.changes ?? 0) !== 1) {
+    if (
+      (results[0].meta.changes ?? 0) !== 1
+      || (results[1].meta.changes ?? 0) !== 1
+      || (results[2].meta.changes ?? 0) !== 1
+      || (results[3].meta.changes ?? 0) !== expectedReleased
+      || (results[4].meta.changes ?? 0) !== expectedReleased
+    ) {
       return redirect(request, "error", "stale_trip");
     }
   } catch {
@@ -72,5 +110,6 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
 }
 
 function redirect(request: NextRequest, key: string, value: string) {
-  return NextResponse.redirect(new URL(`/app/trips?${key}=${encodeURIComponent(value)}`, request.url), 303);
+  const id = request.nextUrl.pathname.split("/").filter(Boolean).at(-2);
+  return NextResponse.redirect(new URL(`/app/trips/${id}?${key}=${encodeURIComponent(value)}`, request.url), 303);
 }

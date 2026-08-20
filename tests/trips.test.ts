@@ -4,11 +4,15 @@ import {
   allowedTripTransitions,
   bangkokInputToUtc,
   canTransitionTrip,
+  canTransitionTripAssignment,
   isTripRequestKey,
   isPlannedTripOrderValid,
   normalizeRegistration,
   normalizeTruckCode,
+  motorcycleStatusAllowsAssignmentState,
   parseTruckCapacity,
+  tripReadinessIssue,
+  tripStatusAllowsAssignmentTransition,
   TRIP_PAGE_SIZE,
 } from "../lib/trips.ts";
 
@@ -21,6 +25,34 @@ test("truck input is canonical and capacity remains optional", () => {
   assert.equal(parseTruckCapacity("24"), 24);
   assert.equal(parseTruckCapacity("0"), undefined);
   assert.equal(parseTruckCapacity("1.5"), undefined);
+});
+
+test("load assignment state follows the audited motorcycle workflow", () => {
+  assert.equal(canTransitionTripAssignment("ASSIGNED", "LOADED"), true);
+  assert.equal(canTransitionTripAssignment("ASSIGNED", "UNLOADED"), false);
+  assert.equal(canTransitionTripAssignment("LOADED", "UNLOADED"), true);
+  assert.equal(canTransitionTripAssignment("UNLOADED", "RELEASED"), true);
+  assert.equal(canTransitionTripAssignment("RELEASED", "ASSIGNED"), false);
+  assert.equal(motorcycleStatusAllowsAssignmentState("ASSIGNED", "SCHEDULED"), true);
+  assert.equal(motorcycleStatusAllowsAssignmentState("ASSIGNED", "IN_YARD"), false);
+  assert.equal(motorcycleStatusAllowsAssignmentState("LOADED", "LOADED"), true);
+  assert.equal(motorcycleStatusAllowsAssignmentState("UNLOADED", "ARRIVED"), true);
+  assert.equal(motorcycleStatusAllowsAssignmentState("UNLOADED", "IN_TRANSIT"), false);
+  assert.equal(tripStatusAllowsAssignmentTransition("ASSIGNED", "LOADED", "LOADING"), true);
+  assert.equal(tripStatusAllowsAssignmentTransition("ASSIGNED", "LOADED", "PLANNED"), false);
+  assert.equal(tripStatusAllowsAssignmentTransition("LOADED", "UNLOADED", "ARRIVED"), true);
+  assert.equal(tripStatusAllowsAssignmentTransition("UNLOADED", "RELEASED", "COMPLETED"), true);
+});
+
+test("trip readiness never infers motorcycle workflow completion", () => {
+  assert.match(tripReadinessIssue("LOADING", []) ?? "", /อย่างน้อย 1/);
+  assert.match(tripReadinessIssue("IN_TRANSIT", [{ state: "ASSIGNED", motorcycleStatus: "SCHEDULED" }]) ?? "", /ขึ้นรถ/);
+  assert.match(tripReadinessIssue("IN_TRANSIT", [{ state: "LOADED", motorcycleStatus: "LOADED" }]) ?? "", /กำลังขนส่ง/);
+  assert.equal(tripReadinessIssue("IN_TRANSIT", [{ state: "LOADED", motorcycleStatus: "IN_TRANSIT" }]), null);
+  assert.match(tripReadinessIssue("COMPLETED", [{ state: "LOADED", motorcycleStatus: "ARRIVED" }]) ?? "", /ลงรถ/);
+  assert.match(tripReadinessIssue("COMPLETED", [{ state: "UNLOADED", motorcycleStatus: "ARRIVED" }]) ?? "", /ส่งมอบ/);
+  assert.equal(tripReadinessIssue("COMPLETED", [{ state: "UNLOADED", motorcycleStatus: "DELIVERED" }]), null);
+  assert.match(tripReadinessIssue("CANCELLED", [{ state: "LOADED", motorcycleStatus: "LOADED" }]) ?? "", /ยกเลิก/);
 });
 
 test("Bangkok planning input becomes timezone-aware UTC and rejects malformed values", () => {

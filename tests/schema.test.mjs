@@ -60,6 +60,7 @@ test("fresh migrations create every phase-one table", () => {
     "sequence_counters",
     "status_events",
     "transport_jobs",
+    "trip_motorcycle_assignments",
     "trip_status_events",
     "trips",
     "trucks",

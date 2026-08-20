@@ -5,7 +5,7 @@ import { getDb } from "@/db";
 import { trips, trucks, userRoleAssignments, users, TRUCK_TYPES } from "@/db/schema";
 import { can, isInternalRole } from "@/lib/authorization";
 import { requireActor } from "@/lib/current-actor";
-import { allowedTripTransitions, TRIP_PAGE_SIZE } from "@/lib/trips";
+import { TRIP_PAGE_SIZE } from "@/lib/trips";
 
 export const dynamic = "force-dynamic";
 
@@ -118,9 +118,9 @@ export default async function TripsPage({ searchParams }: Props) {
 
       <section className="detail-section"><div className="detail-section-head"><div><p>TRIPS</p><h2>เที่ยวล่าสุด</h2></div><span>{rows.length} รายการในหน้านี้</span></div>
         {rows.length ? <div className="trip-list">{rows.map((trip) => <article className="app-panel trip-card" key={trip.id}>
-          <div className="trip-card-head"><div><span>{trip.tripNumber}</span><h3>{trip.origin} → {trip.destination}</h3></div><span className={`status-pill ${trip.status}`}>{tripStatusLabels[trip.status]}</span></div>
+          <div className="trip-card-head"><div><span>{trip.tripNumber}</span><h3><Link href={`/app/trips/${trip.id}`}>{trip.origin} → {trip.destination}</Link></h3></div><span className={`status-pill ${trip.status}`}>{tripStatusLabels[trip.status]}</span></div>
           <dl><div><dt>รถ</dt><dd>{trip.truckCode}<small>{trip.truckRegistration || "ไม่มีทะเบียน"}</small></dd></div><div><dt>คนขับ</dt><dd>{trip.driverName || "ยังไม่กำหนด"}</dd></div><div><dt>กำหนดออก</dt><dd>{formatThaiDateTime(trip.plannedDepartureAt)}</dd></div><div><dt>กำหนดถึง</dt><dd>{formatThaiDateTime(trip.plannedArrivalAt)}</dd></div></dl>
-          {canWrite && allowedTripTransitions(trip.status).length > 0 && <div className="trip-actions">{allowedTripTransitions(trip.status).map((nextStatus) => <form action={`/api/trips/${trip.id}/status`} method="post" key={nextStatus}><input type="hidden" name="newStatus" value={nextStatus} /><input name="note" maxLength={1000} required={nextStatus === "CANCELLED"} placeholder={nextStatus === "CANCELLED" ? "เหตุผลที่ยกเลิก *" : "หมายเหตุ (ถ้ามี)"} /><button type="submit">{tripStatusLabels[nextStatus]}</button></form>)}</div>}
+          <Link className="trip-detail-link" href={`/app/trips/${trip.id}`}>เปิด Load Board และ Timeline →</Link>
         </article>)}</div> : <div className="app-panel app-empty"><div>🛣️</div><h2>ยังไม่มีเที่ยววิ่ง</h2><p>สร้างเที่ยวจากรถขนส่งจริง ระบบจะไม่แสดงรายการตัวอย่าง</p></div>}
         <nav className="batch-navigation" aria-label="หน้าเที่ยววิ่ง"><span>แสดงสูงสุด {TRIP_PAGE_SIZE} เที่ยวต่อหน้า</span>{hasMore && next && <Link className="button button-glass button-small" href={`/app/trips?before=${encodeURIComponent(next.createdAt)}&beforeId=${encodeURIComponent(next.id)}`}>หน้าถัดไป</Link>}</nav>
       </section>

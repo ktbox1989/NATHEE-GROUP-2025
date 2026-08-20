@@ -57,6 +57,13 @@
       "when": 1787247908323,
       "tag": "0007_truck_trip_foundation",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1787248259498,
+      "tag": "0008_trip_motorcycle_loads",
+      "breakpoints": true
     }
   ]
 }
