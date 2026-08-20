@@ -1,5 +1,15 @@
 # NATHEE GROUP 2025 — Work History
 
+## 2026-08-21 — Bounded real-data Print Center
+
+- Implementation commit: `28b8c6c`
+- Added an internal `documents:read` Print Center with real indexed lookup for Job number, registration, VIN, engine number, Yard code, Truck code, Trip number and Container number. Results open only the QR/document/load surfaces that already have authoritative data.
+- All queries reject wildcard/control scans and cap results at 50 plus a sentinel. Query-plan regression coverage caught and repaired an initial VIN/engine table scan by matching the existing partial-index predicates.
+- Destination routes repeat server-side authorization; write permissions remain mandatory for QR printing. Invoice and finance reports stay visibly unavailable because no authoritative numbering/money/approval contract exists yet.
+- Verification: full tests 150/150 (88 unit + 62 integration), TypeScript PASS, ESLint PASS, Vinext Production build PASS, public SEO/Gallery/mobile/responsive/deployment guards PASS, scoped secret scan PASS and `git diff --check` PASS.
+- Deployment: source only. No migration, Z.com file, Sites version, Supabase value, D1 row, R2 object, DNS or Production runtime changed.
+- Rollback: revert `28b8c6c`; no database or Production rollback is required.
+
 ## 2026-08-21 — Opaque operational QR identities and labels
 
 - Implementation commit: `55de6ab`

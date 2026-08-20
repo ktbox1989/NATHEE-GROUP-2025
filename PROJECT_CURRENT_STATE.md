@@ -6,7 +6,7 @@ Updated: 2026-08-21 (Asia/Bangkok)
 
 - Review branch: `codex/nathee-media-owner-2`
 - Integration baseline: `3cfd65a176cba858c6fd5d76cab61df5c78093f8`
-- Latest verified implementation milestone: Opaque operational QR identities and labels (`55de6ab3064874fdb2bd102da894f611bc2474fa`)
+- Latest verified implementation milestone: Bounded real-data Print Center (`28b8c6c`)
 - Canonical repository: `ktbox1989/NATHEE-GROUP-2025`
 - Working rule: resolve the current checkpoint-document commit with `git rev-parse HEAD`; never infer Production deployment from source HEAD.
 
@@ -25,6 +25,14 @@ Updated: 2026-08-21 (Asia/Bangkok)
 - Full application Production acceptance: NOT PASSED
 
 ## Closed local milestones
+
+### Bounded real-data Print Center (`28b8c6c`)
+
+- Added internal-only `/app/print-center` for authorized staff to find real Job, Motorcycle, Yard, Truck, Trip and Container records and open their existing QR, Inspection/POD, Trip Load Board or Container Load Manifest print surfaces.
+- Search rejects wildcard/control-character scans, requires a 2–80 character prefix and bounds results to 50 plus one truncation sentinel. Dedicated query-plan coverage proves all eight identifier paths use an index, including the partial VIN/engine indexes.
+- Every destination repeats server authorization; QR actions remain write-permission-gated. Customer roles cannot enter the operational directory, and missing Invoice/finance-report source contracts are shown as unavailable rather than fabricated.
+- Verification: full tests 150/150 (88 unit + 62 integration), TypeScript PASS, ESLint PASS, Vinext Production build PASS, public SEO/Gallery/mobile/responsive/deployment guards PASS, scoped secret scan PASS and `git diff --check` PASS.
+- No migration was added and Production remains unchanged. The route requires the full application runtime, confirmed Auth mapping and D1 migrations through `0018`; it is not served by the current Z.com static deployment.
 
 ### Opaque operational QR identities and labels (`55de6ab`)
 
