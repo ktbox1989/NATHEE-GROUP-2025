@@ -29,7 +29,7 @@ for file in "${required_files[@]}"; do
   [[ -f "$SITE_DIR/$file" ]] || fail "missing required file: $file"
 done
 
-if find "$SITE_DIR" -type l -print -quit | grep -q .; then
+if find "$SITE_DIR" -type l -print | grep -q .; then
   fail "symbolic links are not allowed"
 fi
 

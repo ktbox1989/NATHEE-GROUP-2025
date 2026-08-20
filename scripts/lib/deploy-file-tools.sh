@@ -57,6 +57,29 @@ nathee_make_temp_file() {
   return 1
 }
 
+nathee_acquire_lock_dir() {
+  local lock_dir="$1"
+  [[ -n "$lock_dir" && ! -e "$lock_dir" && ! -L "$lock_dir" ]] || return 1
+  if ! (umask 077 && mkdir "$lock_dir") 2>/dev/null; then
+    return 1
+  fi
+  if ! printf '%s\n' "$$" > "$lock_dir/owner.pid"; then
+    rmdir "$lock_dir" 2>/dev/null || true
+    return 1
+  fi
+}
+
+nathee_release_lock_dir() {
+  local lock_dir="$1"
+  local owner_pid
+  [[ -d "$lock_dir" && ! -L "$lock_dir" ]] || return 1
+  [[ -f "$lock_dir/owner.pid" && ! -L "$lock_dir/owner.pid" ]] || return 1
+  IFS= read -r owner_pid < "$lock_dir/owner.pid" || return 1
+  [[ "$owner_pid" == "$$" ]] || return 1
+  rm -f "$lock_dir/owner.pid" || return 1
+  rmdir "$lock_dir"
+}
+
 nathee_write_file_manifest() {
   local root="$1"
   local output="$2"
@@ -170,7 +193,7 @@ nathee_create_backup() {
   local production_root="$1"
   local backup_dir="$2"
   [[ -d "$production_root" ]] || return 1
-  if find "$production_root" -type l -print -quit | grep -q .; then
+  if find "$production_root" -type l -print | grep -q .; then
     return 1
   fi
   mkdir -p "$backup_dir/snapshot" || return 1
@@ -295,7 +318,7 @@ nathee_restore_backup() (
 
   # Refuse to restore through symlinks. The backup was also created only after
   # confirming that Production contained no symlinks.
-  if find "$production_root" -type l -print -quit | grep -q .; then
+  if find "$production_root" -type l -print | grep -q .; then
     return 1
   fi
 

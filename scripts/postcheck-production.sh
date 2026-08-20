@@ -13,6 +13,10 @@ fail() {
   exit 1
 }
 
+for required_command in curl grep awk tr rm mkdir find date; do
+  command -v "$required_command" >/dev/null 2>&1 || fail "$required_command is required"
+done
+
 TMP_DIR="$(nathee_make_temp_dir nathee-postcheck)" || fail "could not create temporary directory"
 trap 'rm -rf "$TMP_DIR"' EXIT
 

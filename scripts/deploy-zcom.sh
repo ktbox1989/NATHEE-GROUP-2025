@@ -7,7 +7,7 @@ BACKUP_ROOT="/home/zptqqwps/backups/nathee"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd -P)"
 SOURCE_ROOT="$REPO_ROOT/public-site"
-LOCK_FILE="/home/zptqqwps/.nathee-deploy.lock"
+LOCK_DIR="/home/zptqqwps/.nathee-deploy.lock.d"
 NATHEE_TEMP_PARENT="/home/zptqqwps"
 
 # shellcheck source=scripts/lib/deploy-file-tools.sh
@@ -24,7 +24,7 @@ fail() {
 [[ -d "$SOURCE_ROOT" ]] || fail "public-site source is missing"
 [[ -d "$PRODUCTION_ROOT" ]] || fail "production root is missing"
 
-for required_command in bash flock tar cp mv mkdir find sha256sum cut curl grep dirname rm date git; do
+for required_command in bash tar cp mv mkdir rmdir find sha256sum cut curl grep awk tr wc dirname rm date git; do
   if command -v "$required_command" >/dev/null 2>&1; then
     printf 'DEPLOY_CAPABILITY %s=PRESENT\n' "$required_command"
   else
@@ -37,21 +37,25 @@ else
   printf 'DEPLOY_CAPABILITY mktemp=FALLBACK_SAFE_MKDIR\n'
 fi
 
-exec 9>"$LOCK_FILE"
-flock -n 9 || fail "another NATHEE deployment is already running"
-
-bash "$SCRIPT_DIR/verify-public-site.sh" "$SOURCE_ROOT"
-nathee_assert_safe_tree "$SOURCE_ROOT" || fail "release contains an unsafe or empty file tree"
-
 timestamp="$(date -u +%Y%m%d-%H%M%S)"
 backup_dir="$BACKUP_ROOT/$timestamp"
-stage_dir="$(nathee_make_temp_dir "nathee-release-${timestamp}")" || fail "could not create a safe staging directory"
+stage_dir=""
+lock_acquired=0
 deployment_started=0
 deployment_succeeded=0
 
 cleanup() {
   local exit_code=$?
-  rm -rf "$stage_dir"
+  trap - EXIT
+  if [[ -n "$stage_dir" ]]; then
+    case "$stage_dir" in
+      "$NATHEE_TEMP_PARENT"/nathee-release-*) rm -rf "$stage_dir" ;;
+      *)
+        printf 'DEPLOY_CLEANUP_FAIL unsafe_stage=%s\n' "$stage_dir" >&2
+        [[ $exit_code -ne 0 ]] || exit_code=1
+        ;;
+    esac
+  fi
   if [[ $exit_code -ne 0 && $deployment_started -eq 1 && $deployment_succeeded -eq 0 ]]; then
     printf 'DEPLOY_ROLLBACK_START backup=%s\n' "$backup_dir" >&2
     if bash "$SCRIPT_DIR/rollback-zcom.sh" "$backup_dir"; then
@@ -60,9 +64,26 @@ cleanup() {
       printf 'DEPLOY_ROLLBACK_FAILED backup=%s\n' "$backup_dir" >&2
     fi
   fi
+  if [[ $lock_acquired -eq 1 ]]; then
+    if nathee_release_lock_dir "$LOCK_DIR"; then
+      printf 'DEPLOY_LOCK_RELEASED=%s\n' "$LOCK_DIR"
+    else
+      printf 'DEPLOY_LOCK_RELEASE_FAIL=%s\n' "$LOCK_DIR" >&2
+      [[ $exit_code -ne 0 ]] || exit_code=1
+    fi
+  fi
   exit "$exit_code"
 }
 trap cleanup EXIT
+
+nathee_acquire_lock_dir "$LOCK_DIR" || fail "another deployment may be running; inspect $LOCK_DIR before removing a stale lock"
+lock_acquired=1
+printf 'DEPLOY_LOCK_ACQUIRED=%s\n' "$LOCK_DIR"
+
+bash "$SCRIPT_DIR/verify-public-site.sh" "$SOURCE_ROOT"
+nathee_assert_safe_tree "$SOURCE_ROOT" || fail "release contains an unsafe or empty file tree"
+
+stage_dir="$(nathee_make_temp_dir "nathee-release-${timestamp}")" || fail "could not create a safe staging directory"
 
 nathee_create_backup "$PRODUCTION_ROOT" "$backup_dir" || fail "could not create and verify Production backup"
 nathee_write_file_manifest "$SOURCE_ROOT" "$backup_dir/RELEASE_SHA256SUMS.txt" || fail "could not create release manifest"
@@ -82,7 +103,6 @@ nathee_apply_tree "$stage_dir" "$PRODUCTION_ROOT" "$timestamp" || fail "atomic r
 nathee_verify_file_manifest "$PRODUCTION_ROOT" "$backup_dir/RELEASE_SHA256SUMS.txt" || fail "deployed release checksum mismatch"
 
 bash "$SCRIPT_DIR/postcheck-production.sh"
-deployment_succeeded=1
-
 git -C "$REPO_ROOT" rev-parse HEAD > "$backup_dir/DEPLOYED_COMMIT"
+deployment_succeeded=1
 printf 'DEPLOY_PASS commit=%s backup=%s\n' "$(git -C "$REPO_ROOT" rev-parse --short=12 HEAD)" "$backup_dir"

@@ -20,7 +20,7 @@ Backups:         /home/zptqqwps/backups/nathee/<UTC timestamp>/
 
 ```bash
 cd /home/zptqqwps/nathee-deploy
-GIT_SSH_COMMAND='ssh -i ~/.ssh/nathee_deploy -p 443' git pull origin main
+GIT_SSH_COMMAND='ssh -i ~/.ssh/nathee_deploy -p 443' git pull --ff-only origin main
 ```
 
 ## Verify and deploy
@@ -28,13 +28,15 @@ GIT_SSH_COMMAND='ssh -i ~/.ssh/nathee_deploy -p 443' git pull origin main
 ```bash
 cd /home/zptqqwps/nathee-deploy
 bash scripts/verify-public-site.sh
+bash scripts/test-deploy-file-tools.sh
 bash scripts/deploy-zcom.sh
+bash scripts/postcheck-production.sh
 ```
 
 The deploy script:
 
 1. refuses to run outside the approved account and staging path;
-2. prevents concurrent deployments;
+2. prevents concurrent deployments with an atomic directory lock, without requiring `flock`;
 3. verifies the static source and rejects demo/placeholder content;
 4. creates a complete timestamped `tar` backup, extracted snapshot, and SHA-256 manifests;
 5. prints the exact verified directory as `BACKUP_PATH=/home/zptqqwps/backups/nathee/<timestamp>`;
@@ -66,7 +68,8 @@ deployment; the `YYYYMMDD-HHMMSS` text above is only the documented format.
 All helper scripts are invoked through `bash`. File enumeration uses ordinary
 temporary files rather than process substitution, so the runtime does not
 depend on `/dev/fd`. If `mktemp` is unavailable, atomic `mkdir`/noclobber
-fallbacks create private timestamped temporary paths. The deploy preflight
+fallbacks create private timestamped temporary paths. Deployment locking also
+uses atomic `mkdir`, so `flock` is not required. The deploy preflight
 prints each required capability before backup or mutation begins.
 
 ## HSTS rollout

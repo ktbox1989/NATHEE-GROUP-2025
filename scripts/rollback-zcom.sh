@@ -23,7 +23,7 @@ case "$BACKUP_DIR" in
   *) fail "backup path is outside the approved backup root" ;;
 esac
 
-for required_command in tar cp mv mkdir mktemp find sha256sum cut curl rm dirname; do
+for required_command in tar find sha256sum curl grep rm; do
   command -v "$required_command" >/dev/null || fail "$required_command is required"
 done
 

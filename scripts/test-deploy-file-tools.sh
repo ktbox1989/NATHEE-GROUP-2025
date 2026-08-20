@@ -69,6 +69,11 @@ if grep -Eq '(^|[^[:alpha:]])rsync([^[:alpha:]]|$)' \
   fail "deployment still depends on rsync"
 fi
 
+if grep -Eq '(^|[^[:alpha:]])flock([^[:alpha:]]|$)' \
+  "$SCRIPT_DIR/deploy-zcom.sh" "$SCRIPT_DIR/rollback-zcom.sh"; then
+  fail "deployment still depends on flock"
+fi
+
 process_substitution_token='<''('
 if grep -Fq "$process_substitution_token" \
   "$SCRIPT_DIR/lib/deploy-file-tools.sh" \
@@ -85,4 +90,17 @@ fallback_directory="$(nathee_make_temp_dir nathee-fallback-test)" || fail "mktem
 rm -rf "$fallback_directory"
 unset NATHEE_DISABLE_MKTEMP
 
-printf 'DEPLOY_FILE_TOOLS_TEST_PASS backup=verified unknown=preserved rollback=verified tar_tamper=rejected metadata_tamper=rejected rsync=absent dev_fd=absent mktemp_fallback=verified\n'
+lock_dir="$test_root/deploy.lock.d"
+nathee_acquire_lock_dir "$lock_dir" || fail "portable lock acquisition"
+if nathee_acquire_lock_dir "$lock_dir" >/dev/null 2>&1; then
+  fail "concurrent portable lock was accepted"
+fi
+printf 'not-the-owner\n' > "$lock_dir/owner.pid"
+if nathee_release_lock_dir "$lock_dir" >/dev/null 2>&1; then
+  fail "portable lock released by the wrong owner"
+fi
+printf '%s\n' "$$" > "$lock_dir/owner.pid"
+nathee_release_lock_dir "$lock_dir" || fail "portable lock release"
+[[ ! -e "$lock_dir" ]] || fail "portable lock directory remains"
+
+printf 'DEPLOY_FILE_TOOLS_TEST_PASS backup=verified unknown=preserved rollback=verified tar_tamper=rejected metadata_tamper=rejected rsync=absent flock=absent dev_fd=absent mktemp_fallback=verified lock=atomic_mkdir\n'
