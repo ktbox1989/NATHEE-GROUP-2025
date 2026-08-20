@@ -42,5 +42,5 @@ test must fail if any of those paths becomes a table scan.
 ## Production gate
 
 This route is source/build complete only. It requires the full application
-runtime, confirmed Supabase identity mapping and D1 migrations through `0018`.
+runtime, confirmed Supabase identity mapping and D1 migrations through `0019`.
 The current Z.com static public-site deployment does not serve `/app/print-center`.

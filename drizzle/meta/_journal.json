@@ -134,6 +134,13 @@
       "when": 1787262907825,
       "tag": "0018_unknown_blonde_phantom",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "6",
+      "when": 1787263966502,
+      "tag": "0019_supreme_imperial_guard",
+      "breakpoints": true
     }
   ]
 }

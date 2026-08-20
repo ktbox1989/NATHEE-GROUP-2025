@@ -46,6 +46,9 @@ export default async function OperationsLayout({
   if (isInternalRole(actor.role) && can(actor, "documents:read")) {
     items.push({ href: "/app/print-center", label: "ศูนย์พิมพ์", icon: "🖨️" });
   }
+  if (can(actor, "jobs:read", policyCompany) || can(actor, "motorcycles:read", policyCompany)) {
+    items.push({ href: "/app/reports", label: "รายงาน", icon: "▥" });
+  }
   if (can(actor, "yard:read")) {
     items.push({ href: "/app/yard", label: "จัดการลาน", icon: "🅿️" });
   }
