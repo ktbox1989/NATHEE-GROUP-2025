@@ -6,7 +6,7 @@ Updated: 2026-08-21 (Asia/Bangkok)
 
 - Review branch: `codex/nathee-media-owner-2`
 - Integration baseline: `3cfd65a176cba858c6fd5d76cab61df5c78093f8`
-- Latest verified implementation milestone: Private quotation evidence and audited Owner retrieval (`af2b397b84662867bb6242f8fc2d6cc1552c7b39`)
+- Latest verified implementation milestone: Server-verified quotation anti-abuse (`a2873daa8f659a04603d857d33fbc1e3581af928`)
 - Canonical repository: `ktbox1989/NATHEE-GROUP-2025`
 - Working rule: resolve the current checkpoint-document commit with `git rev-parse HEAD`; never infer Production deployment from source HEAD.
 
@@ -25,6 +25,15 @@ Updated: 2026-08-21 (Asia/Bangkok)
 - Full application Production acceptance: NOT PASSED
 
 ## Closed local milestones
+
+### Server-verified quotation anti-abuse (`a2873da`)
+
+- Added Cloudflare Turnstile implicit widget support only when both the public site key and server-only secret pass validation. With missing/placeholder/partial configuration the online form is not rendered and verified phone contacts remain available.
+- `POST /api/quotation` now requires Siteverify before reading/storing attachment bytes. Validation is server-only, uses a five-second timeout, one idempotent retry, the client request UUID, optional trusted Cloudflare IP and exact `hostname=natheegroup2025.com` plus `action=quotation` matching.
+- Existing successful request keys still resolve idempotently without consuming a second one-time challenge. New requests fail closed on token absence, expiry/replay, provider error, action mismatch or hostname mismatch.
+- `/api/health` now has a sixth `antiAbuse` gate; both Turnstile values are required while the secret is excluded from rendered HTML, public variable names, logs and repository values.
+- Verification: full tests 133/133 (78 unit + 55 integration), TypeScript PASS, ESLint PASS, Production build PASS, configured/unconfigured SSR PASS, public SEO/Gallery/mobile/responsive/deployment guards PASS, secret scan PASS and `git diff --check` PASS.
+- Production remains unchanged. Real Turnstile keys and the untrusted-file handling policy are Owner gates; no credential, Sites version, D1/R2 resource or Z.com file was changed.
 
 ### Private quotation evidence and audited Owner retrieval (`af2b397`)
 
@@ -186,9 +195,9 @@ Updated: 2026-08-21 (Asia/Bangkok)
 
 ## Verified source gates
 
-- Full test suite: 130 passing
-- Authorization/unit/CMS/settings/search/config/readiness/identity/quotation-attachment tests: 76 passing
-- Render/schema/notification/yard/trip/container/inspection/POD/CMS/settings/query-plan tests: 54 passing
+- Full test suite: 133 passing
+- Authorization/unit/CMS/settings/search/config/readiness/identity/quotation/Turnstile tests: 78 passing
+- Render/schema/notification/yard/trip/container/inspection/POD/CMS/settings/query-plan tests: 55 passing
 - Production Vinext build: PASS
 - ESLint: PASS
 - Public SEO and deployment architecture guards: PASS
@@ -201,7 +210,7 @@ Updated: 2026-08-21 (Asia/Bangkok)
 - Backup and apply migrations `0001`–`0016` to the protected D1 runtime.
 - Verify private R2 readiness.
 - Bootstrap the real OWNER identity and accept two-company customer isolation.
-- Approve public-upload anti-abuse and untrusted-file/malware handling, and add verified location/map data when supplied.
+- Supply/configure Turnstile Production keys through the secure hosting channel, approve untrusted-file/malware handling, and add verified location/map data when supplied.
 
 ## Next autonomous work
 

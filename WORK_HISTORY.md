@@ -1,5 +1,14 @@
 # NATHEE GROUP 2025 — Work History
 
+## 2026-08-21 — Server-verified quotation anti-abuse
+
+- Implementation commit: `a2873da`
+- Added Cloudflare Turnstile to the real quotation form with mandatory Siteverify, exact hostname/action validation, five-second timeout and one UUID-idempotent retry. Missing, expired, replayed, mismatched or unavailable verification fails closed.
+- The online form is absent when the public/server key pair is missing or malformed; verified phone contacts remain visible instead. `/api/health` now requires `antiAbuse=true`, and the server-only key is never rendered or stored in source.
+- Verification: full tests 133/133 (78 unit + 55 integration), configured/unconfigured SSR PASS, TypeScript PASS, ESLint PASS, Vinext Production build PASS, public SEO/Gallery/mobile/responsive/deployment guards PASS, scoped secret scan PASS and `git diff --check` PASS.
+- Deployment: source only. Production Turnstile keys, Sites, Supabase, D1, R2, Z.com and DNS were not changed. The Production credentials and untrusted-file policy remain Owner gates.
+- Rollback: revert `a2873da`; no database or object-storage rollback is required.
+
 ## 2026-08-21 — Private quotation evidence and audited Owner retrieval
 
 - Implementation commit: `af2b397`
