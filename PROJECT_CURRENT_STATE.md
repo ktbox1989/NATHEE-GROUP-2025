@@ -5,7 +5,7 @@ Updated: 2026-08-21 (Asia/Bangkok)
 ## Source checkpoint
 
 - Branch: `main`
-- Latest verified implementation milestone: `bc10879` — Recipient-scoped In-app Notifications
+- Latest verified implementation milestone: `5b392dc` — Truck and Trip Foundation
 - Canonical repository: `ktbox1989/NATHEE-GROUP-2025`
 - Working rule: resolve the current checkpoint-document commit with `git rev-parse HEAD`; never infer Production deployment from source HEAD.
 
@@ -56,30 +56,39 @@ Updated: 2026-08-21 (Asia/Bangkok)
 - Private application metadata is `noindex`; LINE/Email delivery is intentionally not enabled without provider credentials and policy.
 - Migration `0006_in_app_notifications` is additive and remains unapplied in Production.
 
+### Truck and Trip Foundation (`5b392dc`)
+
+- Added real truck records for verified 4-wheel/6-wheel/other classification, optional confirmed capacity, registration uniqueness and non-destructive status.
+- Added trip records with transaction-safe TRIP numbering, optional active DRIVER assignment, Bangkok-to-UTC planning times and a guarded DRAFT→PLANNED→LOADING→IN_TRANSIT→ARRIVED→COMPLETED lifecycle.
+- Create operations use unique request keys to prevent double-submit duplication; status updates use optimistic state, append-only trip events and Audit Log in one D1 batch.
+- Database triggers independently reject inactive trucks and users without the active DRIVER role.
+- Internal UI is customer-blocked, responsive and bounded to 50 trips per keyset page; the fleet selector/list is capped at 200 pending a dedicated fleet search contract.
+- Migration `0007_truck_trip_foundation` is additive and remains unapplied in Production.
+
 ## Verified source gates
 
-- Full test suite: 54 passing
-- Authorization/unit tests: 36 passing
-- Render/schema/notification/yard tests: 18 passing
+- Full test suite: 59 passing
+- Authorization/unit tests: 39 passing
+- Render/schema/notification/yard tests: 20 passing
 - Production Vinext build: PASS
 - ESLint: PASS
 - Public SEO and deployment architecture guards: PASS
-- Migrations through `0006` packaged in `dist/.openai/drizzle/`: PASS
+- Migrations through `0007` packaged in `dist/.openai/drizzle/`: PASS
 
 ## Open Owner gates
 
 - Approve application routing model: apex edge routes or an application subdomain.
 - Supply/configure Supabase Production values through a secure hosting channel.
-- Backup and apply migrations `0001`–`0006` to the protected D1 runtime.
+- Backup and apply migrations `0001`–`0007` to the protected D1 runtime.
 - Verify private R2 readiness.
 - Bootstrap the real OWNER identity and accept two-company customer isolation.
 - Add real company Gallery photographs and verified location/map data.
 
 ## Next autonomous work
 
-1. Expand logistics schema in dependency order: Trip/Truck, Container, Inspection/Damage, POD, documents and print center.
-2. Add bounded Company Search before active customer companies reach the 500-option management limit.
-3. Design an external notification outbox only after LINE/Email provider, retry and consent policy are approved.
+1. Add idempotent trip/motorcycle load assignments with truck-capacity and motorcycle-state invariants.
+2. Continue dependency order: Container, Inspection/Damage, POD, documents and print center.
+3. Add bounded Company/Fleet Search before management selector limits are reached.
 4. Keep all new migrations local until Production backup/runtime gates are satisfied.
 
 ## Prohibited claims

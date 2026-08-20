@@ -68,6 +68,14 @@ Node.js 22.13 or newer is required.
 - Inbox and unread counts are server-side, recipient-scoped and indexed; read operations cannot target another user's notification.
 - LINE and email delivery are not enabled until provider credentials, consent, retry and escalation policy are approved.
 
+## Truck and trip operations
+
+- Truck and trip creation uses unique request keys so a repeated browser submission cannot create duplicates.
+- Trip numbers use the transaction-safe sequence counter; unused numbers are not recycled after a failed transaction.
+- Planning input is interpreted in Asia/Bangkok and stored as UTC ISO timestamps.
+- Only active DRIVER identities can be assigned, and only active trucks can start a trip assignment; API and database triggers both enforce this boundary.
+- Trips currently cover planning and lifecycle. Motorcycle load/capacity assignment is intentionally tracked as the next dependency rather than represented by fake counts.
+
 ## Z.com public website
 
 The cPanel-hosted public website is intentionally separate from the authenticated logistics application. Deploy it only from the reviewed staging clone at `/home/zptqqwps/nathee-deploy`; the deploy script creates a complete backup, verifies checksums, preserves unknown Production files, runs live checks, and restores the backup automatically on failure.

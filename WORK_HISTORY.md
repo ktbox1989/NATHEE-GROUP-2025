@@ -1,5 +1,16 @@
 # NATHEE GROUP 2025 — Work History
 
+## 2026-08-21 — Truck and Trip Foundation
+
+- Implementation commit: `5b392dc`
+- Added trucks, trips and append-only trip status events in additive migration `0007`.
+- Added idempotent create APIs, active DRIVER/truck validation, Bangkok-to-UTC planning and optimistic status transitions with Audit.
+- Added DB triggers for resource validity, unique business identities and planning/actual time-order constraints.
+- Added customer-blocked internal operations UI with truck/driver selectors, transition actions and 50-record keyset pagination.
+- Verification: full tests 59/59, build PASS, lint PASS, public/SEO guards PASS, scoped secret scan PASS.
+- Deployment: source pushed to `main`; migration `0007` was not applied and Production remained unchanged.
+- Known next dependency: trips do not yet carry motorcycle assignments; capacity/load reconciliation is the next slice.
+
 ## 2026-08-21 — Recipient-scoped In-app Notifications
 
 - Implementation commit: `bc10879`
