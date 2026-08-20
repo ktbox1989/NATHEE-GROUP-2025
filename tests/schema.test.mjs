@@ -106,6 +106,53 @@ test("role-system migration backfills legacy identities and enforces safe mappin
   db.close();
 });
 
+test("member lifecycle migration serializes management claims and preserves an active owner", () => {
+  const db = createMigratedDatabase();
+  db.exec(`
+    INSERT INTO users (id, external_auth_id, email, display_name, role)
+    VALUES
+      ('owner-a', 'auth-owner-a', 'owner-a@example.test', 'Owner A', 'OWNER'),
+      ('staff-a', 'auth-staff-a', 'staff-a@example.test', 'Staff A', 'STAFF');
+    INSERT INTO user_role_assignments (user_id, role, assigned_by)
+    VALUES
+      ('owner-a', 'OWNER', 'owner-a'),
+      ('staff-a', 'STAFF', 'owner-a');
+  `);
+
+  assert.throws(() => db.exec("UPDATE users SET status = 'INACTIVE' WHERE id = 'owner-a'"));
+  assert.throws(() => db.exec("DELETE FROM user_role_assignments WHERE user_id = 'owner-a'"));
+
+  const firstClaim = db.prepare(`
+    UPDATE users
+    SET management_revision = management_revision + 1,
+        last_management_request_id = 'request-a'
+    WHERE id = 'staff-a' AND management_revision = 0
+  `).run();
+  const staleClaim = db.prepare(`
+    UPDATE users
+    SET management_revision = management_revision + 1,
+        last_management_request_id = 'request-b'
+    WHERE id = 'staff-a' AND management_revision = 0
+  `).run();
+  assert.equal(firstClaim.changes, 1);
+  assert.equal(staleClaim.changes, 0);
+  assert.deepEqual(
+    { ...db.prepare("SELECT management_revision, last_management_request_id FROM users WHERE id = 'staff-a'").get() },
+    { management_revision: 1, last_management_request_id: "request-a" },
+  );
+
+  db.exec(`
+    INSERT INTO users (id, external_auth_id, email, display_name, role)
+    VALUES ('owner-b', 'auth-owner-b', 'owner-b@example.test', 'Owner B', 'OWNER');
+    INSERT INTO user_role_assignments (user_id, role, assigned_by)
+    VALUES ('owner-b', 'OWNER', 'owner-a');
+    UPDATE users SET status = 'INACTIVE' WHERE id = 'owner-a';
+  `);
+  assert.equal(db.prepare("SELECT status FROM users WHERE id = 'owner-a'").get().status, "INACTIVE");
+  assert.deepEqual(db.prepare("PRAGMA foreign_key_check").all(), []);
+  db.close();
+});
+
 test("yard migration preserves existing staff permissions", () => {
   const db = new DatabaseSync(":memory:");
   db.exec("PRAGMA foreign_keys = ON");

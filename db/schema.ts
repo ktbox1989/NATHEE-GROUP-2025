@@ -132,6 +132,8 @@ export const users = sqliteTable(
       onUpdate: "cascade",
     }),
     status: text("status", { enum: RECORD_STATUSES }).notNull().default("ACTIVE"),
+    managementRevision: integer("management_revision").notNull().default(0),
+    lastManagementRequestId: text("last_management_request_id"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
