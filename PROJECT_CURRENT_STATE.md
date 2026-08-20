@@ -5,7 +5,7 @@ Updated: 2026-08-21 (Asia/Bangkok)
 ## Source checkpoint
 
 - Branch: `main`
-- Latest verified implementation milestone: Trusted Production Auth origin and fail-closed runtime readiness, after bounded Company/Job/Driver directories and revisioned global Site Settings (resolve the final commit with `git rev-parse HEAD`)
+- Latest verified implementation milestone: Exact confirmed Auth identity mapping plus trusted Production origin and fail-closed runtime readiness (resolve the final commit with `git rev-parse HEAD`)
 - Canonical repository: `ktbox1989/NATHEE-GROUP-2025`
 - Working rule: resolve the current checkpoint-document commit with `git rev-parse HEAD`; never infer Production deployment from source HEAD.
 
@@ -144,10 +144,17 @@ Updated: 2026-08-21 (Asia/Bangkok)
 - `/api/health` now requires five independent checks: public Auth, admin Auth, canonical origin, required D1 tables/indexes/triggers through migration `0014`, and a read-only R2 metadata probe. A bare database connection or binding name can no longer claim Production readiness.
 - This is source-only. No Supabase value, D1 migration, R2 object, Sites version, DNS record or Z.com Production file was changed.
 
+### Exact confirmed Auth identity mapping
+
+- A protected request now resolves an application user only from a confirmed Supabase email identity with a valid UUID that exactly matches `users.external_auth_id`.
+- Removed the unused legacy `pending:` email fallback that could rewrite an Auth mapping during a read without an explicit administrative action or Audit record.
+- Email similarity alone can no longer grant an application role, company scope or permission. Identity repair remains a reviewed Owner procedure rather than an implicit login side effect.
+- No user, role, database row, Supabase identity or Production runtime was changed.
+
 ## Verified source gates
 
-- Full test suite: 115 passing
-- Authorization/unit/CMS/settings/search/config/readiness tests: 66 passing
+- Full test suite: 117 passing
+- Authorization/unit/CMS/settings/search/config/readiness/identity tests: 68 passing
 - Render/schema/notification/yard/trip/container/inspection/POD/CMS/settings/query-plan tests: 49 passing
 - Production Vinext build: PASS
 - ESLint: PASS

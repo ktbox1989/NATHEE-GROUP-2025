@@ -1,5 +1,14 @@
 # NATHEE GROUP 2025 — Work History
 
+## 2026-08-21 — Exact confirmed Auth identity mapping
+
+- Removed the unused `pending:` email-based identity fallback and its unaudited `external_auth_id` rewrite from protected request resolution.
+- Application access now requires an email-confirmed Supabase identity with a valid UUID that exactly matches the existing D1 user mapping; email matching alone never grants a role or company scope.
+- Added pure identity validation tests covering normalization, unconfirmed accounts, legacy pending identifiers, malformed UUIDs and missing email.
+- Verification: full tests 117/117 (68 unit + 49 integration), Vinext Production build PASS, ESLint PASS and `git diff --check` PASS.
+- Deployment: source only. Supabase users, D1 data, R2, Sites, Z.com, DNS and Production were not changed.
+- Rollback: revert this commit. No data migration or Production rollback is required.
+
 ## 2026-08-21 — Trusted Production Auth origin and truthful runtime readiness
 
 - Centralized the allowed application-origin contract and removed request-Host trust from password recovery, invitations, callback redirects and mutation checks. Production now fails closed without the exact canonical origin.

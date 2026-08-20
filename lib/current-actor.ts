@@ -1,4 +1,4 @@
-import { and, eq, like } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 import { getDb } from "@/db";
@@ -10,6 +10,7 @@ import {
   type Permission,
 } from "@/lib/authorization";
 import { safeReturnTo } from "@/lib/safe-return-to";
+import { confirmedAuthIdentity } from "@/lib/auth-identity";
 import { getSupabaseConfig } from "@/lib/supabase/config";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -23,8 +24,8 @@ const resolveCurrentActor = cache(async (): Promise<CurrentActor | null> => {
 
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.auth.getUser();
-  const authUser = data.user;
-  if (error || !authUser?.email) return null;
+  const identity = confirmedAuthIdentity(data.user);
+  if (error || !identity) return null;
 
   const db = getDb();
   const actorSelection = {
@@ -36,47 +37,17 @@ const resolveCurrentActor = cache(async (): Promise<CurrentActor | null> => {
     legacyRole: users.role,
     assignedRole: userRoleAssignments.role,
   };
-  let appUser = await db
+  const appUser = await db
     .select(actorSelection)
     .from(users)
     .leftJoin(userRoleAssignments, eq(userRoleAssignments.userId, users.id))
     .where(
       and(
-        eq(users.externalAuthId, authUser.id),
+        eq(users.externalAuthId, identity.externalAuthId),
         eq(users.status, "ACTIVE"),
       ),
     )
     .get();
-
-  if (!appUser) {
-    const pendingUser = await db
-      .select(actorSelection)
-      .from(users)
-      .leftJoin(userRoleAssignments, eq(userRoleAssignments.userId, users.id))
-      .where(
-        and(
-          eq(users.email, authUser.email.toLowerCase()),
-          like(users.externalAuthId, "pending:%"),
-          eq(users.status, "ACTIVE"),
-        ),
-      )
-      .get();
-
-    if (pendingUser) {
-      const result = await db
-        .update(users)
-        .set({ externalAuthId: authUser.id, updatedAt: new Date().toISOString() })
-        .where(
-          and(
-            eq(users.id, pendingUser.id),
-            eq(users.externalAuthId, pendingUser.externalAuthId),
-          ),
-        )
-        .returning({ id: users.id })
-        .get();
-      appUser = result ? { ...pendingUser, externalAuthId: authUser.id } : undefined;
-    }
-  }
 
   if (!appUser) return null;
 

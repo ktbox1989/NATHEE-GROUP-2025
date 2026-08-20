@@ -44,7 +44,7 @@ Apply the migration before the first login. The migration contains company bound
 
 Only the initial owner requires a one-time bootstrap:
 
-1. Create the owner's email/password account in the Supabase dashboard and copy its user UUID.
+1. Create and email-confirm the owner's email/password account in the Supabase dashboard and copy its user UUID.
 2. Insert one mapped OWNER record into D1, replacing all values below with the real UUID, email, and name.
 
 ```sql
@@ -55,6 +55,11 @@ VALUES
 ```
 
 After that owner signs in, all internal and customer accounts should be created from **สมาชิก / สิทธิ์**. The system sends an invitation, records the canonical role in `user_role_assignments`, requires a company for CUSTOMER_ADMIN and CUSTOMER_VIEWER, and assigns explicit capabilities to every non-owner internal role. Migration `0004_role_system_foundation` maps legacy CUSTOMER identities to least-privilege CUSTOMER_VIEWER without locking out existing OWNER or STAFF accounts.
+
+Runtime authorization uses only the exact confirmed Supabase user UUID stored in
+`users.external_auth_id`. It does not auto-link an account by matching email and
+does not rewrite identity mappings during a page read. A mistaken or replaced
+identity must be repaired by a reviewed, audited administrative procedure.
 
 ## 5. Acceptance check
 

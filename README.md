@@ -15,6 +15,7 @@ Responsive public website and motorcycle-logistics operations platform for deskt
 - A structured Site Content CMS is implemented for all ten textual public pages: Home, Services, five service-detail pages, Quotation, About and Contact. A separate audited global-settings editor controls the shared brand, optional public Gallery logo, phone numbers, bounded public navigation and Footer from one revisioned source. The Gallery admin keeps the media-specific category, Alt text, ordering, featured and bounded 20-image sequential batch workflow. Company, Job and Driver directories use bounded indexed search rather than loading every record. These features are source/build complete but not Production-live until Auth, D1 migrations `0012`–`0014`, R2 and application routing pass their gates.
 - Dashboard values are calculated from D1. Empty states are shown instead of fake statistics.
 - Authentication callbacks and sensitive redirects use a trusted `APP_ORIGIN`, never the request Host. Production readiness is fail-closed until public/admin Supabase configuration, the canonical origin, required D1 objects through migration `0014`, and a read-only R2 probe all pass.
+- Protected access requires an email-confirmed Supabase UUID that exactly matches the stored application identity; the server never promotes or re-links a user merely because an email address matches.
 - Structured data uses D1 (`DB`); private motorcycle images use R2 (`FILES`).
 - The same responsive application shell supports desktop, tablet, and mobile field work.
 
