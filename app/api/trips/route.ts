@@ -8,6 +8,7 @@ import { nextBusinessNumber } from "@/lib/business-numbers";
 import { getCurrentActor } from "@/lib/current-actor";
 import { isSameOrigin } from "@/lib/same-origin";
 import { bangkokInputToUtc, isPlannedTripOrderValid, isTripRequestKey } from "@/lib/trips";
+import { createOpaquePublicId } from "@/lib/qr";
 
 export async function POST(request: NextRequest) {
   if (!isSameOrigin(request)) return new NextResponse("Forbidden", { status: 403 });
@@ -44,7 +45,7 @@ export async function POST(request: NextRequest) {
 
   const id = crypto.randomUUID();
   const tripNumber = await nextBusinessNumber("TRIP");
-  const record = { id, requestKey, publicId: crypto.randomUUID(), tripNumber, truckId, driverUserId, origin, destination, plannedDepartureAt, plannedArrivalAt, notes, status: "DRAFT" as const, createdBy: actor.userId };
+  const record = { id, requestKey, publicId: createOpaquePublicId("trip"), tripNumber, truckId, driverUserId, origin, destination, plannedDepartureAt, plannedArrivalAt, notes, status: "DRAFT" as const, createdBy: actor.userId };
   try {
     await db.batch([
       db.insert(trips).values(record),

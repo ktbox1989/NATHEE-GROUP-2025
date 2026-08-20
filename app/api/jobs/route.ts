@@ -7,6 +7,7 @@ import { can } from "@/lib/authorization";
 import { nextBusinessNumber } from "@/lib/business-numbers";
 import { getCurrentActor } from "@/lib/current-actor";
 import { isSameOrigin } from "@/lib/same-origin";
+import { createOpaquePublicId } from "@/lib/qr";
 
 export async function POST(request: NextRequest) {
   if (!isSameOrigin(request)) return new NextResponse("Forbidden", { status: 403 });
@@ -32,6 +33,7 @@ export async function POST(request: NextRequest) {
   const jobNumber = await nextBusinessNumber("JOB");
   const record = {
     id,
+    publicId: createOpaquePublicId("job"),
     jobNumber,
     companyId,
     origin,
@@ -46,7 +48,7 @@ export async function POST(request: NextRequest) {
   try {
     await db.batch([
       db.insert(transportJobs).values(record),
-      db.insert(auditLogs).values(makeAuditRecord({ actor, action: "CREATE", entityType: "transport_job", entityId: id, companyId, after: record })),
+      db.insert(auditLogs).values(makeAuditRecord({ actor, action: "CREATE", entityType: "transport_job", entityId: id, companyId, after: { ...record, publicId: "[opaque]" } })),
     ]);
   } catch {
     return NextResponse.redirect(new URL("/app/jobs?error=save", request.url), 303);

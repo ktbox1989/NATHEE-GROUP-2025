@@ -174,7 +174,7 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
     <>
       <div className="app-page-head">
         <div><p>{trip.tripNumber}</p><h1>{trip.origin} → {trip.destination}</h1><span>{trip.truckCode} · {trip.truckRegistration || "ยังไม่มีทะเบียน"} · {trip.driverName || "ยังไม่กำหนดคนขับ"}</span></div>
-        <div className="app-page-actions"><Link href="/app/trips">← กลับรายการเที่ยว</Link><span className={`status-pill ${trip.status}`}>{tripStatusLabels[trip.status]}</span></div>
+        <div className="app-page-actions"><Link href="/app/trips">← กลับรายการเที่ยว</Link>{canManage && <Link href={`/app/trips/${id}/label`}>พิมพ์ QR เที่ยว</Link>}<span className={`status-pill ${trip.status}`}>{tripStatusLabels[trip.status]}</span></div>
       </div>
       <Messages status={query.status} error={query.error} />
 

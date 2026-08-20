@@ -28,10 +28,10 @@ function createDatabase({ capacity = 2 } = {}) {
     VALUES ('owner-a', 'auth-owner-a', 'owner@example.test', 'Owner', 'OWNER');
     INSERT INTO user_role_assignments (user_id, role, assigned_by)
     VALUES ('owner-a', 'OWNER', 'owner-a');
-    INSERT INTO transport_jobs (id, job_number, company_id, origin, destination, status, created_by)
+    INSERT INTO transport_jobs (id, public_id, job_number, company_id, origin, destination, status, created_by)
     VALUES
-      ('job-a', 'JOB-A', 'company-a', 'A', 'B', 'OPEN', 'owner-a'),
-      ('job-b', 'JOB-B', 'company-b', 'A', 'B', 'OPEN', 'owner-a');
+      ('job-a', 'job_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'JOB-A', 'company-a', 'A', 'B', 'OPEN', 'owner-a'),
+      ('job-b', 'job_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', 'JOB-B', 'company-b', 'A', 'B', 'OPEN', 'owner-a');
     INSERT INTO motorcycles (id, public_id, company_id, job_id, sequence_number, current_status)
     VALUES
       ('motorcycle-a', 'public-a', 'company-a', 'job-a', 1, 'SCHEDULED'),
@@ -48,9 +48,9 @@ function createDatabase({ capacity = 2 } = {}) {
       ('container-event-a', 'container-a', NULL, 'DRAFT', 'created', 'owner-a'),
       ('container-event-b', 'container-b', NULL, 'DRAFT', 'created', 'owner-a');
     INSERT INTO trucks (id, request_key, public_id, code, type, capacity_motorcycles, created_by)
-    VALUES ('truck-a', '0198f708-44a3-7ef7-8d4f-4f477922ba03', 'truck-public-a', 'NG-01', 'SIX_WHEEL', 10, 'owner-a');
+    VALUES ('truck-a', '0198f708-44a3-7ef7-8d4f-4f477922ba03', 'truck_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'NG-01', 'SIX_WHEEL', 10, 'owner-a');
     INSERT INTO trips (id, request_key, public_id, trip_number, truck_id, origin, destination, created_by)
-    VALUES ('trip-a', '0198f708-44a3-7ef7-8d4f-4f477922ba04', 'trip-public-a', 'TRIP-A', 'truck-a', 'A', 'B', 'owner-a');
+    VALUES ('trip-a', '0198f708-44a3-7ef7-8d4f-4f477922ba04', 'trip_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'TRIP-A', 'truck-a', 'A', 'B', 'owner-a');
   `);
   return db;
 }

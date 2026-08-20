@@ -1,8 +1,15 @@
 import QRCode from "qrcode";
-import { createMotorcycleQrToken } from "./qr.ts";
+import { createMotorcycleQrToken, createOperationalQrToken, type OperationalQrEntityType } from "./qr.ts";
+
+export async function renderOperationalQrSvg(entityType: OperationalQrEntityType, publicId: string): Promise<string> {
+  return renderToken(createOperationalQrToken(entityType, publicId));
+}
 
 export async function renderMotorcycleQrSvg(publicId: string): Promise<string> {
-  const token = createMotorcycleQrToken(publicId);
+  return renderToken(createMotorcycleQrToken(publicId));
+}
+
+async function renderToken(token: string): Promise<string> {
   return QRCode.toString(token, {
     type: "svg",
     errorCorrectionLevel: "M",

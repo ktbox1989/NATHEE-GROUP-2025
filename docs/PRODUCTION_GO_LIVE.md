@@ -6,7 +6,7 @@ runtime.
 
 ## 1. Platform resources
 
-- D1 binding `DB` exists and migrations `drizzle/0000` through `0017` have
+- D1 binding `DB` exists and migrations `drizzle/0000` through `0018` have
   each been applied exactly once in order. Verify the migration ledger before
   applying any missing file; never rerun the full chain blindly.
 - R2 binding `FILES` exists and is private.
@@ -64,7 +64,7 @@ Production is ready only when it returns HTTP 200 and all six checks are
 format. `adminAuthentication` independently validates that a server-only
 secret is configured. `canonicalOrigin` requires the exact canonical
 Production origin. `database` verifies representative tables, indexes and
-invariant triggers through migration `0017`, not merely that D1 answers a
+invariant triggers through migration `0018`, not merely that D1 answers a
 query. `storage` performs a read-only R2 metadata probe. `antiAbuse` requires both validated Turnstile runtime keys. The endpoint never
 returns credentials or connection strings.
 
@@ -89,21 +89,24 @@ returns credentials or connection strings.
     single or batch label-printing pages.
 12. Batch printing renders at most 48 labels per page and the next-page link
     continues by motorcycle sequence without duplicates.
-13. OWNER creates a real yard zone, assigns a motorcycle, moves it once, and
+13. OWNER or permitted STAFF prints and scans one real Job, Yard, Truck and Trip
+    label. Each token resolves to the correct entity, while malformed, unknown
+    and cross-role tokens fail closed without revealing whether the entity exists.
+14. OWNER creates a real yard zone, assigns a motorcycle, moves it once, and
     records exit. Only one active placement exists at each step and every
     operation has a matching audit entry.
-14. A full zone rejects a new placement without closing or changing the
+15. A full zone rejects a new placement without closing or changing the
     motorcycle's existing placement. Repeating the same form submission does
     not create duplicate active placements.
-15. CUSTOMER accounts cannot open yard operations or mutate yard placement.
-16. OWNER saves, previews and publishes one Site Content revision; the public page reflects exactly that revision and the Audit Log exists.
-17. OWNER republishes the preceding revision; history remains append-only and the public page rolls back without deleting content.
-18. An approved staff account can batch-upload Gallery Drafts only with explicit Gallery permissions and cannot publish without `gallery:publish`.
-19. Anonymous access receives only `PUBLIC` + `PUBLISHED` Gallery media; Draft, internal and customer-job images remain inaccessible.
-20. OWNER saves and publishes global Site Settings, verifies shared brand/menu/phones/Footer and then republishes the preceding settings revision without deleting history.
-21. A configured logo is shown only while its Gallery item remains `PUBLIC` + `PUBLISHED`; hiding that item must fall back to the safe brand abbreviation.
-22. Submit one quotation with verified PDF/CSV evidence. The request and attachment metadata must commit once, private R2 checksums must match, non-OWNER access must return not-found, and every successful Owner download must add an Audit record.
-23. Repeat the same quotation request key and verify no second request, metadata row or orphaned R2 object is created. Test an invalid signature and oversized payload and verify neither a request nor object is retained.
+16. CUSTOMER accounts cannot open yard operations or mutate yard placement.
+17. OWNER saves, previews and publishes one Site Content revision; the public page reflects exactly that revision and the Audit Log exists.
+18. OWNER republishes the preceding revision; history remains append-only and the public page rolls back without deleting content.
+19. An approved staff account can batch-upload Gallery Drafts only with explicit Gallery permissions and cannot publish without `gallery:publish`.
+20. Anonymous access receives only `PUBLIC` + `PUBLISHED` Gallery media; Draft, internal and customer-job images remain inaccessible.
+21. OWNER saves and publishes global Site Settings, verifies shared brand/menu/phones/Footer and then republishes the preceding settings revision without deleting history.
+22. A configured logo is shown only while its Gallery item remains `PUBLIC` + `PUBLISHED`; hiding that item must fall back to the safe brand abbreviation.
+23. Submit one quotation with verified PDF/CSV evidence. The request and attachment metadata must commit once, private R2 checksums must match, non-OWNER access must return not-found, and every successful Owner download must add an Audit record.
+24. Repeat the same quotation request key and verify no second request, metadata row or orphaned R2 object is created. Test an invalid signature and oversized payload and verify neither a request nor object is retained.
 
 ## 6. Rollback
 

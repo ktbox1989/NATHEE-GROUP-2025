@@ -482,6 +482,7 @@ footer { border-top: 1px solid var(--border); background: #050611; color: var(--
 .scan-result dl > div { padding: 11px 12px; border: 1px solid var(--border); border-radius: 11px; background: rgba(255,255,255,.025); }
 .scan-result dt { color: var(--muted); font-size: 10px; }
 .scan-result dd { margin-top: 3px; overflow-wrap: anywhere; font-size: 13px; }
+.scan-result-head > div > span { display: block; margin-top: 5px; color: var(--muted); font-size: 12px; }
 
 .label-sheet { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 13px; }
 .single-label-sheet { grid-template-columns: minmax(0, 520px); justify-content: center; }
@@ -499,6 +500,12 @@ footer { border-top: 1px solid var(--border); background: #050611; color: var(--
 .vehicle-label-copy dd { overflow: hidden; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .vehicle-label-copy small { display: block; margin-top: 7px; overflow-wrap: anywhere; color: #6b7280; font-family: var(--font-mono); font-size: 6.5px; }
 .batch-navigation { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 18px; padding: 14px 16px; border: 1px solid var(--border); border-radius: 14px; color: var(--muted); font-size: 12px; }
+.table-action-stack, .trip-card-links, .yard-zone-actions { display: flex; flex-wrap: wrap; gap: 8px 12px; }
+.table-action-stack { min-width: 112px; flex-direction: column; }
+.trip-card-links { margin-top: 14px; }
+.yard-zone-actions { align-items: center; margin-top: 10px; }
+.yard-zone-actions .yard-zone-status-form { margin-top: 0; }
+.yard-zone-actions > a { display: inline-flex; min-height: 32px; align-items: center; padding: 5px 10px; border: 1px solid var(--border); border-radius: 999px; color: #c9cef5; font-size: 10px; }
 
 .yard-zone-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 13px; margin-bottom: 8px; }
 .yard-zone-card { position: relative; min-height: 190px; padding: 18px; overflow: hidden; }

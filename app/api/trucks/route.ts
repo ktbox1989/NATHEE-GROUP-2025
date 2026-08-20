@@ -7,6 +7,7 @@ import { can, isInternalRole } from "@/lib/authorization";
 import { getCurrentActor } from "@/lib/current-actor";
 import { isSameOrigin } from "@/lib/same-origin";
 import { isTripRequestKey, normalizeRegistration, normalizeTruckCode, parseTruckCapacity } from "@/lib/trips";
+import { createOpaquePublicId } from "@/lib/qr";
 
 export async function POST(request: NextRequest) {
   if (!isSameOrigin(request)) return new NextResponse("Forbidden", { status: 403 });
@@ -27,7 +28,7 @@ export async function POST(request: NextRequest) {
   if (existingRequest) return redirect(request, "status", "truck_exists");
 
   const id = crypto.randomUUID();
-  const record = { id, requestKey, publicId: crypto.randomUUID(), code, registration, type: rawType as TruckType, capacityMotorcycles, notes, createdBy: actor.userId };
+  const record = { id, requestKey, publicId: createOpaquePublicId("truck"), code, registration, type: rawType as TruckType, capacityMotorcycles, notes, createdBy: actor.userId };
   try {
     const db = getDb();
     await db.batch([

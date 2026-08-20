@@ -42,8 +42,8 @@ test("a status event notifies only authorized active recipients and owning-compa
       ('customer-inactive', 'CUSTOMER_VIEWER', 'owner-a');
     INSERT INTO user_permissions (user_id, permission, granted_by)
     VALUES ('staff-a', 'status:read', 'owner-a');
-    INSERT INTO transport_jobs (id, job_number, company_id, origin, destination, status, created_by)
-    VALUES ('job-a', 'JOB-A', 'company-a', 'กรุงเทพฯ', 'เชียงใหม่', 'OPEN', 'owner-a');
+    INSERT INTO transport_jobs (id, public_id, job_number, company_id, origin, destination, status, created_by)
+    VALUES ('job-a', 'job_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'JOB-A', 'company-a', 'กรุงเทพฯ', 'เชียงใหม่', 'OPEN', 'owner-a');
     INSERT INTO motorcycles (id, public_id, company_id, job_id, sequence_number, current_status)
     VALUES ('motorcycle-a', 'mc_public_a', 'company-a', 'job-a', 1, 'IN_TRANSIT');
     INSERT INTO status_events

@@ -29,6 +29,8 @@ export const REQUIRED_DATABASE_OBJECTS = [
   { type: "index", name: "uq_quote_request_attachments_quote_checksum" },
   { type: "index", name: "uq_motorcycle_import_batches_job_checksum" },
   { type: "index", name: "idx_motorcycle_import_rows_batch_status_row" },
+  { type: "index", name: "uq_transport_jobs_public_id" },
+  { type: "index", name: "uq_yard_zones_public_id" },
   { type: "trigger", name: "trg_user_roles_keep_last_active_owner_update" },
   { type: "trigger", name: "trg_trip_assignments_no_delete" },
   { type: "trigger", name: "trg_container_assignments_no_delete" },
@@ -43,6 +45,14 @@ export const REQUIRED_DATABASE_OBJECTS = [
   { type: "trigger", name: "trg_motorcycle_import_batches_transition" },
   { type: "trigger", name: "trg_motorcycle_import_rows_no_delete" },
   { type: "trigger", name: "trg_motorcycle_import_rows_transition" },
+  { type: "trigger", name: "trg_transport_jobs_public_id_insert" },
+  { type: "trigger", name: "trg_transport_jobs_public_id_immutable" },
+  { type: "trigger", name: "trg_yard_zones_public_id_insert" },
+  { type: "trigger", name: "trg_yard_zones_public_id_immutable" },
+  { type: "trigger", name: "trg_trucks_public_id_insert" },
+  { type: "trigger", name: "trg_trucks_public_id_immutable" },
+  { type: "trigger", name: "trg_trips_public_id_insert" },
+  { type: "trigger", name: "trg_trips_public_id_immutable" },
 ] as const;
 
 export function databaseObjectsReady(rows: ReadonlyArray<{ name: string; type: string }>): boolean {

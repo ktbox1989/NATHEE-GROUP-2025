@@ -24,15 +24,18 @@ function applyMigration(db, path) {
 }
 
 function seedCoreRecords(db) {
+  const hasJobPublicId = db.prepare("SELECT 1 FROM pragma_table_info('transport_jobs') WHERE name = 'public_id'").get() !== undefined;
+  const publicIdColumn = hasJobPublicId ? ", public_id" : "";
+  const publicIdValue = hasJobPublicId ? ", 'job_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'" : "";
   db.exec(`
     INSERT INTO companies (id, code, legal_name, display_name)
     VALUES ('company-a', 'CUS-A', 'บริษัท เอ จำกัด', 'บริษัท เอ');
     INSERT INTO users (id, external_auth_id, email, display_name, role)
     VALUES ('owner-a', 'auth-owner-a', 'owner@example.test', 'Owner', 'OWNER');
     INSERT INTO transport_jobs
-      (id, job_number, company_id, origin, destination, status, created_by)
+      (id${publicIdColumn}, job_number, company_id, origin, destination, status, created_by)
     VALUES
-      ('job-a', 'JOB-2026-000001', 'company-a', 'กรุงเทพฯ', 'เชียงใหม่', 'OPEN', 'owner-a');
+      ('job-a'${publicIdValue}, 'JOB-2026-000001', 'company-a', 'กรุงเทพฯ', 'เชียงใหม่', 'OPEN', 'owner-a');
     INSERT INTO motorcycles
       (id, public_id, company_id, job_id, sequence_number, vin, engine_number, current_status)
     VALUES
@@ -253,12 +256,12 @@ test("truck and trip constraints preserve fleet identity, time order and immutab
     INSERT INTO trucks
       (id, request_key, public_id, code, registration, type, capacity_motorcycles, created_by)
     VALUES
-      ('truck-a', '0198f708-44a3-7ef7-8d4f-4f477922ff2a', 'truck-public-a', 'NG-01', '1กข 1234', 'SIX_WHEEL', 24, 'owner-a');
+      ('truck-a', '0198f708-44a3-7ef7-8d4f-4f477922ff2a', 'truck_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'NG-01', '1กข 1234', 'SIX_WHEEL', 24, 'owner-a');
     INSERT INTO trips
       (id, request_key, public_id, trip_number, truck_id, driver_user_id, origin, destination,
        planned_departure_at, planned_arrival_at, created_by)
     VALUES
-      ('trip-a', '0198f708-44a3-7ef7-8d4f-4f477922ff2b', 'trip-public-a', 'TRIP-2026-000001', 'truck-a', 'driver-a',
+      ('trip-a', '0198f708-44a3-7ef7-8d4f-4f477922ff2b', 'trip_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'TRIP-2026-000001', 'truck-a', 'driver-a',
        'กรุงเทพฯ', 'เชียงใหม่', '2026-08-21T02:30:00.000Z', '2026-08-21T12:00:00.000Z', 'owner-a');
     INSERT INTO trip_status_events (id, trip_id, previous_status, new_status, created_by)
     VALUES ('trip-event-a', 'trip-a', NULL, 'DRAFT', 'owner-a');
@@ -266,25 +269,25 @@ test("truck and trip constraints preserve fleet identity, time order and immutab
 
   assert.throws(() => db.exec(`
     INSERT INTO trucks (id, request_key, public_id, code, registration, type, capacity_motorcycles, created_by)
-    VALUES ('truck-b', '0198f708-44a3-7ef7-8d4f-4f477922ff2c', 'truck-public-b', 'NG-02', '1กข 1234', 'FOUR_WHEEL', 0, 'owner-a')
+    VALUES ('truck-b', '0198f708-44a3-7ef7-8d4f-4f477922ff2c', 'truck_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', 'NG-02', '1กข 1234', 'FOUR_WHEEL', 0, 'owner-a')
   `));
   assert.throws(() => db.exec(`
     INSERT INTO trips
       (id, request_key, public_id, trip_number, truck_id, origin, destination,
        planned_departure_at, planned_arrival_at, created_by)
     VALUES
-      ('trip-b', '0198f708-44a3-7ef7-8d4f-4f477922ff2d', 'trip-public-b', 'TRIP-2026-000002', 'truck-a', 'A', 'B',
+      ('trip-b', '0198f708-44a3-7ef7-8d4f-4f477922ff2d', 'trip_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', 'TRIP-2026-000002', 'truck-a', 'A', 'B',
        '2026-08-22T12:00:00.000Z', '2026-08-22T02:00:00.000Z', 'owner-a')
   `));
   assert.throws(() => db.exec(`
     INSERT INTO trucks (id, request_key, public_id, code, type, created_by)
-    VALUES ('truck-c', '0198f708-44a3-7ef7-8d4f-4f477922ff2a', 'truck-public-c', 'NG-03', 'FOUR_WHEEL', 'owner-a')
+    VALUES ('truck-c', '0198f708-44a3-7ef7-8d4f-4f477922ff2a', 'truck_cccccccccccccccccccccccccccccccc', 'NG-03', 'FOUR_WHEEL', 'owner-a')
   `));
   assert.throws(() => db.exec(`
     INSERT INTO trips
       (id, request_key, public_id, trip_number, truck_id, driver_user_id, origin, destination, created_by)
     VALUES
-      ('trip-c', '0198f708-44a3-7ef7-8d4f-4f477922ff2e', 'trip-public-c', 'TRIP-2026-000003',
+      ('trip-c', '0198f708-44a3-7ef7-8d4f-4f477922ff2e', 'trip_cccccccccccccccccccccccccccccccc', 'TRIP-2026-000003',
        'truck-a', 'staff-a', 'A', 'B', 'owner-a')
   `));
   assert.throws(() => db.exec("UPDATE trips SET driver_user_id = 'owner-a' WHERE id = 'trip-a'"));
@@ -293,7 +296,7 @@ test("truck and trip constraints preserve fleet identity, time order and immutab
     INSERT INTO trips
       (id, request_key, public_id, trip_number, truck_id, origin, destination, created_by)
     VALUES
-      ('trip-d', '0198f708-44a3-7ef7-8d4f-4f477922ff2f', 'trip-public-d', 'TRIP-2026-000004',
+      ('trip-d', '0198f708-44a3-7ef7-8d4f-4f477922ff2f', 'trip_dddddddddddddddddddddddddddddddd', 'TRIP-2026-000004',
        'truck-a', 'A', 'B', 'owner-a')
   `));
   assert.throws(() => db.exec("DELETE FROM trips WHERE id = 'trip-a'"));
@@ -399,8 +402,8 @@ test("database constraints reject invalid tenant and motorcycle records", () => 
     db.exec("INSERT INTO user_permissions (user_id, permission, granted_by) VALUES ('owner-a', 'system:root', 'owner-a')"),
   );
   db.exec(`
-    INSERT INTO yard_zones (id, code, name, capacity, created_by)
-    VALUES ('yard-a', 'A-01', 'โซน A', 2, 'owner-a');
+    INSERT INTO yard_zones (id, public_id, code, name, capacity, created_by)
+    VALUES ('yard-a', 'yard_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'A-01', 'โซน A', 2, 'owner-a');
     INSERT INTO yard_placements
       (id, request_key, motorcycle_id, company_id, yard_zone_id, entered_at, placed_by)
     VALUES
@@ -410,7 +413,7 @@ test("database constraints reject invalid tenant and motorcycle records", () => 
     db.exec("INSERT INTO yard_placements (id, request_key, motorcycle_id, company_id, yard_zone_id, entered_at, placed_by) VALUES ('placement-b', 'request-b', 'motorcycle-a', 'company-a', 'yard-a', '2026-08-20T11:00:00.000Z', 'owner-a')"),
   );
   assert.throws(() =>
-    db.exec("INSERT INTO yard_zones (id, code, name, capacity, created_by) VALUES ('yard-b', 'B-01', 'Bad', 0, 'owner-a')"),
+    db.exec("INSERT INTO yard_zones (id, public_id, code, name, capacity, created_by) VALUES ('yard-b', 'yard_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', 'B-01', 'Bad', 0, 'owner-a')"),
   );
   db.close();
 });
@@ -479,8 +482,8 @@ test("active yard queries use the partial zone index", () => {
   const db = createMigratedDatabase();
   seedCoreRecords(db);
   db.exec(`
-    INSERT INTO yard_zones (id, code, name, capacity, created_by)
-    VALUES ('yard-a', 'A-01', 'โซน A', 20, 'owner-a');
+    INSERT INTO yard_zones (id, public_id, code, name, capacity, created_by)
+    VALUES ('yard-a', 'yard_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'A-01', 'โซน A', 20, 'owner-a');
     INSERT INTO yard_placements
       (id, request_key, motorcycle_id, company_id, yard_zone_id, entered_at, placed_by)
     VALUES

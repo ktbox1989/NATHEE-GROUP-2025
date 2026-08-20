@@ -25,7 +25,7 @@ test("migration 0017 preserves existing motorcycle rows and earlier lifecycle tr
 
 test("import ledger is immutable, bounded and transitions only after clean validation", () => {
   const db = migrated();
-  db.exec(`INSERT INTO companies (id, code, legal_name, display_name) VALUES ('company', 'CUS', 'Company', 'Company'); INSERT INTO users (id, external_auth_id, email, display_name, role) VALUES ('owner', 'auth', 'owner@example.test', 'Owner', 'OWNER'); INSERT INTO transport_jobs (id, job_number, company_id, origin, destination, status, created_by) VALUES ('job', 'JOB-1', 'company', 'A', 'B', 'OPEN', 'owner'); INSERT INTO motorcycle_import_batches (id, request_key, job_id, company_id, source_filename, source_type, checksum, row_count, valid_count, error_count, created_by) VALUES ('batch', '0198f708-44a3-7ef7-8d4f-4f477922ff2a', 'job', 'company', 'import.csv', 'CSV', '${"a".repeat(64)}', 1, 1, 0, 'owner'); INSERT INTO motorcycle_import_rows (id, batch_id, source_row_number, record_id, public_id, raw_payload, vin, vehicle_condition, validation_status) VALUES ('row', 'batch', 2, 'mc-new', 'mc_public_new', '{"vin":"VIN2"}', 'VIN2', 'NEW', 'VALID');`);
+  db.exec(`INSERT INTO companies (id, code, legal_name, display_name) VALUES ('company', 'CUS', 'Company', 'Company'); INSERT INTO users (id, external_auth_id, email, display_name, role) VALUES ('owner', 'auth', 'owner@example.test', 'Owner', 'OWNER'); INSERT INTO transport_jobs (id, public_id, job_number, company_id, origin, destination, status, created_by) VALUES ('job', 'job_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'JOB-1', 'company', 'A', 'B', 'OPEN', 'owner'); INSERT INTO motorcycle_import_batches (id, request_key, job_id, company_id, source_filename, source_type, checksum, row_count, valid_count, error_count, created_by) VALUES ('batch', '0198f708-44a3-7ef7-8d4f-4f477922ff2a', 'job', 'company', 'import.csv', 'CSV', '${"a".repeat(64)}', 1, 1, 0, 'owner'); INSERT INTO motorcycle_import_rows (id, batch_id, source_row_number, record_id, public_id, raw_payload, vin, vehicle_condition, validation_status) VALUES ('row', 'batch', 2, 'mc-new', 'mc_public_new', '{"vin":"VIN2"}', 'VIN2', 'NEW', 'VALID');`);
   assert.throws(() => db.exec("DELETE FROM motorcycle_import_batches WHERE id='batch'"));
   assert.throws(() => db.exec("DELETE FROM motorcycle_import_rows WHERE id='row'"));
   assert.throws(() => db.exec("UPDATE motorcycle_import_batches SET status='IMPORTED' WHERE id='batch'"));
@@ -68,7 +68,7 @@ test("a uniqueness race rolls back the whole import plan without consuming seque
 });
 
 function seedImportCore(db) {
-  db.exec(`INSERT INTO companies (id, code, legal_name, display_name) VALUES ('company', 'CUS', 'Company', 'Company'); INSERT INTO users (id, external_auth_id, email, display_name, role) VALUES ('owner', 'auth', 'owner@example.test', 'Owner', 'OWNER'); INSERT INTO transport_jobs (id, job_number, company_id, origin, destination, status, created_by) VALUES ('job', 'JOB-1', 'company', 'A', 'B', 'OPEN', 'owner')`);
+  db.exec(`INSERT INTO companies (id, code, legal_name, display_name) VALUES ('company', 'CUS', 'Company', 'Company'); INSERT INTO users (id, external_auth_id, email, display_name, role) VALUES ('owner', 'auth', 'owner@example.test', 'Owner', 'OWNER'); INSERT INTO transport_jobs (id, public_id, job_number, company_id, origin, destination, status, created_by) VALUES ('job', 'job_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'JOB-1', 'company', 'A', 'B', 'OPEN', 'owner')`);
 }
 
 function runPlan(db, plan) {

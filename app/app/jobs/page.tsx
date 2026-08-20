@@ -107,7 +107,7 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
                 <td>{job.origin} → {job.destination}</td>
                 <td>{job.pickup || "—"}<small>{job.delivery ? `ส่งโดยประมาณ ${job.delivery}` : "ยังไม่ระบุวันส่ง"}</small></td>
                 <td><span className="status-pill">{job.status}</span></td>
-                <td>{can(actor, "motorcycles:write", job.companyId) ? <Link href={`/app/jobs/${job.id}/labels`}>พิมพ์ QR</Link> : "—"}</td>
+                <td>{can(actor, "jobs:write", job.companyId) ? <span className="table-action-stack"><Link href={`/app/jobs/${job.id}/label`}>QR งาน</Link><Link href={`/app/jobs/${job.id}/labels`}>QR รถทั้งงาน</Link></span> : "—"}</td>
               </tr>
             ))}</tbody>
           </table></div>

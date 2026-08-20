@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createMotorcycleQrToken, isMotorcyclePublicId, LABEL_BATCH_SIZE, parseLabelCursor, parseMotorcycleQrToken, QR_INPUT_MAX_LENGTH } from "../lib/qr.ts";
+import { createMotorcycleQrToken, createOperationalQrToken, isMotorcyclePublicId, isOperationalPublicId, LABEL_BATCH_SIZE, parseLabelCursor, parseMotorcycleQrToken, parseOperationalQrToken, QR_INPUT_MAX_LENGTH } from "../lib/qr.ts";
 
 const PUBLIC_ID = `mc_${"a".repeat(32)}`;
 
@@ -18,6 +18,24 @@ test("manual lookup accepts the canonical opaque public identifier", () => {
   assert.equal(parseMotorcycleQrToken(PUBLIC_ID), PUBLIC_ID);
 });
 
+test("all operational QR types round-trip as opaque tokens without cross-type ambiguity", () => {
+  const values = {
+    motorcycle: `mc_${"1".repeat(32)}`,
+    job: `job_${"2".repeat(32)}`,
+    yard: `yard_${"3".repeat(32)}`,
+    truck: `truck_${"4".repeat(32)}`,
+    trip: `trip_${"5".repeat(32)}`,
+  } as const;
+  for (const [entityType, publicId] of Object.entries(values)) {
+    const type = entityType as keyof typeof values;
+    assert.equal(isOperationalPublicId(type, publicId), true);
+    const token = createOperationalQrToken(type, publicId);
+    assert.deepEqual(parseOperationalQrToken(token), { entityType: type, publicId });
+    assert.deepEqual(parseOperationalQrToken(publicId), { entityType: type, publicId });
+    assert.doesNotMatch(token, /VIN|engine|customer|registration/i);
+  }
+});
+
 test("invalid, malformed, padded, and oversized tokens fail closed", () => {
   const invalid = [
     "",
@@ -26,10 +44,16 @@ test("invalid, malformed, padded, and oversized tokens fail closed", () => {
     `${PUBLIC_ID}extra`,
     ` ${PUBLIC_ID}`,
     `${PUBLIC_ID} `,
+    `NATHEE:JOB:job_${"z".repeat(32)}`,
+    `NATHEE:TRUCK:trip_${"1".repeat(32)}`,
     "x".repeat(QR_INPUT_MAX_LENGTH + 1),
   ];
-  for (const value of invalid) assert.equal(parseMotorcycleQrToken(value), null, value);
+  for (const value of invalid) {
+    assert.equal(parseMotorcycleQrToken(value), null, value);
+    assert.equal(parseOperationalQrToken(value), null, value);
+  }
   assert.throws(() => createMotorcycleQrToken("mc_not-valid"));
+  assert.throws(() => createOperationalQrToken("job", `job_${"x".repeat(32)}`));
 });
 
 test("batch label cursor is bounded to non-negative safe integers", () => {

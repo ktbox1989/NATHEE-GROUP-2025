@@ -127,6 +127,13 @@
       "when": 1787261947078,
       "tag": "0017_parallel_spirit",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1787262907825,
+      "tag": "0018_unknown_blonde_phantom",
+      "breakpoints": true
     }
   ]
 }

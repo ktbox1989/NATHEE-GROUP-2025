@@ -6,6 +6,7 @@ import { can } from "@/lib/authorization";
 import { getCurrentActor } from "@/lib/current-actor";
 import { isSameOrigin } from "@/lib/same-origin";
 import { normalizeYardZoneCode, parseYardCapacity } from "@/lib/yard";
+import { createOpaquePublicId } from "@/lib/qr";
 
 export async function POST(request: NextRequest) {
   if (!isSameOrigin(request)) return new NextResponse("Forbidden", { status: 403 });
@@ -23,7 +24,7 @@ export async function POST(request: NextRequest) {
   }
 
   const id = crypto.randomUUID();
-  const record = { id, code, name, description, capacity, createdBy: actor.userId };
+  const record = { id, publicId: createOpaquePublicId("yard"), code, name, description, capacity, createdBy: actor.userId };
   try {
     const db = getDb();
     await db.batch([
@@ -33,7 +34,7 @@ export async function POST(request: NextRequest) {
         action: "CREATE",
         entityType: "yard_zone",
         entityId: id,
-        after: { code, name, description, capacity, status: "ACTIVE" },
+        after: { publicId: "[opaque]", code, name, description, capacity, status: "ACTIVE" },
       })),
     ]);
   } catch {

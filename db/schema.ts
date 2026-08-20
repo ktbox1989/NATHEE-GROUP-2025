@@ -240,6 +240,7 @@ export const transportJobs = sqliteTable(
   "transport_jobs",
   {
     id: text("id").primaryKey(),
+    publicId: text("public_id").notNull(),
     jobNumber: text("job_number").notNull(),
     companyId: text("company_id")
       .notNull()
@@ -257,6 +258,7 @@ export const transportJobs = sqliteTable(
     updatedAt: updatedAt(),
   },
   (table) => [
+    uniqueIndex("uq_transport_jobs_public_id").on(table.publicId),
     uniqueIndex("uq_transport_jobs_job_number").on(table.jobNumber),
     index("idx_transport_jobs_company_created").on(table.companyId, table.createdAt),
     index("idx_transport_jobs_created_id").on(table.createdAt, table.id),
@@ -523,6 +525,7 @@ export const yardZones = sqliteTable(
   "yard_zones",
   {
     id: text("id").primaryKey(),
+    publicId: text("public_id").notNull(),
     code: text("code").notNull(),
     name: text("name").notNull(),
     description: text("description"),
@@ -535,6 +538,7 @@ export const yardZones = sqliteTable(
     updatedAt: updatedAt(),
   },
   (table) => [
+    uniqueIndex("uq_yard_zones_public_id").on(table.publicId),
     uniqueIndex("uq_yard_zones_code").on(table.code),
     index("idx_yard_zones_status_code").on(table.status, table.code),
     check("ck_yard_zones_code", sql`length(${table.code}) BETWEEN 2 AND 30`),

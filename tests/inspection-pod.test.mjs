@@ -28,10 +28,10 @@ function createDatabase() {
     VALUES ('owner-a', 'auth-owner-a', 'owner@example.test', 'Owner', 'OWNER');
     INSERT INTO user_role_assignments (user_id, role, assigned_by)
     VALUES ('owner-a', 'OWNER', 'owner-a');
-    INSERT INTO transport_jobs (id, job_number, company_id, origin, destination, status, created_by)
+    INSERT INTO transport_jobs (id, public_id, job_number, company_id, origin, destination, status, created_by)
     VALUES
-      ('job-a', 'JOB-A', 'company-a', 'A', 'B', 'OPEN', 'owner-a'),
-      ('job-b', 'JOB-B', 'company-b', 'A', 'B', 'OPEN', 'owner-a');
+      ('job-a', 'job_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'JOB-A', 'company-a', 'A', 'B', 'OPEN', 'owner-a'),
+      ('job-b', 'job_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', 'JOB-B', 'company-b', 'A', 'B', 'OPEN', 'owner-a');
     INSERT INTO motorcycles (id, public_id, company_id, job_id, sequence_number, current_status)
     VALUES
       ('motorcycle-a', 'public-a', 'company-a', 'job-a', 1, 'RECEIVED'),

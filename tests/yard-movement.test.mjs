@@ -20,16 +20,16 @@ function createDatabase() {
     VALUES ('company-a', 'CUS-A', 'บริษัท เอ จำกัด', 'บริษัท เอ');
     INSERT INTO users (id, external_auth_id, email, display_name, role)
     VALUES ('owner-a', 'auth-owner-a', 'owner@example.test', 'Owner', 'OWNER');
-    INSERT INTO transport_jobs (id, job_number, company_id, origin, destination, status, created_by)
-    VALUES ('job-a', 'JOB-001', 'company-a', 'A', 'B', 'OPEN', 'owner-a');
+    INSERT INTO transport_jobs (id, public_id, job_number, company_id, origin, destination, status, created_by)
+    VALUES ('job-a', 'job_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'JOB-001', 'company-a', 'A', 'B', 'OPEN', 'owner-a');
     INSERT INTO motorcycles (id, public_id, company_id, job_id, sequence_number, current_status)
     VALUES
       ('motorcycle-a', 'mc-a', 'company-a', 'job-a', 1, 'IN_YARD'),
       ('motorcycle-b', 'mc-b', 'company-a', 'job-a', 2, 'IN_YARD');
-    INSERT INTO yard_zones (id, code, name, capacity, created_by)
+    INSERT INTO yard_zones (id, public_id, code, name, capacity, created_by)
     VALUES
-      ('zone-a', 'A-01', 'Zone A', 1, 'owner-a'),
-      ('zone-b', 'B-01', 'Zone B', 1, 'owner-a');
+      ('zone-a', 'yard_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'A-01', 'Zone A', 1, 'owner-a'),
+      ('zone-b', 'yard_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', 'B-01', 'Zone B', 1, 'owner-a');
     INSERT INTO yard_placements
       (id, request_key, motorcycle_id, company_id, yard_zone_id, entered_at, placed_by)
     VALUES
