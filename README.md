@@ -16,12 +16,22 @@ See [the audit and migration plan](./docs/AUDIT_AND_MIGRATION_PLAN.md) for evide
 See [authentication activation](./docs/AUTH_SETUP.md) before creating the first real account.
 Complete [the production go-live checklist](./docs/PRODUCTION_GO_LIVE.md) before opening the hosted system to staff or customers.
 
+## Repository layout
+
+- `public-site/` — verified static company website for the current Z.com hosting.
+- `app/`, `components/`, `lib/` — authenticated logistics application UI and server logic.
+- `db/`, `drizzle/` — D1 schema and forward-only migrations.
+- `worker/` — Cloudflare runtime entry points.
+- `scripts/` — public-site verification, guarded Z.com deployment, postcheck, and rollback.
+- `docs/` — architecture, activation, deployment, and operational runbooks.
+
 ## Commands
 
 ```bash
 npm run dev
 npm run build
 npm run lint
+npm run test:public
 npm run test:unit
 npm run test:db
 npm test
@@ -44,3 +54,9 @@ Node.js 22.13 or newer is required.
 - Structured records: D1 (`DB`).
 - Images and documents: R2 (`FILES`).
 - Browser storage is limited to non-authoritative UI preferences and must not be used as the source of truth for business records.
+
+## Z.com public website
+
+The cPanel-hosted public website is intentionally separate from the authenticated logistics application. Deploy it only from the reviewed staging clone at `/home/zptqqwps/nathee-deploy`; the deploy script creates a complete backup, verifies checksums, preserves unknown Production files, runs live checks, and restores the backup automatically on failure.
+
+See [the Z.com deployment runbook](./docs/ZCOM_DEPLOYMENT.md). Do not copy application source, credentials, databases, or private uploads into `public_html`.
