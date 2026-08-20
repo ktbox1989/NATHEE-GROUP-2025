@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": null,
+  "updatedAt": "2026-08-21",
   "categories": [
     { "id": "domestic", "label": "ขนส่งในประเทศ" },
     { "id": "international", "label": "ขนส่งต่างประเทศ" },
@@ -13,5 +13,34 @@
     { "id": "truck-loading", "label": "โหลดรถขึ้นรถบรรทุก" },
     { "id": "delivery", "label": "ส่งมอบปลายทาง" }
   ],
-  "items": []
+  "items": [
+    {
+      "id": "motorcycle-truck-loading-01",
+      "status": "PUBLISHED",
+      "category": "truck-loading",
+      "title": "ขนส่งรถจักรยานยนต์ด้วยรถบรรทุก 4 ล้อ",
+      "caption": "การจัดเรียงรถจักรยานยนต์บนโครงบรรทุกสองชั้นระหว่างปฏิบัติงาน",
+      "alt": "รถบรรทุก 4 ล้อบรรทุกรถจักรยานยนต์บนโครงสองชั้นระหว่างปฏิบัติงาน",
+      "thumbnail": "/assets/gallery/motorcycle-truck-loading-01-thumbnail.jpg",
+      "display": "/assets/gallery/motorcycle-truck-loading-01-display.jpg",
+      "width": 1706,
+      "height": 960,
+      "featured": true,
+      "order": 10
+    },
+    {
+      "id": "motorcycle-storage-yard-01",
+      "status": "PUBLISHED",
+      "category": "storage",
+      "title": "ลานจัดเก็บรถจักรยานยนต์จำนวนมาก",
+      "caption": "รถจักรยานยนต์ที่จัดเรียงในพื้นที่ลานเพื่อรอการดำเนินงาน",
+      "alt": "รถจักรยานยนต์จำนวนมากจัดเรียงเป็นแถวภายในพื้นที่ลานจัดเก็บ",
+      "thumbnail": "/assets/gallery/motorcycle-storage-yard-01-thumbnail.jpg",
+      "display": "/assets/gallery/motorcycle-storage-yard-01-display.jpg",
+      "width": 1477,
+      "height": 1108,
+      "featured": true,
+      "order": 20
+    }
+  ]
 }

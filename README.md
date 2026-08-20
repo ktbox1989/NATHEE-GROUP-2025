@@ -10,7 +10,7 @@ Responsive public website and motorcycle-logistics operations platform for deskt
 - Customer companies, transport jobs, motorcycles, private images, status timeline, member invitations, and audit log are implemented as the first vertical slice.
 - Opaque motorcycle QR lookup, mobile camera scanning, and permission-gated single/bounded-batch label printing are implemented without placing VIN, registration, or customer data in the QR payload.
 - Yard operations include real zones, capacity-aware placement, current-location lookup, append-only movement history, optimistic stale-write protection, and audit records.
-- Public Website source now has 11 clean, SEO-specific routes. Its Gallery consumes a versioned, privacy-checked release manifest and never substitutes stock imagery for real company work.
+- Public Website source now has 11 clean, SEO-specific routes. Its Gallery consumes a versioned, privacy-checked release manifest with the first two Owner-supplied company-work photographs and never substitutes stock imagery for real work.
 - A permission-gated Gallery/Media Library vertical slice is implemented for the authenticated platform with Draft/Published/Hidden/Archived states, categories, ordering, Featured selection, responsive WebP/AVIF variants, R2 checksums, audit records and customer-job isolation. Its migrations remain gated until the Production Auth/D1 preflight is approved.
 - Dashboard values are calculated from D1. Empty states are shown instead of fake statistics.
 - Structured data uses D1 (`DB`); private motorcycle images use R2 (`FILES`).

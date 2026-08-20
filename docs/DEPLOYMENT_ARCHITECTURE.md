@@ -9,7 +9,7 @@ application, API, database, storage or authentication is deployed.
 | Component | Repository source | Verified Production path / URL | Status |
 | --- | --- | --- | --- |
 | Public static website | `public-site/` | `/home/zptqqwps/public_html/natheegroup2025.com` / `https://natheegroup2025.com/` | `PUBLIC_STATIC_LIVE` |
-| Public Gallery | `public-site/gallery/`, `public-site/assets/gallery.json` | `/home/zptqqwps/public_html/natheegroup2025.com/gallery` / `https://natheegroup2025.com/gallery/` | Live static manifest; zero published real photographs at audit time |
+| Public Gallery | `public-site/gallery/`, `public-site/assets/gallery.json` | `/home/zptqqwps/public_html/natheegroup2025.com/gallery` / `https://natheegroup2025.com/gallery/` | Live static manifest had zero photographs at audit time; repository now stages two Owner-approved real photographs pending guarded deployment |
 | Login/Auth frontend | `app/login/`, `app/api/auth/`, `app/auth/callback/` | No accepted canonical runtime. `https://natheegroup2025.com/login/` is only a noindex status page. | `LOGIN_STATIC_PLACEHOLDER` |
 | OWNER/STAFF/CUSTOMER application | `app/app/`, `app/portal/` | No accepted canonical runtime; `https://natheegroup2025.com/app` returned 404 | `FULL_APPLICATION_NOT_DEPLOYED` |
 | Backend/API | `app/api/`, `worker/` | No accepted canonical runtime; `https://natheegroup2025.com/api/health` returned 404 | `BACKEND_API_NOT_DEPLOYED` |
@@ -128,7 +128,7 @@ all three readiness checks are true. A public-site `DEPLOY_PASS` or
   not verified.
 - Real OWNER mapping and CUSTOMER cross-company isolation are not accepted.
 - In-app notification creation/read flow is implemented locally; external LINE/email delivery, consent and provider retry policy remain pending.
-- No real public Gallery photograph is present in the static manifest.
+- Two Owner-approved Gallery photographs are present in repository source but are not Production evidence until the public-site deploy and live postcheck pass.
 
 Until all applicable gates close, the exact accepted Production application
 path and URL are **none**. Reports may identify the protected Sites artifact

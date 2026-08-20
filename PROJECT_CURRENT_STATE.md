@@ -14,7 +14,8 @@ Updated: 2026-08-21 (Asia/Bangkok)
 - Public static website: LIVE at `https://natheegroup2025.com/`
 - Z.com root: `/home/zptqqwps/public_html/natheegroup2025.com`
 - Public routes: 11, with mandatory SEO/noindex/mobile gates
-- Public Gallery: LIVE manifest v1, 10 categories, 0 published real images
+- Public Gallery Production: LIVE manifest v1, 10 categories, 0 published real images at the last runtime check
+- Public Gallery repository release: 2 Owner-supplied real photographs, responsive thumbnails, captions and alt text; awaiting the next public-site deployment
 - Canonical `/login/`: static noindex status page, not real Auth
 - Canonical `/app`: 404
 - Canonical `/api/health`: 404
@@ -102,6 +103,13 @@ Updated: 2026-08-21 (Asia/Bangkok)
 - Motorcycle detail now provides real inspection/finding/POD forms and bounded history. `/app/motorcycles/:id/documents` renders an authorized print/PDF record from the same source data.
 - Migration `0011` remains unapplied in Production.
 
+### Owner-supplied public Gallery photographs
+
+- Added two real company-work photographs supplied and approved by the Owner: a two-level motorcycle truck load and a motorcycle storage yard.
+- Each photograph has a separate compressed thumbnail, factual Thai caption, descriptive alt text, a real Gallery category and deterministic featured ordering.
+- The homepage Gallery preview and `/gallery/` consume the same versioned manifest. No location, date, customer identity or unverified performance claim was inferred.
+- This is repository source only until the guarded Z.com public-site deployment and live postcheck pass.
+
 ## Verified source gates
 
 - Full test suite: 88 passing
@@ -119,7 +127,7 @@ Updated: 2026-08-21 (Asia/Bangkok)
 - Backup and apply migrations `0001`–`0011` to the protected D1 runtime.
 - Verify private R2 readiness.
 - Bootstrap the real OWNER identity and accept two-company customer isolation.
-- Add real company Gallery photographs and verified location/map data.
+- Deploy the two approved Gallery photographs and add verified location/map data when supplied.
 
 ## Next autonomous work
 

@@ -1,5 +1,13 @@
 # NATHEE GROUP 2025 — Work History
 
+## 2026-08-21 — First Owner-supplied public Gallery release
+
+- Added two real company-work photographs to the versioned public Gallery manifest: motorcycle truck loading and storage-yard operations.
+- Added separate mobile-friendly thumbnails, factual captions, descriptive alt text, category filtering and featured ordering without inventing location, dates, customers or statistics.
+- Verification: public files 25, published Gallery items 2, SEO/mobile-performance guards PASS, full tests 88/88, production build PASS and lint PASS.
+- Deployment: source prepared locally; Production remains unchanged until the guarded Z.com deployment and postcheck pass.
+- Rollback: restore the preceding public-site backup or revert this Gallery commit; the managed R2 Gallery and D1 are unaffected.
+
 ## 2026-08-21 — Inspection, Damage, POD and Print Center
 
 - Implementation commit: `8ad52be`
