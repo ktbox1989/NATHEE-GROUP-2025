@@ -1,5 +1,16 @@
 # NATHEE GROUP 2025 — Work History
 
+## 2026-08-21 — Atomic motorcycle CSV/XLSX import and reconciliation
+
+- Implementation commit: `c314e6f`
+- Added internal permission-gated upload, immutable staging, row-level validation, reconciliation UI and explicit confirmation for 1–500 motorcycles in an active Job. Upload/retry never creates a motorcycle and an exact file cannot be staged twice for one Job.
+- Added a bounded UTF-8 CSV and native OOXML XLSX parser with Thai/English headers, ZIP path/entry/declared-size controls, formula rejection, field normalization, required VIN-or-engine identity and duplicate checks against both the file and registry.
+- Migration `0017_parallel_spirit` adds append-only import batch/row ledgers and motorcycle variant/year/province/condition/notes using additive columns. It preserves existing records/triggers and advances per-Job sequence counters to at least the existing maximum.
+- Confirmation uses the exact tested D1 batch plan. The 500-row test proves contiguous sequence allocation, initial status/Audit creation and successful reconciliation; a late uniqueness race proves full rollback without sequence consumption.
+- Verification: full tests 143/143 (84 unit + 59 integration), TypeScript PASS, ESLint PASS, Vinext Production build PASS, public SEO/Gallery/mobile/responsive/deployment guards PASS, migration preservation/integrity/rollback checks PASS, scoped secret scan PASS and `git diff --check` PASS.
+- Deployment: source only. No Z.com file, Sites version, Supabase value, D1 migration/row, R2 object, DNS or Production runtime changed. Production requires the existing runtime/Auth gates plus D1 backup, dry-run and one-time migration `0017` before any approved real import.
+- Rollback: revert `c314e6f` before applying `0017`. After apply, restore the reviewed D1 backup or create a forward migration; never hard-delete import, motorcycle, status-event or Audit history.
+
 ## 2026-08-21 — Server-verified quotation anti-abuse
 
 - Implementation commit: `a2873da`

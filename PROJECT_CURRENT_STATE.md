@@ -6,7 +6,7 @@ Updated: 2026-08-21 (Asia/Bangkok)
 
 - Review branch: `codex/nathee-media-owner-2`
 - Integration baseline: `3cfd65a176cba858c6fd5d76cab61df5c78093f8`
-- Latest verified implementation milestone: Server-verified quotation anti-abuse (`a2873daa8f659a04603d857d33fbc1e3581af928`)
+- Latest verified implementation milestone: Atomic motorcycle CSV/XLSX imports (`c314e6f569dce1ee0872c272987bafa32b92c927`)
 - Canonical repository: `ktbox1989/NATHEE-GROUP-2025`
 - Working rule: resolve the current checkpoint-document commit with `git rev-parse HEAD`; never infer Production deployment from source HEAD.
 
@@ -25,6 +25,15 @@ Updated: 2026-08-21 (Asia/Bangkok)
 - Full application Production acceptance: NOT PASSED
 
 ## Closed local milestones
+
+### Atomic motorcycle CSV/XLSX imports (`c314e6f`)
+
+- Added authenticated internal-only upload, reconciliation and confirmation routes for 1–500 motorcycles tied to one active Job. No motorcycle is created during upload; confirmation is disabled until every row passes validation.
+- The bounded UTF-8 CSV/native XLSX parser supports Thai/English headers and the full operational vehicle fields. It rejects unknown/duplicate headers, missing identifiers, formulas, malformed worksheet references, unsafe ZIP paths, oversized requests/files and XLSX expansion beyond the declared safety budget.
+- Migration `0017_parallel_spirit` adds an immutable import batch/row ledger and extends motorcycle records with variant, model year, province, NEW/USED/UNKNOWN condition and notes without rebuilding the existing motorcycle table or removing earlier lifecycle triggers. Existing per-Job sequence counters are reconciled upward, never reused.
+- Exact D1 confirmation SQL is shared with the integration harness: one transactional plan claims the batch, allocates the full sequence range, creates 500 motorcycles/status events/Audit entries, advances the Job and closes reconciliation. A late VIN collision rolls back every change and consumes no sequence range.
+- Verification: full tests 143/143 (84 unit + 59 integration), including a real XLSX ZIP, 500-row atomic import, retry rejection and uniqueness-race rollback; TypeScript PASS, ESLint PASS, Vinext Production build PASS, public SEO/Gallery/mobile/responsive/deployment guards PASS, migration preservation/integrity checks PASS, scoped secret scan PASS and `git diff --check` PASS.
+- Production remains unchanged. Migration `0017`, Auth/Owner mapping and dynamic application routing are still Production gates; no real customer/fleet file was imported.
 
 ### Server-verified quotation anti-abuse (`a2873da`)
 
