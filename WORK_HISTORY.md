@@ -1,5 +1,16 @@
 # NATHEE GROUP 2025 — Work History
 
+## 2026-08-21 — Audited Trip–Motorcycle Load Board
+
+- Implementation commit: `8dd8e8a`
+- Added additive migration `0008_trip_motorcycle_loads` with an append-only assignment ledger, active-motorcycle uniqueness, capacity/tenant/state triggers and guarded trip-readiness transitions.
+- Assignment and load/unload mutations are idempotent or optimistic and write Audit in the same D1 batch; cancellation/completion release records without deleting history.
+- The system deliberately does not change motorcycle status from a trip mutation, preserving the existing status event and notification chain.
+- Added responsive `/app/trips/:id` Load Board with real eligible motorcycles, capacity visibility, readiness explanations and bounded keyset pagination.
+- Verification: full tests 65/65, production build PASS, lint PASS, public/SEO/deployment guards PASS, scoped secret scan found no embedded credential value.
+- Deployment: source pushed to `main`; migration `0008` was not applied and Production remained unchanged.
+- Rollback: before Production apply, revert the implementation commit. After apply, restore the pre-migration D1 backup or use a reviewed forward migration; do not hard-delete assignment history.
+
 ## 2026-08-21 — Truck and Trip Foundation
 
 - Implementation commit: `5b392dc`

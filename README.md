@@ -74,7 +74,10 @@ Node.js 22.13 or newer is required.
 - Trip numbers use the transaction-safe sequence counter; unused numbers are not recycled after a failed transaction.
 - Planning input is interpreted in Asia/Bangkok and stored as UTC ISO timestamps.
 - Only active DRIVER identities can be assigned, and only active trucks can start a trip assignment; API and database triggers both enforce this boundary.
-- Trips currently cover planning and lifecycle. Motorcycle load/capacity assignment is intentionally tracked as the next dependency rather than represented by fake counts.
+- A motorcycle can have only one active trip assignment. Assignment requires the real motorcycle to be SCHEDULED and never changes its operational status implicitly.
+- The Load Board coordinates assignment with the audited motorcycle timeline: LOADING/LOADED, IN_TRANSIT, ARRIVED/UNLOADED and DELIVERED/CLOSED readiness must agree before the trip can advance.
+- Confirmed truck capacity is enforced in D1; an unconfirmed capacity remains visibly marked and uses a 1,000-record hard safety ceiling rather than an unbounded list.
+- Load history is retained after cancellation or completion, rendered in bounded pages and cannot be hard-deleted.
 
 ## Z.com public website
 

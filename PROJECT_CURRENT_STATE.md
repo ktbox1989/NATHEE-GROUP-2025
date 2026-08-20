@@ -5,7 +5,7 @@ Updated: 2026-08-21 (Asia/Bangkok)
 ## Source checkpoint
 
 - Branch: `main`
-- Latest verified implementation milestone: `5b392dc` — Truck and Trip Foundation
+- Latest verified implementation milestone: `8dd8e8a` — Audited Trip–Motorcycle Load Board
 - Canonical repository: `ktbox1989/NATHEE-GROUP-2025`
 - Working rule: resolve the current checkpoint-document commit with `git rev-parse HEAD`; never infer Production deployment from source HEAD.
 
@@ -65,30 +65,39 @@ Updated: 2026-08-21 (Asia/Bangkok)
 - Internal UI is customer-blocked, responsive and bounded to 50 trips per keyset page; the fleet selector/list is capped at 200 pending a dedicated fleet search contract.
 - Migration `0007_truck_trip_foundation` is additive and remains unapplied in Production.
 
+### Audited Trip–Motorcycle Load Board (`8dd8e8a`)
+
+- Added an additive trip/motorcycle assignment ledger with request-key idempotency, one active trip per motorcycle, company matching, truck-capacity enforcement and a hard ceiling of 1,000 assignments when confirmed capacity is absent.
+- Assignment state is coordinated with the existing audited motorcycle workflow: a trip never changes motorcycle status implicitly, so existing status events, notifications and audit evidence remain authoritative.
+- Database triggers independently require DRAFT/PLANNED + SCHEDULED for assignment, LOADING + LOADED for load confirmation, ARRIVED + ARRIVED/DELIVERED/CLOSED for unload confirmation, and complete delivery readiness before trip completion.
+- Cancellation/completion preserves assignment history by releasing records in the same D1 batch as trip event and Audit writes; assignment hard delete is rejected.
+- Added a responsive real-data Load Board with readiness explanations, bounded 50-record keyset pages, 100-item eligible selector and no fake load counts.
+- Migration `0008_trip_motorcycle_loads` upgrades an existing `0007` database without rewriting prior trips and remains unapplied in Production.
+
 ## Verified source gates
 
-- Full test suite: 59 passing
-- Authorization/unit tests: 39 passing
-- Render/schema/notification/yard tests: 20 passing
+- Full test suite: 65 passing
+- Authorization/unit tests: 41 passing
+- Render/schema/notification/yard/trip-assignment tests: 24 passing
 - Production Vinext build: PASS
 - ESLint: PASS
 - Public SEO and deployment architecture guards: PASS
-- Migrations through `0007` packaged in `dist/.openai/drizzle/`: PASS
+- Migrations through `0008` packaged in `dist/.openai/drizzle/`: PASS
 
 ## Open Owner gates
 
 - Approve application routing model: apex edge routes or an application subdomain.
 - Supply/configure Supabase Production values through a secure hosting channel.
-- Backup and apply migrations `0001`–`0007` to the protected D1 runtime.
+- Backup and apply migrations `0001`–`0008` to the protected D1 runtime.
 - Verify private R2 readiness.
 - Bootstrap the real OWNER identity and accept two-company customer isolation.
 - Add real company Gallery photographs and verified location/map data.
 
 ## Next autonomous work
 
-1. Add idempotent trip/motorcycle load assignments with truck-capacity and motorcycle-state invariants.
-2. Continue dependency order: Container, Inspection/Damage, POD, documents and print center.
-3. Add bounded Company/Fleet Search before management selector limits are reached.
+1. Continue dependency order: Container, Inspection/Damage, POD, documents and print center.
+2. Add trip search/filtering and a dedicated fleet search contract before selector limits are reached.
+3. Add bounded Company Search before management selector limits are reached.
 4. Keep all new migrations local until Production backup/runtime gates are satisfied.
 
 ## Prohibited claims
