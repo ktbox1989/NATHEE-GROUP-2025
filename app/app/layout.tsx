@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { AppNav, type AppNavItem } from "@/components/app-nav";
 import { getDb } from "@/db";
 import { notifications } from "@/db/schema";
-import { can, isCustomerRole } from "@/lib/authorization";
+import { can, isCustomerRole, isInternalRole } from "@/lib/authorization";
 import { requireActor } from "@/lib/current-actor";
 import { roleLabels } from "@/lib/labels";
 
@@ -36,6 +36,7 @@ export default async function OperationsLayout({
   }
   if (can(actor, "jobs:read", policyCompany)) {
     items.push({ href: "/app/jobs", label: "งานขนส่ง", icon: "📦" });
+    if (isInternalRole(actor.role)) items.push({ href: "/app/trips", label: "เที่ยววิ่ง / รถขนส่ง", icon: "🚚" });
   }
   if (can(actor, "motorcycles:read", policyCompany)) {
     items.push({ href: "/app/motorcycles", label: "รถจักรยานยนต์", icon: "🏍️" });

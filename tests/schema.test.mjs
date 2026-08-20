@@ -60,6 +60,9 @@ test("fresh migrations create every phase-one table", () => {
     "sequence_counters",
     "status_events",
     "transport_jobs",
+    "trip_status_events",
+    "trips",
+    "trucks",
     "user_permissions",
     "user_role_assignments",
     "users",
@@ -151,6 +154,79 @@ test("member lifecycle migration serializes management claims and preserves an a
   `);
   assert.equal(db.prepare("SELECT status FROM users WHERE id = 'owner-a'").get().status, "INACTIVE");
   assert.deepEqual(db.prepare("PRAGMA foreign_key_check").all(), []);
+  db.close();
+});
+
+test("truck and trip constraints preserve fleet identity, time order and immutable history", () => {
+  const db = createMigratedDatabase();
+  db.exec(`
+    INSERT INTO users (id, external_auth_id, email, display_name, role)
+    VALUES
+      ('owner-a', 'auth-owner-a', 'owner@example.test', 'Owner', 'OWNER'),
+      ('driver-a', 'auth-driver-a', 'driver@example.test', 'Driver', 'STAFF'),
+      ('staff-a', 'auth-staff-a', 'staff@example.test', 'Staff', 'STAFF');
+    INSERT INTO user_role_assignments (user_id, role, assigned_by)
+    VALUES
+      ('owner-a', 'OWNER', 'owner-a'),
+      ('driver-a', 'DRIVER', 'owner-a'),
+      ('staff-a', 'STAFF', 'owner-a');
+    INSERT INTO trucks
+      (id, request_key, public_id, code, registration, type, capacity_motorcycles, created_by)
+    VALUES
+      ('truck-a', '0198f708-44a3-7ef7-8d4f-4f477922ff2a', 'truck-public-a', 'NG-01', '1กข 1234', 'SIX_WHEEL', 24, 'owner-a');
+    INSERT INTO trips
+      (id, request_key, public_id, trip_number, truck_id, driver_user_id, origin, destination,
+       planned_departure_at, planned_arrival_at, created_by)
+    VALUES
+      ('trip-a', '0198f708-44a3-7ef7-8d4f-4f477922ff2b', 'trip-public-a', 'TRIP-2026-000001', 'truck-a', 'driver-a',
+       'กรุงเทพฯ', 'เชียงใหม่', '2026-08-21T02:30:00.000Z', '2026-08-21T12:00:00.000Z', 'owner-a');
+    INSERT INTO trip_status_events (id, trip_id, previous_status, new_status, created_by)
+    VALUES ('trip-event-a', 'trip-a', NULL, 'DRAFT', 'owner-a');
+  `);
+
+  assert.throws(() => db.exec(`
+    INSERT INTO trucks (id, request_key, public_id, code, registration, type, capacity_motorcycles, created_by)
+    VALUES ('truck-b', '0198f708-44a3-7ef7-8d4f-4f477922ff2c', 'truck-public-b', 'NG-02', '1กข 1234', 'FOUR_WHEEL', 0, 'owner-a')
+  `));
+  assert.throws(() => db.exec(`
+    INSERT INTO trips
+      (id, request_key, public_id, trip_number, truck_id, origin, destination,
+       planned_departure_at, planned_arrival_at, created_by)
+    VALUES
+      ('trip-b', '0198f708-44a3-7ef7-8d4f-4f477922ff2d', 'trip-public-b', 'TRIP-2026-000002', 'truck-a', 'A', 'B',
+       '2026-08-22T12:00:00.000Z', '2026-08-22T02:00:00.000Z', 'owner-a')
+  `));
+  assert.throws(() => db.exec(`
+    INSERT INTO trucks (id, request_key, public_id, code, type, created_by)
+    VALUES ('truck-c', '0198f708-44a3-7ef7-8d4f-4f477922ff2a', 'truck-public-c', 'NG-03', 'FOUR_WHEEL', 'owner-a')
+  `));
+  assert.throws(() => db.exec(`
+    INSERT INTO trips
+      (id, request_key, public_id, trip_number, truck_id, driver_user_id, origin, destination, created_by)
+    VALUES
+      ('trip-c', '0198f708-44a3-7ef7-8d4f-4f477922ff2e', 'trip-public-c', 'TRIP-2026-000003',
+       'truck-a', 'staff-a', 'A', 'B', 'owner-a')
+  `));
+  assert.throws(() => db.exec("UPDATE trips SET driver_user_id = 'owner-a' WHERE id = 'trip-a'"));
+  db.exec("UPDATE trucks SET status = 'MAINTENANCE' WHERE id = 'truck-a'");
+  assert.throws(() => db.exec(`
+    INSERT INTO trips
+      (id, request_key, public_id, trip_number, truck_id, origin, destination, created_by)
+    VALUES
+      ('trip-d', '0198f708-44a3-7ef7-8d4f-4f477922ff2f', 'trip-public-d', 'TRIP-2026-000004',
+       'truck-a', 'A', 'B', 'owner-a')
+  `));
+  assert.throws(() => db.exec("DELETE FROM trips WHERE id = 'trip-a'"));
+  assert.deepEqual(db.prepare("PRAGMA foreign_key_check").all(), []);
+  db.close();
+});
+
+test("active trip planning uses truck and status indexes", () => {
+  const db = createMigratedDatabase();
+  const truckPlan = db.prepare("EXPLAIN QUERY PLAN SELECT id FROM trips WHERE truck_id = ? AND status = ? ORDER BY planned_departure_at").all("truck-a", "PLANNED").map((row) => String(row.detail)).join(" ");
+  const statusPlan = db.prepare("EXPLAIN QUERY PLAN SELECT id FROM trips WHERE status = ? ORDER BY planned_departure_at LIMIT 51").all("PLANNED").map((row) => String(row.detail)).join(" ");
+  assert.match(truckPlan, /idx_trips_truck_status/);
+  assert.match(statusPlan, /idx_trips_status_planned/);
   db.close();
 });
 

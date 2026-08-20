@@ -204,6 +204,29 @@ footer { border-top: 1px solid var(--border); background: #050611; color: var(--
 .notification-copy p { margin-top: 2px; color: var(--muted); font-size: 12.5px; overflow-wrap: anywhere; }
 .notification-actions { display: flex; align-items: center; }
 .notification-actions button, .notification-actions a { white-space: nowrap; }
+.trip-create-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 15px; }
+.trip-create-grid .record-form { align-content: start; margin-bottom: 0; }
+.truck-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; }
+.truck-card { min-height: 156px; padding: 17px; }
+.truck-card > div { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.truck-card > div b { color: #c4b5fd; font-family: var(--font-mono); font-size: 12px; }
+.truck-card h3 { margin-top: 18px; font-family: var(--font-display); font-size: 16px; }
+.truck-card p { margin-top: 3px; color: #dfe2ff; font-size: 12px; }
+.truck-card small { display: block; margin-top: 12px; color: var(--muted); font-size: 10px; }
+.trip-list { display: grid; gap: 12px; }
+.trip-card { padding: 18px; }
+.trip-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.trip-card-head > div > span { color: #9d8dff; font-family: var(--font-mono); font-size: 9px; letter-spacing: .1em; }
+.trip-card-head h3 { margin-top: 3px; font-family: var(--font-display); font-size: 17px; font-weight: 600; }
+.trip-card dl { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 9px; margin-top: 15px; }
+.trip-card dl > div { padding: 10px 11px; border: 1px solid var(--border); border-radius: 10px; background: rgba(255,255,255,.025); }
+.trip-card dt { color: var(--muted); font-size: 9.5px; }
+.trip-card dd { margin-top: 2px; font-size: 12px; }
+.trip-card dd small { display: block; color: var(--muted); font-size: 9px; }
+.trip-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
+.trip-actions form { display: flex; gap: 7px; }
+.trip-actions input { min-height: 36px; padding: 7px 9px; border: 1px solid var(--border); border-radius: 9px; outline: none; background: rgba(255,255,255,.04); color: var(--text); }
+.trip-actions button { min-height: 36px; padding: 7px 11px; border: 1px solid var(--border-strong); border-radius: 9px; background: var(--gradient-soft); color: #e6e1ff; cursor: pointer; }
 .record-detail-grid { display: grid; grid-template-columns: minmax(0,1.25fr) minmax(320px,.75fr); gap: 16px; }
 .record-summary, .status-form { padding: 21px; }
 .record-summary-head, .detail-section-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
@@ -404,6 +427,8 @@ footer { border-top: 1px solid var(--border); background: #050611; color: var(--
   .scan-result dl { grid-template-columns: repeat(2, minmax(0,1fr)); }
   .label-sheet { grid-template-columns: repeat(2, minmax(0,1fr)); }
   .yard-zone-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .trip-create-grid { grid-template-columns: 1fr; }
+  .truck-grid, .trip-card dl { grid-template-columns: repeat(2, minmax(0,1fr)); }
   .member-card summary { grid-template-columns: minmax(200px,1.4fr) 1fr auto; }
   .member-card summary > span:nth-child(3) { grid-column: 1 / -1; }
 }
@@ -453,6 +478,10 @@ footer { border-top: 1px solid var(--border); background: #050611; color: var(--
   .notification-card { grid-template-columns: 6px minmax(0,1fr); padding: 15px; }
   .notification-actions { grid-column: 2; }
   .notification-actions form, .notification-actions button, .notification-actions a { width: 100%; }
+  .truck-grid, .trip-card dl { grid-template-columns: 1fr; }
+  .trip-card-head { flex-direction: column; }
+  .trip-actions, .trip-actions form { display: grid; width: 100%; }
+  .trip-actions input, .trip-actions button { width: 100%; }
   .record-summary dl, .image-grid { grid-template-columns: 1fr; }
   .gallery-category-admin, .gallery-admin-grid, .gallery-item-form, .public-gallery-grid { grid-template-columns: 1fr; }
   .gallery-item-form label:nth-of-type(3), .gallery-category-admin form input:nth-of-type(3) { grid-column: auto; }

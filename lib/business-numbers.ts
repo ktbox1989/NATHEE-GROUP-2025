@@ -26,7 +26,7 @@ function currentBangkokYear(): string {
   }).format(new Date());
 }
 
-export async function nextBusinessNumber(prefix: "JOB" | "QT") {
+export async function nextBusinessNumber(prefix: "JOB" | "QT" | "TRIP") {
   const year = currentBangkokYear();
   const value = await nextSequence(`${prefix}:${year}`);
   return `${prefix}-${year}-${String(value).padStart(6, "0")}`;

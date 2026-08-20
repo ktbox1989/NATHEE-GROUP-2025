@@ -1,0 +1,45 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import {
+  allowedTripTransitions,
+  bangkokInputToUtc,
+  canTransitionTrip,
+  isTripRequestKey,
+  isPlannedTripOrderValid,
+  normalizeRegistration,
+  normalizeTruckCode,
+  parseTruckCapacity,
+  TRIP_PAGE_SIZE,
+} from "../lib/trips.ts";
+
+test("truck input is canonical and capacity remains optional", () => {
+  assert.equal(normalizeTruckCode(" ng 01 "), "NG-01");
+  assert.equal(normalizeTruckCode("รถ-1"), null);
+  assert.equal(normalizeRegistration(" 1กข   1234 "), "1กข 1234");
+  assert.equal(normalizeRegistration("ก".repeat(31)), undefined);
+  assert.equal(parseTruckCapacity(""), null);
+  assert.equal(parseTruckCapacity("24"), 24);
+  assert.equal(parseTruckCapacity("0"), undefined);
+  assert.equal(parseTruckCapacity("1.5"), undefined);
+});
+
+test("Bangkok planning input becomes timezone-aware UTC and rejects malformed values", () => {
+  assert.equal(bangkokInputToUtc("2026-08-21T09:30"), "2026-08-21T02:30:00.000Z");
+  assert.equal(bangkokInputToUtc(""), null);
+  assert.equal(bangkokInputToUtc("21/08/2026 09:30"), undefined);
+  assert.equal(bangkokInputToUtc("2026-02-30T09:30"), undefined);
+  assert.equal(isPlannedTripOrderValid("2026-08-21T02:30:00.000Z", "2026-08-21T05:00:00.000Z"), true);
+  assert.equal(isPlannedTripOrderValid("2026-08-21T05:00:00.000Z", "2026-08-21T02:30:00.000Z"), false);
+});
+
+test("trip lifecycle is ordered and terminal states cannot restart", () => {
+  assert.deepEqual(allowedTripTransitions("DRAFT"), ["PLANNED", "CANCELLED"]);
+  assert.equal(canTransitionTrip("PLANNED", "LOADING"), true);
+  assert.equal(canTransitionTrip("PLANNED", "IN_TRANSIT"), false);
+  assert.equal(canTransitionTrip("IN_TRANSIT", "ARRIVED"), true);
+  assert.equal(canTransitionTrip("COMPLETED", "PLANNED"), false);
+  assert.equal(canTransitionTrip("CANCELLED", "DRAFT"), false);
+  assert.equal(TRIP_PAGE_SIZE, 50);
+  assert.equal(isTripRequestKey("0198f708-44a3-7ef7-8d4f-4f477922ff2a"), true);
+  assert.equal(isTripRequestKey("not-a-request"), false);
+});

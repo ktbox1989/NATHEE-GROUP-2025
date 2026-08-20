@@ -89,6 +89,9 @@ export const GALLERY_VISIBILITIES = ["PUBLIC", "CUSTOMER_JOB", "INTERNAL"] as co
 export const GALLERY_VARIANT_ROLES = ["ORIGINAL", "DISPLAY", "THUMBNAIL"] as const;
 export const NOTIFICATION_TYPES = ["MOTORCYCLE_STATUS_CHANGED"] as const;
 export const NOTIFICATION_SEVERITIES = ["INFO", "WARNING", "CRITICAL"] as const;
+export const TRUCK_TYPES = ["FOUR_WHEEL", "SIX_WHEEL", "OTHER"] as const;
+export const TRUCK_STATUSES = ["ACTIVE", "MAINTENANCE", "INACTIVE"] as const;
+export const TRIP_STATUSES = ["DRAFT", "PLANNED", "LOADING", "IN_TRANSIT", "ARRIVED", "COMPLETED", "CANCELLED"] as const;
 
 const createdAt = () =>
   text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`);
@@ -239,6 +242,89 @@ export const transportJobs = sqliteTable(
       "ck_transport_jobs_status",
       sql`${table.status} IN ('DRAFT', 'OPEN', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED')`,
     ),
+  ],
+);
+
+export const trucks = sqliteTable(
+  "trucks",
+  {
+    id: text("id").primaryKey(),
+    requestKey: text("request_key").notNull(),
+    publicId: text("public_id").notNull(),
+    code: text("code").notNull(),
+    registration: text("registration"),
+    type: text("type", { enum: TRUCK_TYPES }).notNull(),
+    capacityMotorcycles: integer("capacity_motorcycles"),
+    status: text("status", { enum: TRUCK_STATUSES }).notNull().default("ACTIVE"),
+    notes: text("notes"),
+    createdBy: text("created_by").notNull().references(() => users.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    uniqueIndex("uq_trucks_request_key").on(table.requestKey),
+    uniqueIndex("uq_trucks_public_id").on(table.publicId),
+    uniqueIndex("uq_trucks_code").on(table.code),
+    uniqueIndex("uq_trucks_registration").on(table.registration).where(sql`${table.registration} IS NOT NULL AND ${table.registration} <> ''`),
+    index("idx_trucks_status_code").on(table.status, table.code),
+    check("ck_trucks_code", sql`length(${table.code}) BETWEEN 2 AND 30 AND ${table.code} NOT GLOB '*[^A-Z0-9-]*'`),
+    check("ck_trucks_registration", sql`${table.registration} IS NULL OR length(${table.registration}) BETWEEN 2 AND 30`),
+    check("ck_trucks_type", sql`${table.type} IN ('FOUR_WHEEL', 'SIX_WHEEL', 'OTHER')`),
+    check("ck_trucks_capacity", sql`${table.capacityMotorcycles} IS NULL OR ${table.capacityMotorcycles} BETWEEN 1 AND 1000`),
+    check("ck_trucks_status", sql`${table.status} IN ('ACTIVE', 'MAINTENANCE', 'INACTIVE')`),
+  ],
+);
+
+export const trips = sqliteTable(
+  "trips",
+  {
+    id: text("id").primaryKey(),
+    requestKey: text("request_key").notNull(),
+    publicId: text("public_id").notNull(),
+    tripNumber: text("trip_number").notNull(),
+    truckId: text("truck_id").notNull().references(() => trucks.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    driverUserId: text("driver_user_id").references(() => users.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    origin: text("origin").notNull(),
+    destination: text("destination").notNull(),
+    plannedDepartureAt: text("planned_departure_at"),
+    plannedArrivalAt: text("planned_arrival_at"),
+    actualDepartureAt: text("actual_departure_at"),
+    actualArrivalAt: text("actual_arrival_at"),
+    status: text("status", { enum: TRIP_STATUSES }).notNull().default("DRAFT"),
+    notes: text("notes"),
+    createdBy: text("created_by").notNull().references(() => users.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    uniqueIndex("uq_trips_request_key").on(table.requestKey),
+    uniqueIndex("uq_trips_public_id").on(table.publicId),
+    uniqueIndex("uq_trips_trip_number").on(table.tripNumber),
+    index("idx_trips_status_planned").on(table.status, table.plannedDepartureAt, table.id),
+    index("idx_trips_truck_status").on(table.truckId, table.status, table.plannedDepartureAt),
+    index("idx_trips_driver_status").on(table.driverUserId, table.status, table.plannedDepartureAt),
+    check("ck_trips_status", sql`${table.status} IN ('DRAFT', 'PLANNED', 'LOADING', 'IN_TRANSIT', 'ARRIVED', 'COMPLETED', 'CANCELLED')`),
+    check("ck_trips_route", sql`length(${table.origin}) BETWEEN 1 AND 200 AND length(${table.destination}) BETWEEN 1 AND 200`),
+    check("ck_trips_planned_order", sql`${table.plannedArrivalAt} IS NULL OR ${table.plannedDepartureAt} IS NULL OR ${table.plannedArrivalAt} >= ${table.plannedDepartureAt}`),
+    check("ck_trips_actual_order", sql`${table.actualArrivalAt} IS NULL OR ${table.actualDepartureAt} IS NULL OR ${table.actualArrivalAt} >= ${table.actualDepartureAt}`),
+  ],
+);
+
+export const tripStatusEvents = sqliteTable(
+  "trip_status_events",
+  {
+    id: text("id").primaryKey(),
+    tripId: text("trip_id").notNull().references(() => trips.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    previousStatus: text("previous_status", { enum: TRIP_STATUSES }),
+    newStatus: text("new_status", { enum: TRIP_STATUSES }).notNull(),
+    note: text("note"),
+    createdBy: text("created_by").notNull().references(() => users.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    index("idx_trip_status_events_trip_created").on(table.tripId, table.createdAt),
+    check("ck_trip_status_events_previous", sql`${table.previousStatus} IS NULL OR ${table.previousStatus} IN ('DRAFT', 'PLANNED', 'LOADING', 'IN_TRANSIT', 'ARRIVED', 'COMPLETED', 'CANCELLED')`),
+    check("ck_trip_status_events_new", sql`${table.newStatus} IN ('DRAFT', 'PLANNED', 'LOADING', 'IN_TRANSIT', 'ARRIVED', 'COMPLETED', 'CANCELLED')`),
   ],
 );
 
@@ -612,3 +698,6 @@ export type GalleryVisibility = (typeof GALLERY_VISIBILITIES)[number];
 export type GalleryVariantRole = (typeof GALLERY_VARIANT_ROLES)[number];
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 export type NotificationSeverity = (typeof NOTIFICATION_SEVERITIES)[number];
+export type TruckType = (typeof TRUCK_TYPES)[number];
+export type TruckStatus = (typeof TRUCK_STATUSES)[number];
+export type TripStatus = (typeof TRIP_STATUSES)[number];
