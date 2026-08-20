@@ -36,11 +36,17 @@ The deploy script:
 1. refuses to run outside the approved account and staging path;
 2. prevents concurrent deployments;
 3. verifies the static source and rejects demo/placeholder content;
-4. creates and verifies a complete timestamped Production backup;
-5. stages and verifies release files;
-6. copies release files without deleting unknown Production files;
-7. tests the live domain, canonical URLs, redirects, headers, assets, and 404;
-8. automatically restores the backup if deployment or postcheck fails.
+4. creates a complete timestamped `tar` backup, extracted snapshot, and SHA-256 manifests;
+5. stages and verifies release files without requiring `rsync`, package installation, or root access;
+6. atomically replaces only files named by the verified release manifest;
+7. never deletes unknown Production files during deployment;
+8. tests the live domain, canonical URLs, redirects, headers, assets, and 404;
+9. automatically restores the backup if deployment or postcheck fails.
+
+Each backup also records `CREATED_FILES.txt`. Rollback removes only files that
+the exact release created and then atomically restores the verified snapshot;
+the checksum-verified `production.tar` remains immutable backup evidence.
+Unrelated files created after deployment are preserved.
 
 ## Manual rollback
 

@@ -4,7 +4,11 @@ set -Eeuo pipefail
 EXPECTED_USER="zptqqwps"
 PRODUCTION_ROOT="/home/zptqqwps/public_html/natheegroup2025.com"
 BACKUP_ROOT="/home/zptqqwps/backups/nathee"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 BACKUP_DIR="${1:-}"
+
+# shellcheck source=scripts/lib/deploy-file-tools.sh
+source "$SCRIPT_DIR/lib/deploy-file-tools.sh"
 
 fail() {
   printf 'ROLLBACK_FAIL: %s\n' "$1" >&2
@@ -19,21 +23,11 @@ case "$BACKUP_DIR" in
   *) fail "backup path is outside the approved backup root" ;;
 esac
 
-[[ -d "$BACKUP_DIR/snapshot" ]] || fail "backup snapshot does not exist"
-[[ -f "$BACKUP_DIR/SHA256SUMS.txt" ]] || fail "backup checksum manifest does not exist"
-[[ -d "$PRODUCTION_ROOT" ]] || fail "production root does not exist"
+for required_command in tar cp mv mkdir mktemp find sha256sum cut curl rm dirname; do
+  command -v "$required_command" >/dev/null || fail "$required_command is required"
+done
 
-(
-  cd -- "$BACKUP_DIR/snapshot"
-  sha256sum --check --strict ../SHA256SUMS.txt
-)
-
-rsync -a --delete -- "$BACKUP_DIR/snapshot/" "$PRODUCTION_ROOT/"
-
-(
-  cd -- "$PRODUCTION_ROOT"
-  sha256sum --check --strict "$BACKUP_DIR/SHA256SUMS.txt"
-)
+nathee_restore_backup "$BACKUP_DIR" "$PRODUCTION_ROOT" || fail "backup verification or restore failed"
 
 curl --fail --silent --show-error --location --proto '=https' --tlsv1.2 \
   https://natheegroup2025.com/ --output /dev/null

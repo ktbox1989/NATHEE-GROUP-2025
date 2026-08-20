@@ -9,6 +9,9 @@ REPO_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd -P)"
 SOURCE_ROOT="$REPO_ROOT/public-site"
 LOCK_FILE="/home/zptqqwps/.nathee-deploy.lock"
 
+# shellcheck source=scripts/lib/deploy-file-tools.sh
+source "$SCRIPT_DIR/lib/deploy-file-tools.sh"
+
 fail() {
   printf 'DEPLOY_FAIL: %s\n' "$1" >&2
   exit 1
@@ -20,15 +23,15 @@ fail() {
 [[ -d "$SOURCE_ROOT" ]] || fail "public-site source is missing"
 [[ -d "$PRODUCTION_ROOT" ]] || fail "production root is missing"
 
-command -v flock >/dev/null || fail "flock is required"
-command -v rsync >/dev/null || fail "rsync is required"
-command -v sha256sum >/dev/null || fail "sha256sum is required"
-command -v curl >/dev/null || fail "curl is required"
+for required_command in flock tar cp mv mkdir mktemp find sha256sum cut curl grep dirname rm date git; do
+  command -v "$required_command" >/dev/null || fail "$required_command is required"
+done
 
 exec 9>"$LOCK_FILE"
 flock -n 9 || fail "another NATHEE deployment is already running"
 
 "$SCRIPT_DIR/verify-public-site.sh" "$SOURCE_ROOT"
+nathee_assert_safe_tree "$SOURCE_ROOT" || fail "release contains an unsafe or empty file tree"
 
 timestamp="$(date -u +%Y%m%d-%H%M%S)"
 backup_dir="$BACKUP_ROOT/$timestamp"
@@ -47,25 +50,21 @@ cleanup() {
 }
 trap cleanup EXIT
 
-mkdir -p -- "$backup_dir/snapshot"
-cp -a -- "$PRODUCTION_ROOT/." "$backup_dir/snapshot/"
-(
-  cd -- "$backup_dir/snapshot"
-  find . -type f -print0 | sort -z | xargs -0 -r sha256sum > "$backup_dir/SHA256SUMS.txt"
-)
-[[ -s "$backup_dir/SHA256SUMS.txt" ]] || fail "production backup manifest is empty"
-(
-  cd -- "$backup_dir/snapshot"
-  sha256sum --check --strict ../SHA256SUMS.txt
-)
+nathee_create_backup "$PRODUCTION_ROOT" "$backup_dir" || fail "could not create and verify Production backup"
+nathee_write_file_manifest "$SOURCE_ROOT" "$backup_dir/RELEASE_SHA256SUMS.txt" || fail "could not create release manifest"
+[[ -s "$backup_dir/RELEASE_SHA256SUMS.txt" ]] || fail "release manifest is empty"
+nathee_write_created_manifest "$SOURCE_ROOT" "$PRODUCTION_ROOT" "$backup_dir/CREATED_FILES.txt" || fail "could not record release-created files"
+nathee_finalize_backup_metadata "$backup_dir" || fail "could not seal deployment metadata checksums"
 
-rsync -a --checksum -- "$SOURCE_ROOT/" "$stage_dir/"
+nathee_stage_tree "$SOURCE_ROOT" "$stage_dir" || fail "could not stage release"
 "$SCRIPT_DIR/verify-public-site.sh" "$stage_dir"
+nathee_verify_file_manifest "$stage_dir" "$backup_dir/RELEASE_SHA256SUMS.txt" || fail "staged release checksum mismatch"
 
 deployment_started=1
-# No --delete: unknown Production files remain untouched. Intended release
-# files, including the reviewed static .htaccess, are replaced after backup.
-rsync -a --checksum -- "$stage_dir/" "$PRODUCTION_ROOT/"
+# Only files listed by the verified release are atomically replaced. Unknown
+# Production files are neither traversed for deletion nor removed.
+nathee_apply_tree "$stage_dir" "$PRODUCTION_ROOT" "$timestamp" || fail "atomic release copy failed"
+nathee_verify_file_manifest "$PRODUCTION_ROOT" "$backup_dir/RELEASE_SHA256SUMS.txt" || fail "deployed release checksum mismatch"
 
 "$SCRIPT_DIR/postcheck-production.sh"
 deployment_succeeded=1
