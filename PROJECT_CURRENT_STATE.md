@@ -43,6 +43,46 @@ photographs. That was not true of the running site and has been corrected.
 
 ## Closed local milestones
 
+### Private storage cannot be read, written or cached without a decision
+
+- R2 holds what a customer would least like published: inspection and damage
+  photographs, Proof of Delivery evidence, recipient signatures and quotation
+  attachments. The bucket is private, so the only path to a browser is a route in
+  this application — which makes those routes the entire contract.
+- Every one of the four read routes and four write routes was already correct.
+  What was missing was anything keeping them that way, and both failure modes are
+  quiet: an unauthorized read returns bytes and looks like a working feature, and
+  a shareable cache header publishes a customer's evidence to whoever asks the
+  CDN next while every log line stays green.
+- `scripts/test-private-media-contract.mjs` requires an authorization decision in
+  the same request as any object read or write, and requires a response carrying
+  object bytes to declare `private, no-store`. Where a shareable header is used
+  at all it must be **conditional on a proven public state**, and "public" must
+  mean PUBLISHED and PUBLIC decided from the stored row rather than asserted.
+- Two exemptions, both declared with their reason and both checked rather than
+  trusted. The readiness probe may `head` a key that is never written and must
+  return a boolean, never bytes — if it starts reading real objects the gate
+  fails. The public quotation intake is the one place an unauthenticated caller
+  may write, and its same-origin, Turnstile and bounded-request guards are each
+  asserted; it must also never read an attachment back.
+- A stale exemption fails too: if the probe stops touching storage, or the
+  declared public writer stops writing, the gate reports the exemption as stale
+  rather than leaving a hole nobody notices.
+- A storage key is internal layout and must not be returned to a client; the
+  binding must stay `FILES`; and the private-storage requirement must stay
+  documented in the deployment architecture.
+- Twelve proven rejections + 1 acceptance, including an unauthorized read of
+  private evidence, a signature read without a decision, a quotation attachment
+  that stops being Owner-only, private bytes marked shareable, `isPublic` forced
+  true, each public-intake guard removed individually, a probe that starts
+  reading real objects, a brand-new unauthenticated write route, and the bucket
+  binding renamed away.
+- **No Production R2 configuration was created or guessed.** Whether the live
+  bucket is private remains an Owner gate; this proves the application never
+  relies on it being public.
+- Verification: full tests 360/360 (183 unit + 177 integration); TypeScript PASS;
+  ESLint PASS; Vinext production build PASS; all nine gates PASS.
+
 ### Scanning a printed code proves nothing about who is holding it
 
 - A QR sticker is on the motorcycle. Anyone walking past can photograph it, so
@@ -932,6 +972,7 @@ photographs. That was not true of the running site and has been corrected.
 - Session refresh coverage gate (`test-session-refresh-coverage.mjs`): 80 session readers, all covered, with 9 proven rejections + 1 acceptance
 - Readiness contract gate (`test-readiness-contract.mjs`): 37 tables, 81 triggers, 128 indexes derived from 26 migrations, with 10 proven rejections + 1 acceptance
 - CMS delivery contract gate (`test-cms-delivery-contract.mjs`): 10 managed public pages, per-request revalidation, non-indexable preview, with 12 proven rejections + 1 acceptance
+- Private media contract gate (`test-private-media-contract.mjs`): 4 read routes, 4 write routes, 1 declared public writer, with 12 proven rejections + 1 acceptance
 - TypeScript `tsc --noEmit`: PASS
 
 ## Open Owner gates
