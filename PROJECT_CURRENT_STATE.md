@@ -43,6 +43,47 @@ photographs. That was not true of the running site and has been corrected.
 
 ## Closed local milestones
 
+### Publishing now verifies the media it is about to show
+
+- Reviewed the existing CMS backend against the Lane B scope rather than
+  rebuilding it. Content schema, Draft→Preview→Publish, revisions, permissions
+  (`site:write` / `site:publish`), idempotency by request key, append-only
+  publication history and audit entries were already in place and correct, and
+  `safeHref` already refuses anything but same-origin paths, fragments, `tel:`
+  and one allowlisted map URL — so there is no script-URL hole in editor content.
+- Closed the gap that was there: **publish did not check that the media a
+  revision points at can actually be shown.** The public renderer serves a
+  gallery item only when it is PUBLISHED and PUBLIC, falling back to the
+  Owner-supplied static manifest, and renders nothing otherwise. So an editor
+  could pick an image, save, publish, and get a live page with a missing hero,
+  with no error anywhere — every individual step had succeeded.
+- Publishing a page now collects the images and gallery categories its **enabled**
+  sections reference, resolves them exactly the way the public renderer does, and
+  refuses the publish naming the first reference a reader would not be served.
+  Publishing global settings does the same for the brand logo, which appears on
+  every public page and would otherwise blank site-wide.
+- The editor previously printed raw codes (`ไม่สำเร็จ: publish_failed`). Outcomes
+  are now stated in Thai, and the refusal names the failing reference. The
+  identifier is sanitised on the way out and validated again on the way in, so a
+  hand-edited query string cannot put anything into the page.
+- Proven against the real migrated schema: a saved revision is not public until
+  published; a newer draft does not replace the live one on save; hiding takes
+  effect and re-publishing restores exactly the chosen revision; publication
+  history cannot be deleted and revisions cannot be edited; a draft, internal or
+  missing image is refused while a published public one passes; a hidden gallery
+  category is refused; archiving an image a live page depends on does not rewrite
+  the published revision; and the home page cannot be hidden at all, so the public
+  site always has an entry point.
+- One of those tests is load-bearing for an earlier milestone: **which
+  publication event wins is decided by ordering `created_at`**, so the mixed
+  timestamp representations fixed earlier could have silently un-hidden a page.
+  That ordering is now covered directly.
+- Verification: full tests 311/311 (164 unit + 147 integration), 25 of them new;
+  TypeScript PASS; ESLint PASS; Vinext production build PASS; all public and
+  security guards PASS; `git diff --check` PASS.
+- No migration was added. No Production file, D1 row, Supabase value, R2 object,
+  DNS record or credential was changed.
+
 ### "The schema is applied" now means every object the migrations create
 
 - Found a serious readiness gap. `REQUIRED_DATABASE_OBJECTS` was curated by hand
@@ -645,9 +686,9 @@ photographs. That was not true of the running site and has been corrected.
 
 ## Verified source gates
 
-- Full test suite: 286 passing
-- Authorization/unit/CMS/settings/search/config/readiness/identity/quotation/Turnstile/image/POD-signature/Auth-throttle/recovery-grant/timestamp/audit-view tests: 149 passing
-- Render/schema/notification/yard/trip/container/inspection/POD/CMS/settings/query-plan/migration/Auth-throttle/recovery-grant/audit-ordering/auth-event/production-env/audit-view/readiness-schema tests: 137 passing
+- Full test suite: 311 passing
+- Authorization/unit/CMS/settings/search/config/readiness/identity/quotation/Turnstile/image/POD-signature/Auth-throttle/recovery-grant/timestamp/audit-view/CMS-publish tests: 164 passing
+- Render/schema/notification/yard/trip/container/inspection/POD/CMS/settings/query-plan/migration/Auth-throttle/recovery-grant/audit-ordering/auth-event/production-env/audit-view/readiness-schema/CMS-publish tests: 147 passing
 - Production Vinext build: PASS
 - ESLint: PASS
 - Public SEO and deployment architecture guards: PASS

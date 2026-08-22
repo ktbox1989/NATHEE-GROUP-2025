@@ -6,6 +6,9 @@ import { makeAuditRecord } from "@/lib/audit";
 import { can } from "@/lib/authorization";
 import { getCurrentActor } from "@/lib/current-actor";
 import { isSameOrigin } from "@/lib/same-origin";
+import { collectSettingsReferences, firstUnpublishableLabel, unpublishableReferences } from "@/lib/site-cms-publish";
+import { resolvePublishReferences } from "@/lib/site-cms-publish-store";
+import { parseSiteSettingsJson } from "@/lib/site-settings";
 import { recordTimestamp } from "@/lib/timestamps";
 
 export async function POST(request: NextRequest) {
@@ -21,14 +24,29 @@ export async function POST(request: NextRequest) {
   const db = getDb();
   const existing = await db.select({ id: siteSettingsPublicationEvents.id }).from(siteSettingsPublicationEvents).where(eq(siteSettingsPublicationEvents.requestKey, requestKey)).get();
   if (existing) return NextResponse.redirect(new URL("/app/site-settings?status=already_published", request.url), 303);
-  const revision = await db.select({ id: siteSettingsRevisions.id }).from(siteSettingsRevisions).where(eq(siteSettingsRevisions.id, revisionId)).get();
+  const revision = await db.select({ id: siteSettingsRevisions.id, settingsJson: siteSettingsRevisions.settingsJson }).from(siteSettingsRevisions).where(eq(siteSettingsRevisions.id, revisionId)).get();
   if (!revision) return redirectError(request, "revision_not_found");
+  // The brand logo is shown on every public page, so publishing settings that
+  // point at media a reader cannot be served would silently blank it site-wide.
+  const settings = parseSiteSettingsJson(revision.settingsJson);
+  if (!settings) return redirectError(request, "revision_unreadable");
+  const references = collectSettingsReferences(settings);
+  let problems;
+  try {
+    problems = unpublishableReferences(references, await resolvePublishReferences(references));
+  } catch {
+    return redirectError(request, "publish_failed");
+  }
+  if (problems.length > 0) {
+    const label = firstUnpublishableLabel(problems);
+    return NextResponse.redirect(new URL(`/app/site-settings?error=unpublishable_media${label ? `&missing=${encodeURIComponent(label)}` : ""}`, request.url), 303);
+  }
   const eventId = crypto.randomUUID();
   const createdAt = recordTimestamp();
   try {
     await db.batch([
       db.insert(siteSettingsPublicationEvents).values({ id: eventId, requestKey, revisionId, note, createdBy: actor.userId, createdAt }),
-      db.insert(auditLogs).values(makeAuditRecord({ actor, action: "PUBLISH_SITE_SETTINGS", entityType: "site_settings_publication", entityId: eventId, after: { revisionId, note } })),
+      db.insert(auditLogs).values(makeAuditRecord({ actor, action: "PUBLISH_SITE_SETTINGS", entityType: "site_settings_publication", entityId: eventId, after: { revisionId, note, verifiedReferences: references.imageItemIds.length } })),
     ]);
   } catch {
     const concurrent = await db.select({ id: siteSettingsPublicationEvents.id }).from(siteSettingsPublicationEvents).where(eq(siteSettingsPublicationEvents.requestKey, requestKey)).get();
