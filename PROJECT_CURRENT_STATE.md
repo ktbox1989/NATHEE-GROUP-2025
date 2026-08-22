@@ -5,7 +5,7 @@ Updated: 2026-08-23 (Asia/Bangkok)
 ## Source checkpoint
 
 - Branch: `main`
-- Full HEAD: `6d41848ab61922b3dcd110c650fc6346811d34d0`
+- Full HEAD: `bec5400e32e10e92375ad3c2d82a1b9d74131e80`
 - Remote `origin/main` verified equal to local HEAD.
 - Latest verified implementation milestone: Customer isolation regression guard (`6b36aca`)
 - Public website Production: **CLOSED/PASS** at `7d24518e67a562c9df45d999d8f3144fccb86f6a`. Preserved; do not rework.
@@ -381,7 +381,7 @@ the guarded Z.com deployment of `7d24518e67a562c9df45d999d8f3144fccb86f6a`.
 - OWNER bootstrap against all 22 migrations (`owner-bootstrap.test.mjs`): 7 cases
 - Customer isolation (`customer-isolation.test.ts`): 49 routes guarded, 0 unguarded
 - Login redirect regression (`test-login-redirect.sh`): 10 cases, committed state INACTIVE
-- Live public audit (`audit-live-public-site.mjs`): 11 routes, 36 references, 1 pending fix
+- Live public audit (`audit-live-public-site.mjs`): 11 routes, 36 references, problems=0
 
 ## Open Owner gates
 
@@ -432,59 +432,60 @@ repository, and reports against the live domain:
 
 `bash scripts/postcheck-production.sh` also passes against the live site.
 
-### One pending public fix — not deployed
+### Semantic heading fix — DEPLOYED and verified
 
-`/services/` renders `h1` then five `h3` cards with no `h2`, which skips a
-level and breaks the documented semantic H1/H2 rule. Every other page is
-correct. Fixed in source with a visually hidden `h2` on the card section, so
-the accepted design is unchanged; only `public-site/services/index.html`
-differs from the live site.
+`/services/` rendered `h1` then five `h3` cards with no `h2`, skipping a level
+and breaking the documented semantic H1/H2 rule. Fixed with a visually hidden
+`h2` on the card section, so the accepted design is unchanged.
 
-Until it is deployed, `audit-live-public-site.mjs` correctly reports
-`LIVE_AUDIT_FAIL problems=1`.
+Deployed and independently verified against the live domain:
 
-Z.com has **no node, npm or npx**, and none will be installed. The block below
-is portable bash only. The Node-driven suites run locally or in CI instead:
-`test-login-redirect.sh` before push, `audit-live-public-site.mjs` after
-deploy. `test-deploy-file-tools.sh` now fails if any Z.com-set script invokes
-a Node binary, so this cannot regress.
+- live `/services/` heading order is `1 2 3 3 3 3 3 2 3 3 3 3 2 2 2`, no skip;
+- the `sr-only` heading `บริการทั้งหมด` (`id="service-overview-heading"`) is
+  present in the served HTML;
+- live `/services/` is **byte-identical** to the release
+  (`sha256 8f8d17fc390b3de21eb8b4c898a864a92d6822167f6d78cd1d1a327680d98ee2`);
+- `node scripts/audit-live-public-site.mjs` reports
+  `LIVE_AUDIT_PASS routes=11 links=36 problems=0`;
+- `bash scripts/postcheck-production.sh` reports `PRODUCTION_POSTCHECK_PASS`
+  with `login-auth=STATIC_PLACEHOLDER_ONLY`.
 
-Run in the Z.com Terminal as `zptqqwps`:
+No file in `public-site/` now differs from what the live site serves.
 
-```bash
-cd /home/zptqqwps/nathee-deploy && \
-GIT_SSH_COMMAND='ssh -i ~/.ssh/nathee_deploy -p 443' git fetch origin main && \
-GIT_SSH_COMMAND='ssh -i ~/.ssh/nathee_deploy -p 443' git pull --ff-only origin main && \
-git merge-base --is-ancestor 6d41848ab61922b3dcd110c650fc6346811d34d0 HEAD && \
-git rev-parse HEAD && \
-bash scripts/probe-zcom-runtime.sh && \
-bash scripts/verify-public-site.sh && \
-bash scripts/verify-login-redirect-state.sh && \
-bash scripts/test-public-site-gate.sh && \
-bash scripts/test-production-postcheck-contract.sh && \
-bash scripts/test-public-seo-gates.sh && \
-bash scripts/test-app-readiness.sh && \
-bash scripts/test-deploy-file-tools.sh && \
-bash scripts/deploy-zcom.sh && \
-bash scripts/audit-production-components.sh
-```
+### Z.com runs portable bash only
 
-`verify-login-redirect-state.sh` defaults to requiring the release to declare
-`INACTIVE`, so this deployment cannot switch the `/login/` handoff on. It
-rejects an `ACTIVE` release unless explicitly told to expect one **and** given
-evidence containing `APP_RUNTIME_PASS` from Lane B.
+The Z.com runtime probe proved the web host has no `node`, `npm` or `npx`, and
+none will be installed. A deployment attempt stopped safely before Production
+because `test-login-redirect.sh` drives Node and had been listed as a Z.com
+gate. That was a runbook error, not a defect in the release.
 
-Success is the line `PRODUCTION_POSTCHECK_PASS`. Record the `BACKUP_PATH=`
-line; it is the exact rollback target for
-`bash scripts/rollback-zcom.sh <BACKUP_PATH>`.
+Gates are now split by interpreter:
 
-Then, from a machine that has Node:
+- **portable bash, Z.com and CI:** `verify-public-site.sh`,
+  `verify-login-redirect-state.sh`, `test-public-site-gate.sh`,
+  `test-production-postcheck-contract.sh`, `test-public-seo-gates.sh`,
+  `test-app-readiness.sh`, `test-deploy-file-tools.sh`,
+  `postcheck-production.sh`, `verify-app-integration.sh`;
+- **Node, local and CI only:** `test-login-redirect.sh` before push,
+  `audit-live-public-site.mjs` after deploy, plus the build and toggle scripts.
 
-```bash
-node scripts/audit-live-public-site.mjs https://natheegroup2025.com
-```
+The Node suites were not weakened. `test-login-redirect.sh` is unchanged, still
+proves all ten cases, and now also runs in CI.
 
-It must report `LIVE_AUDIT_PASS ... problems=0`.
+`test-deploy-file-tools.sh` enforces the split: it fails if any Z.com-set
+script invokes `node`, `npm` or `npx`, matching command position only so the
+optional capability list in `probe-zcom-runtime.sh` is not mistaken for a
+dependency. It reports `nodeOnZcom=absent`.
+
+Production still verifies the redirect state, in bash.
+`verify-login-redirect-state.sh` reads the managed block from the release being
+deployed and defaults to requiring `INACTIVE`. Expecting `ACTIVE` requires
+`--evidence` containing `APP_RUNTIME_PASS`, and in that state it re-checks the
+rewrite contract portably: 302 never 301, `QSA`, HTTPS target, apex host
+condition against looping, and the local login page still shipped for rollback.
+
+The current Z.com deployment command lives in `docs/ZCOM_DEPLOYMENT.md` under
+"Verify and deploy (Z.com)" and is portable bash throughout.
 
 ### /login handoff — built, tested, INACTIVE
 

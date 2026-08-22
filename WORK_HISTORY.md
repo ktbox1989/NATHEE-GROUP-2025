@@ -1,5 +1,17 @@
 # NATHEE GROUP 2025 — Work History
 
+## 2026-08-23 — Semantic heading fix deployed; Z.com gates made portable
+
+- Implementation commits: `6d41848`, `bec5400`
+- The `/services/` `h1 -> h3` skip is fixed and live. Verified independently: live heading order has no skip, the visually hidden `h2` is in the served HTML, and live is byte-identical to the release.
+- `audit-live-public-site.mjs` now reports `problems=0` and `postcheck-production.sh` reports `PRODUCTION_POSTCHECK_PASS`, with `/login/` still `STATIC_PLACEHOLDER_ONLY`.
+- Corrected a runbook error: `test-login-redirect.sh` drives Node and had been listed as a Z.com gate, so a deployment stopped on a missing interpreter rather than a real defect. Gates are now split by interpreter, with Node suites running local/CI before push and after deploy.
+- Added `verify-login-redirect-state.sh`, a pure-bash Z.com gate that defaults to requiring the release to declare `INACTIVE` and demands `APP_RUNTIME_PASS` evidence before it will accept `ACTIVE`. Proven against a fixture in all four cases.
+- `test-deploy-file-tools.sh` now fails if a Z.com-set script invokes node, npm or npx, so this cannot regress.
+- Verification: full tests 188/188 (113 unit + 75 integration), TypeScript PASS, ESLint PASS, production build PASS, six portable gates PASS including `nodeOnZcom=absent`, Node redirect suite 10/10 unchanged, live audit `problems=0`, live postcheck PASS.
+- Deployment: the public heading fix is live. No redirect is active; the handoff remains INACTIVE pending Lane B `APP_RUNTIME_PASS`. No Auth, Supabase, D1, R2, Owner bootstrap or app-runtime file was touched.
+- Rollback: `bash scripts/rollback-zcom.sh <BACKUP_PATH>` using the path the deployment printed.
+
 ## 2026-08-23 — Lane A: public/application integration and release control
 
 - Implementation commits: `eac3414`, `49196cd`, `b4abdb8`
