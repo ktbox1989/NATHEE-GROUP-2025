@@ -15,7 +15,11 @@ import { fileURLToPath } from "node:url";
 const root = process.env.RESPONSE_HEADER_GATE_ROOT
   ? resolve(process.env.RESPONSE_HEADER_GATE_ROOT)
   : resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const read = (path) => readFile(join(root, path), "utf8");
+// Line endings are normalised on read. A checkout on Windows holds CRLF, and
+// an assertion that embeds a newline would otherwise fail there while passing
+// here — a gate that depends on how the tree was checked out is not a gate.
+const read = async (path) =>
+  (await readFile(join(root, path), "utf8")).replaceAll(String.fromCharCode(13, 10), String.fromCharCode(10));
 const failures = [];
 
 function require(condition, message) {

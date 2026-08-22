@@ -4,14 +4,14 @@ Prepared instead of merging. Nothing in this document has been merged, pushed to
 `main`, or applied to Production.
 
 - Lane B branch: `lane-b/auth-runtime`
-- Lane B HEAD: `36717aecfa7f00a8d941a00ec60293d6a82ab941`
+- Lane B HEAD: `ee041c3c6631b9b4bbda4ba6f820694bb05892dd`
 - Merge base with `main`: `0f3205b432cd2aba2fb499b8b7d76fe3e6d25716`
-- Lane A `main` at analysis time: `386e01c`
+- Lane A `main` at analysis time: `1f3b9c4`
 
 ## Merge status, measured not assumed
 
-`git merge-tree --write-tree origin/main HEAD` (read-only; it computes a merge
-without touching any branch or working tree) reports:
+`git merge-tree --write-tree origin/main HEAD` — read-only; it computes a merge
+without touching any branch or working tree:
 
 | File | Result |
 | --- | --- |
@@ -20,75 +20,111 @@ without touching any branch or working tree) reports:
 | `docs/PRODUCTION_GO_LIVE.md` | auto-merges cleanly |
 | everything else | auto-merges cleanly |
 
-No source file conflicts. Lane B touched no file under `public-site/`, no
+No source file conflicts, and the two lanes have touched **no source file in
+common**. Lane B touched nothing under `public-site/`, no
 `scripts/build-public-site.mjs`, no `scripts/deploy-zcom.sh`, and no public page
 component.
 
+## The merged tree was actually tested, not just diffed
+
+The merged tree was materialised into a scratch directory and every Lane B gate
+run against it. All seven pass. That check found one real defect — in Lane B's
+own gate, not in the merge:
+
+`scripts/test-response-security-headers.mjs` asserted a header using a literal
+newline, so it depended on how the tree was checked out. It passed on this
+LF working copy and **failed on the CRLF tree that a Windows checkout produces** —
+which is what the Owner and Lane A actually have. Fixed by normalising line
+endings on read; the gate now passes on both, and its thirteen rejection cases
+still reject. Without the dry-run this would have surfaced as a broken build on
+someone else's machine.
+
 ## Resolving `package.json`
 
-The conflict is mechanical: both lanes added entries to the same lists. **Union,
-nothing dropped.**
+Mechanical: both lanes added entries to the same lists. **Union, nothing
+dropped.**
 
-Scripts only Lane A has — keep as they are:
+Scripts only Lane A has — keep: `audit:live`, `login:redirect`, plus whatever
+`1f3b9c4` added for the public CMS contract.
 
-- `audit:live` → `node scripts/audit-live-public-site.mjs`
-- `login:redirect` → `node scripts/set-login-redirect.mjs`
+Scripts only Lane B has — add: `verify:env`, and `test:security` (fourteen gate
+scripts).
 
-Scripts only Lane B has — add:
-
-- `verify:env` → `node scripts/verify-production-env.mjs`
-- `test:security` → the twelve gate scripts listed under "Gates Lane B added"
-
-Scripts both lanes changed:
+Both lanes changed:
 
 - **`test:unit`** — union of test files. Lane A added
-  `tests/customer-isolation.test.ts`; Lane B added `tests/timestamps.test.ts`,
-  `tests/audit-view.test.ts`, `tests/auth-throttle.test.ts`,
-  `tests/auth-recovery-grant.test.ts`, `tests/site-cms-publish.test.ts`.
+  `tests/customer-isolation.test.ts` and its `public-cms-*` / `public-quotation-*`
+  tests; Lane B added `tests/timestamps.test.ts`, `tests/audit-view.test.ts`,
+  `tests/auth-throttle.test.ts`, `tests/auth-recovery-grant.test.ts`,
+  `tests/site-cms-publish.test.ts`, `tests/gallery-mutation.test.ts`.
 
-Scripts only one lane changed — take that lane's version:
+One lane only — take that lane's version:
 
-- **`test:gate`** — Lane A only (adds `test-app-readiness.sh`,
-  `test-login-redirect.sh`).
-- **`test:db`** — Lane B only (adds seven migration/DB test files).
-- **`test`** — Lane B only (inserts `npm run test:security` and appends the same
-  seven files).
+- **`test:gate`** — Lane A only.
+- **`test:db`**, **`test`** — Lane B only.
 
 ## Resolving `PROJECT_CURRENT_STATE.md`
 
 Both lanes append to "Closed local milestones" and edit "Verified source gates".
-Keep **both** lanes' milestone sections. For the counts, Lane B's measured
-numbers after this branch are:
+Keep **both** lanes' sections. Lane B's measured figures after this branch:
 
-- Full test suite: **311** passing — 164 unit + 147 integration
+- Full test suite: **339** passing — 174 unit + 165 integration
 - Migrations: through **`0025`**, all unapplied
-- Gates: see below
+- Gates: seven, listed below
 
-Those counts do **not** include Lane A's `tests/customer-isolation.test.ts` or
-its gate scripts. After merging, re-run `npm test` and write the combined figure
-rather than adding the two lanes' numbers together.
+These exclude Lane A's tests entirely. After merging, re-run `npm test` and
+record the combined figure rather than adding the two lanes' numbers.
+
+## The two lanes' CMS work is complementary — and one decision is open
+
+Lane A added `lib/public-cms/{contract,media,preview,revalidation,seo,source}.ts`.
+This does not collide with Lane B's CMS work; the two describe different delivery
+paths, and Lane A's own comment states the split: *"Lane B owns who may request a
+preview. This file owns what the public site will accept and how it must
+respond."*
+
+- **Lane B** governs the application: who may edit and publish, what a publish
+  verifies before it ships, and how the application's own public routes resolve
+  content.
+- **Lane A** governs the static public site: how it would consume CMS output,
+  which cached paths a publish invalidates, and how a public-origin preview
+  would be admitted.
+
+Two differences the Owner should decide on rather than have decided for them:
+
+1. **Preview surface.** Lane B's preview is a route *inside* the authenticated
+   application, so unpublished content never appears at a public origin at all.
+   Lane A's is a public-origin preview protected by an unguessable expiring
+   token. Both can exist, but the second is strictly more exposure than the
+   first, and it is only needed if previews must be shareable with people who
+   have no application account.
+2. **Revalidation.** Lane B's public routes are per-request, so there is no cache
+   to invalidate. Lane A's static site is cached, so a publish must compute
+   invalidation paths. Both are correct for their own surface. Which one is live
+   depends on the **application routing model**, which is still an open Owner
+   gate.
+
+Neither difference blocks the merge.
 
 ## What Lane B changed that Lane A depends on
 
-**`/api/health` payload is unchanged.** `RuntimeChecks` still reports exactly
-`authentication`, `adminAuthentication`, `canonicalOrigin`, `database`,
-`storage`, `antiAbuse`, so `scripts/lib/app-readiness.sh` and its
-`NATHEE_HEALTH_CHECKS` list stay correct as written. Only the internals changed:
-the probe now reads the schema catalogue in one parameterless statement instead
-of binding one parameter per required object, because the contract grew past
-D1's parameter ceiling.
+**`/api/health` payload is unchanged** — the same six check names
+`scripts/lib/app-readiness.sh` greps for, so that file stays correct as written.
+Only the probe internals changed: it reads the schema catalogue in one
+parameterless statement rather than binding one parameter per required object,
+because the contract grew past D1's parameter ceiling.
 
 **`database: true` is now much stricter.** It requires every object the
 migrations create — 37 tables, 81 triggers, 128 indexes — where it previously
 required a hand-picked 63. A runtime that reported `database: true` under the old
 contract may report `false` under this one. That is the intended correction: 48
 safety triggers, including the last-active-OWNER protection and the role/company
-compatibility checks, were not being verified at all.
+compatibility checks, were not being verified at all. Expect it rather than read
+it as a regression.
 
 **The static public `/login/` placeholder is untouched.** Lane B changed
-`app/login/page.tsx` (the application route), which
-`scripts/test-deployment-architecture.mjs` does not read. Lane A's
-`login:redirect` work and Lane B's login route do not overlap.
+`app/login/page.tsx`, the application route, which
+`scripts/test-deployment-architecture.mjs` does not read.
 
 ## Migrations Lane B added — all additive, all unapplied
 
@@ -104,8 +140,8 @@ deployment block's migration range moves from `0001`–`0021` to `0001`–`0025`
 
 ## Gates Lane B added
 
-Each runs in `npm run test:security`, and each has a negative test that proves it
-rejects specific breakages rather than passing vacuously.
+Each runs in `npm run test:security`; each has a negative test proving it rejects
+specific breakages rather than passing vacuously.
 
 | Gate | Proves | Rejections |
 | --- | --- | --- |
@@ -115,12 +151,13 @@ rejects specific breakages rather than passing vacuously.
 | `test-authorization-coverage.mjs` | every protected surface authorizes | 9 |
 | `test-response-security-headers.mjs` | headers ship and the app stays compatible | 13 |
 | `test-timestamp-contract.mjs` | one timestamp representation per column kind | 8 |
+| `test-cms-delivery-contract.mjs` | publish takes effect; preview stays private | 12 |
 
 ## Still Owner-gated — unchanged by this branch
 
 Supabase Production values, D1 backup + migrations `0001`–`0025`, R2 readiness,
 the application routing model, the real OWNER bootstrap, and Turnstile keys.
-`npm run verify:env` now checks the first of those before a deploy, without
+`npm run verify:env` checks the first of those before a deploy, without
 contacting any provider and without printing any value.
 
 **No Production acceptance is claimed.** `login-auth` and `full-application`
