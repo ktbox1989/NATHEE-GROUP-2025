@@ -1,5 +1,16 @@
 # NATHEE GROUP 2025 — Work History
 
+## 2026-08-23 — Application readiness: OWNER bootstrap and honest audit
+
+- Implementation commits: `0f3205b`, `a4a304a`
+- Public website Production is CLOSED/PASS at `7d24518e67a562c9df45d999d8f3144fccb86f6a` and was preserved untouched; the application is a separate deployment.
+- Replaced the hand-written OWNER INSERT with a validated generator that emits idempotent, guarded, audited SQL, proven against the real schema with all 22 migrations applied.
+- Fixed the application audit, which checked five of six readiness gates and claimed `full-application=LIVE` from a health probe alone. It now fails closed on a false or absent gate, proves the protected surface refuses anonymous requests, and names what remains unproven.
+- Audited every API route and app page for company scoping. The authorization model is fail-closed by construction: a `can()` call with no company argument denies customer roles, and record-level checks bind to the fetched record's own `companyId`. No leak was found.
+- Verification: readiness 16/16, owner bootstrap 7/7, full tests 181/181 (106 unit + 75 integration), TypeScript PASS, ESLint PASS, production build PASS, public gate 9+1, postcheck contract 29 routes.
+- Deployment: source only. No Supabase identity, D1 row, R2 object, Production runtime, DNS record or public file changed.
+- Rollback: revert `a4a304a` and `0f3205b`. Doing so restores an audit that overclaims and an unverified bootstrap, so prefer fixing forward.
+
 ## 2026-08-22 — Installable public website
 
 - Implementation commit: `9e75d5c`

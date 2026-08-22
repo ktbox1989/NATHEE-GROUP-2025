@@ -1,47 +1,69 @@
 # NATHEE GROUP 2025 — Canonical Project State
 
-Updated: 2026-08-21 (Asia/Bangkok)
+Updated: 2026-08-23 (Asia/Bangkok)
 
 ## Source checkpoint
 
 - Branch: `main`
-- Full HEAD: `9e75d5c7118b87619cb81ff992b2ee155eb33784`
+- Full HEAD: `a4a304a638c5af550de5064f9c23af55879eb5b1`
 - Remote `origin/main` verified equal to local HEAD.
-- Latest verified implementation milestone: Installable public website (`9e75d5c`)
+- Latest verified implementation milestone: Honest application readiness audit (`a4a304a`)
+- Public website Production: **CLOSED/PASS** at `7d24518e67a562c9df45d999d8f3144fccb86f6a`. Preserved; do not rework.
 - Canonical repository: `ktbox1989/NATHEE-GROUP-2025`
 - Working rule: resolve the current checkpoint-document commit with `git rev-parse HEAD`; never infer Production deployment from source HEAD.
 
 ## Production evidence
 
-Measured directly against the live domain at `2026-08-22T16:23Z`. The previous
-revision of this document claimed the Production Gallery was live with nine
-photographs. That was not true of the running site and has been corrected.
+Measured directly against the live domain at `2026-08-23T00:12+07:00`, after
+the guarded Z.com deployment of `7d24518e67a562c9df45d999d8f3144fccb86f6a`.
 
-- Public static website: LIVE at `https://natheegroup2025.com/`
-- Z.com root: `/home/zptqqwps/public_html/natheegroup2025.com`
-- Public routes: 11, all HTTP 200, with SEO/noindex/mobile gates
-- **Production is running a stale release.** It predates `22a5454`
-  (responsive layouts and media delivery), so several accepted milestones are
-  built and committed but not serving.
-- Live homepage: 12,490 bytes and **0** real work photographs. The accepted
-  release is 23,212 bytes with 7.
-- Live `/gallery/`: 7,431 bytes, **0** `<img>` elements, and still renders the
-  client-side `loading` placeholder. The accepted release server-renders 9
-  photographs with 18 `<source>` variants.
-- Live gallery assets: **32 of 54** variants return 200. The 22 missing are
-  every AVIF variant plus the WebP display/thumbnail pair for
-  `motorcycle-storage-yard-01` and `motorcycle-truck-loading-01`.
-- `/assets/gallery.json`, the brand artwork and the Owner-supplied LINE QR are
-  live and return 200.
-- Canonical `/login/`: static noindex status page, not real Auth
-- Canonical `/app`: 404
-- Canonical `/api/health`: 404
-- Protected Sites artifact: Version 4, source `9afd58d`, owner-only access
-- Protected Sites environment variables: none configured
-- Protected Sites D1: only the ten base tables from migration `0000`
-- Full application Production acceptance: NOT PASSED
+### Public website — LIVE and correct
+
+| Check | Before deploy | Now |
+| --- | --- | --- |
+| Homepage | 12,490 bytes, 0 real photographs | **23,513 bytes, 7 real photographs** |
+| `/gallery/` | 0 images, 1 loading placeholder | **9 server-rendered images, 0 placeholders** |
+| Gallery assets | 32 of 54 resolving | **54 of 54 resolving** |
+| Web App Manifest | absent | **200, `application/manifest+json`** |
+| App icons | absent | **all 4 resolving** |
+
+- Public routes: 11, all HTTP 200, with SEO/noindex/mobile gates.
+- `scripts/audit-production-components.sh` reports `public-static-site=LIVE`,
+  `public-gallery=LIVE_STATIC_MANIFEST` and `PRODUCTION_COMPONENT_AUDIT_PASS`.
+- The stale-release and 404-asset defects recorded at the previous checkpoint
+  are resolved and are guarded against by `scripts/test-public-site-gate.sh`.
+
+### Application — NOT DEPLOYED
+
+- Canonical `/login/`: static noindex status page. `login-auth` remains
+  `STATIC_PLACEHOLDER_ONLY`; this is **not** real Auth.
+- Canonical `/app`: 404. Canonical `/api/health`: 404.
+- Protected Sites artifact: version 4, source `9afd58d`, owner-only access,
+  zero environment variables, and only the ten `0000` base tables in D1. It
+  predates migrations `0001`-`0021` and is
+  `PRIVATE_SITES_RUNTIME_NOT_ACCEPTED`, not Production.
+- Full application Production acceptance: **NOT PASSED**. Real login, OWNER
+  mapping, customer isolation, QR scanning and the authenticated app checks are
+  all unproven, and no report may claim otherwise.
 
 ## Closed local milestones
+
+### Honest application readiness audit (`a4a304a`)
+
+- `scripts/audit-production-components.sh` decides whether the protected runtime may be called working, and it claimed more than it proved.
+- It inspected five of the six readiness gates. `antiAbuse` was never checked, so a runtime with no Turnstile configuration was reported healthy. An absent gate also passed silently, so an older runtime predating a check looked identical to one satisfying it. Both now fail closed.
+- It printed `full-application=LIVE` from `/api/health` alone. Health proves configuration and schema, not that the app refuses an anonymous request. The audit now probes `/app`, `/api/companies`, `/api/motorcycles` and `/api/jobs` signed out and fails on any 200, reports `RUNTIME_HEALTHY_ANONYMOUS_GATED` instead of `LIVE`, and prints explicit `PRODUCTION_NOT_PROVEN` lines for real login, OWNER mapping, customer isolation and QR scanning.
+- Decisions moved to `scripts/lib/app-readiness.sh` in pure bash, because the audit runs from Z.com where Node is optional. `scripts/test-app-readiness.sh` proves 16 cases including every gate false, every gate absent, an empty body, a string that only looks boolean, and a rejected anonymous 200.
+- Verification: readiness 16/16, full tests 181/181 (106 unit + 75 integration), TypeScript PASS, ESLint PASS, production build PASS.
+- No Production runtime, D1 row, credential or public file changed.
+
+### Verifiable canonical OWNER bootstrap (`0f3205b`)
+
+- Creating the first OWNER is the one privileged write made by hand against live Production, and the procedure was a raw INSERT snippet. It could mistype the UUID into an identity the runtime silently refuses, wrote only the legacy `users.role` column instead of the authoritative `user_role_assignments` row, left no audit record, was not idempotent, and would bind an email already belonging to someone else.
+- `npm run owner:bootstrap` validates the UUID against the exact pattern `lib/auth-identity.ts` enforces, normalises the email, and emits guarded SQL: preflight queries, an insert skipped when the identity or email exists, the canonical role assignment, an audit entry and a verify query that states plainly whether it applied.
+- It takes no secret, so it lives in the repository; a generated file maps a privileged identity and is gitignored.
+- `tests/owner-bootstrap.test.mjs` proves it against the real schema with all 22 migrations applied: the identity resolves as OWNER through the same query `lib/current-actor.ts` uses, re-running changes nothing, a conflicting email or already-mapped identity is refused without altering the existing row, a deliberate second owner still works, and a display name of `O'Brien'); DROP TABLE users; --` is stored literally.
+- No Supabase identity, D1 row or Production runtime changed.
 
 ### Installable public website (`9e75d5c`)
 
@@ -338,7 +360,7 @@ photographs. That was not true of the running site and has been corrected.
 
 ## Verified source gates
 
-- Full test suite: 174 passing
+- Full test suite: 181 passing
 - Authorization/unit/CMS/settings/search/config/readiness/identity/quotation/Turnstile/image/POD-signature tests: 106 passing
 - Render/schema/notification/yard/trip/container/inspection/POD/CMS/settings/query-plan/migration tests: 68 passing
 - Production Vinext build: PASS
@@ -348,6 +370,8 @@ photographs. That was not true of the running site and has been corrected.
 - Release gate negative tests now cover installability: 9 rejections + 1 acceptance
 - Postcheck contract test (`test-production-postcheck-contract.sh`): 29 routes, content-only
 - TypeScript `tsc --noEmit`: PASS
+- Application readiness decisions (`test-app-readiness.sh`): 16 cases, six health gates
+- OWNER bootstrap against all 22 migrations (`owner-bootstrap.test.mjs`): 7 cases
 
 ## Open Owner gates
 
@@ -370,45 +394,91 @@ photographs. That was not true of the running site and has been corrected.
 3. Configure external LINE/email notification providers only after credentials, consent, retry and escalation policy are approved.
 4. Keep all new migrations unapplied until the Production backup/runtime gates are satisfied.
 
-## Pending Production deployment
+## Public website Production — CLOSED
 
-Run once in the Z.com Terminal as `zptqqwps`. It stops at the first failure,
-refuses to deploy a tree that does not contain the reviewed release, and
-`deploy-zcom.sh` restores its own timestamped backup if deploy or postcheck
-fails.
+The guarded Z.com deployment completed and passed at commit
+`7d24518e67a562c9df45d999d8f3144fccb86f6a`. The live site was independently
+re-confirmed by `scripts/audit-production-components.sh`, which reports
+`public-static-site=LIVE`, `public-gallery=LIVE_STATIC_MANIFEST` and
+`login-auth=STATIC_PLACEHOLDER_ONLY`.
 
-Minimum required release commit:
-`9e75d5c7118b87619cb81ff992b2ee155eb33784`
+Do not rework or redeploy the public website as part of application work. The
+two deployments are independent and the public site stays live throughout.
 
-The block refuses to deploy unless that commit is an ancestor of the pulled
-`main`, so a newer documentation-only commit is accepted while an older or
-unrelated tree is rejected. It then prints the exact commit being deployed,
-and `deploy-zcom.sh` prints the same value as `DEPLOY_SOURCE_COMMIT=`.
+## Application deployment — the current work
+
+`login-auth` is still `STATIC_PLACEHOLDER_ONLY` and the full application is
+still `NOT_DEPLOYED`. The remaining work is the protected runtime: real Auth,
+the canonical OWNER identity, Role/Permission enforcement and
+Customer/Job/Vehicle operations.
+
+Follow `docs/PRODUCTION_GO_LIVE.md` in order. Section 0 now covers building and
+deploying the artifact itself, which the checklist previously assumed had
+already happened.
+
+### What is ready in source
+
+- Real server-side Supabase Auth. An application user is resolved only from a
+  confirmed identity whose UUID exactly matches `users.external_auth_id`; there
+  is no email fallback, no demo account and no client-side permission.
+- Role and Permission enforcement for all ten canonical roles. `can()` is
+  fail-closed: every non-OWNER internal role needs an explicit capability, and
+  a customer role is denied unless the target company matches. A `can()` call
+  with no company argument therefore denies customers by construction, which is
+  how internal-only surfaces such as Trip, Truck, Yard and Print Center are
+  gated.
+- A verified OWNER bootstrap generator (`npm run owner:bootstrap`) replacing the
+  hand-written INSERT.
+- An audit that refuses to overclaim (`scripts/audit-production-components.sh`).
+
+### Owner gates that block deployment
+
+These need values or decisions only the Owner can supply. Each blocks the
+runtime, not the source.
+
+1. **Application routing.** Edge-route `/login`, `/auth`, `/app` and `/api`
+   from the apex to the application runtime, or use an application subdomain.
+   This changes DNS or the Supabase callback, so it is an explicit Owner
+   decision. Nothing else can be accepted until it is made.
+2. **Supabase Production values**, set as hosting environment variables and
+   never in Git: `APP_ORIGIN`, `NEXT_PUBLIC_SUPABASE_URL`,
+   `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (`sb_publishable_...`) and
+   `SUPABASE_SECRET_KEY` (`sb_secret_...`, server-only).
+3. **Turnstile Production keys**: `NEXT_PUBLIC_TURNSTILE_SITE_KEY` and
+   `TURNSTILE_SECRET_KEY`. `/api/health` fails closed without both.
+4. **D1 migrations `0000`-`0021`**, applied once each in order with a ledger
+   and a pre-migration backup. The current artifact has only the ten `0000`
+   base tables.
+5. **Private R2 binding `FILES`** confirmed and private.
+6. **The real OWNER Supabase account**, created and email-confirmed, so its
+   UUID can be passed to the bootstrap generator.
+
+### Exact next actions
 
 ```bash
-cd /home/zptqqwps/nathee-deploy && \
-GIT_SSH_COMMAND='ssh -i ~/.ssh/nathee_deploy -p 443' git fetch origin main && \
-GIT_SSH_COMMAND='ssh -i ~/.ssh/nathee_deploy -p 443' git pull --ff-only origin main && \
-git merge-base --is-ancestor 9e75d5c7118b87619cb81ff992b2ee155eb33784 HEAD && \
-git rev-parse HEAD && \
-bash scripts/probe-zcom-runtime.sh && \
-bash scripts/verify-public-site.sh && \
-bash scripts/test-public-site-gate.sh && \
-bash scripts/test-production-postcheck-contract.sh && \
-bash scripts/test-public-seo-gates.sh && \
-bash scripts/test-deploy-file-tools.sh && \
-bash scripts/deploy-zcom.sh && \
-bash scripts/audit-production-components.sh
+# 1. Prove the source is releasable and record the commit to deploy.
+npm ci && npm run lint && npm test && bash scripts/test-app-readiness.sh
+git rev-parse HEAD
+
+# 2. Deploy that commit through the Sites integration, configure the
+#    environment values above, then apply migrations 0000-0021.
+
+# 3. Map the canonical OWNER (after the Supabase account is confirmed).
+npm run owner:bootstrap -- \
+  --auth-id '<SUPABASE-USER-UUID>' \
+  --email '<CONFIRMED-EMAIL>' \
+  --display-name '<OWNER NAME>' \
+  > owner-bootstrap.sql
+
+# 4. Verify the runtime and prove it refuses anonymous access.
+NATHEE_APP_BASE_URL='https://OWNER_APPROVED_APP_HOST' \
+  bash scripts/audit-production-components.sh
 ```
 
-Success is the line `PRODUCTION_POSTCHECK_PASS`. Record the `BACKUP_PATH=` line
-that `deploy-zcom.sh` prints; it is the exact rollback target for
-`bash scripts/rollback-zcom.sh <BACKUP_PATH>`.
-
-After it passes, the live site must show 7 real photographs on the homepage,
-9 server-rendered photographs on `/gallery/`, all 54 gallery variants
-resolving, no `loading` placeholder, and an installable Web App Manifest
-served as `application/manifest+json`.
+Step 4 passing means `RUNTIME_HEALTHY_ANONYMOUS_GATED`. It does **not** mean
+Production is complete: real login, OWNER mapping, customer isolation and QR
+scanning still require the signed-in acceptance flow in section 5 of
+`docs/PRODUCTION_GO_LIVE.md`.
 
 ## Prohibited claims
 

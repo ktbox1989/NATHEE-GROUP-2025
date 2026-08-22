@@ -4,6 +4,46 @@ This checklist is intentionally fail-closed. A successful source build does not
 mean that authentication and protected operations are ready in the hosted
 runtime.
 
+## 0. Build and deploy the application artifact
+
+The protected application is a Vinext Cloudflare Worker build, not static
+files. It is deployed through this project's Sites integration, which records
+the source commit in the artifact. There is no deploy CLI in this repository:
+`@openai/sites-vite-plugin` only packages the deployment metadata, and
+`scripts/deploy-zcom.sh` deploys the public static website only and must never
+be pointed at the application.
+
+Before deploying, prove the source is releasable:
+
+```bash
+npm ci
+npm run lint
+npm test
+bash scripts/test-app-readiness.sh
+```
+
+`npm test` runs the production build, so a passing run means the artifact
+builds. Record the exact commit being deployed:
+
+```bash
+git rev-parse HEAD
+```
+
+Deploy that commit through the Sites integration, then confirm the deployed
+artifact reports the same source commit. A deployed artifact whose source SHA
+does not match the reviewed commit must not be accepted, because the running
+code is then unknown.
+
+The previously observed artifact
+(`nathee-group-2025-logistics.wise-goose-4247.chatgpt.site`, version 4, source
+`9afd58d`) predates migrations `0001`-`0021` and has no environment variables
+configured. It is `PRIVATE_SITES_RUNTIME_NOT_ACCEPTED`, not Production, and
+redeploying is required before any check below can pass.
+
+Keep the application private until every gate in this document passes. The
+public website on Z.com stays live and unchanged throughout; the two
+deployments are independent.
+
 ## 1. Platform resources
 
 - D1 binding `DB` exists and migrations `drizzle/0000` through `0021` have
