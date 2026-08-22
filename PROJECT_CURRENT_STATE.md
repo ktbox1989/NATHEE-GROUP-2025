@@ -5,7 +5,7 @@ Updated: 2026-08-23 (Asia/Bangkok)
 ## Source checkpoint
 
 - Branch: `main`
-- Full HEAD: `bec5400e32e10e92375ad3c2d82a1b9d74131e80`
+- Full HEAD: `1f3b9c4fedcd7617bbc5785b1c2170a99adfd663`
 - Remote `origin/main` verified equal to local HEAD.
 - Latest verified implementation milestone: Customer isolation regression guard (`6b36aca`)
 - Public website Production: **CLOSED/PASS** at `7d24518e67a562c9df45d999d8f3144fccb86f6a`. Preserved; do not rework.
@@ -382,6 +382,8 @@ the guarded Z.com deployment of `7d24518e67a562c9df45d999d8f3144fccb86f6a`.
 - Customer isolation (`customer-isolation.test.ts`): 49 routes guarded, 0 unguarded
 - Login redirect regression (`test-login-redirect.sh`): 10 cases, committed state INACTIVE
 - Live public audit (`audit-live-public-site.mjs`): 11 routes, 36 references, problems=0
+- Public CMS contract, preview, revalidation, SEO, media and quotation: 73 cases
+- Static content inventory (`inventory-public-content.mjs`): 11/11 routes map to contract v1
 
 ## Open Owner gates
 
@@ -403,6 +405,55 @@ the guarded Z.com deployment of `7d24518e67a562c9df45d999d8f3144fccb86f6a`.
 2. Run real browser acceptance for OWNER and two isolated customer companies before exposing `/app` publicly.
 3. Configure external LINE/email notification providers only after credentials, consent, retry and escalation policy are approved.
 4. Keep all new migrations unapplied until the Production backup/runtime gates are satisfied.
+
+## Lane A — Public CMS integration prep (inactive)
+
+Prepared while Lane B builds the CMS backend. Nothing is wired into a rendered
+route and Production still serves the static release. Full detail:
+`docs/PUBLIC_CMS_INTEGRATION.md`.
+
+- **Consumer contract** (`lib/public-cms/contract.ts`). States what the public
+  site requires of a CMS and refuses anything else. Only `PUBLISHED` has a
+  representation, so drafts cannot leak by construction. Media must be a
+  same-origin `/assets/` path, which keeps private customer and job evidence
+  off the public site; alt text and intrinsic dimensions are required; a
+  canonical may not point away from its own page; heading levels may not skip.
+- **Inactive boundary** (`lib/public-cms/source.ts`). Defaults to `STATIC`.
+  Reaching `CMS` needs both an explicit opt-in and a declared contract version
+  matching this site's. While inactive the CMS loader is never called. An
+  invalid payload or a CMS outage falls back to static with a reason.
+- **Preview** (`lib/public-cms/preview.ts`). HMAC-signed, timing-safe,
+  15-minute maximum, bound to one page AND one revision so a shared link cannot
+  be replayed. Responses are noindex/no-store, never in the sitemap, and the
+  canonical points at the published URL.
+- **Publish without deploying** (`lib/public-cms/revalidation.ts`). An explicit
+  dependency map rather than a wildcard purge: unpublishing removes the URL and
+  the sitemap entry, media also invalidates `/gallery/` and the home preview,
+  settings invalidate every route. The home page cannot be unpublished, and an
+  unrecognised event is reported as needing the guarded deploy.
+- **Dynamic SEO** (`lib/public-cms/seo.ts`). Unpublished is a hard 404 not a
+  soft one, `NOINDEX` pages stay out of the sitemap, renamed slugs 301, and
+  redirects cannot point off-site, loop, or lead away from a live route.
+  Redirect chains are impossible by construction.
+- **Media rendering** (`lib/public-cms/media.ts`). Re-checks every source on the
+  way out; avif/webp with a jpeg or png fallback; alt, dimensions, aspect
+  ratio, srcset and sizes; lazy except the first image; lightbox always
+  labelled. A broken item is skipped and reported rather than rendered.
+- **Quotation frontend** (`lib/public-forms/quotation-contract.ts`). Success
+  requires a complete acknowledgement whose request key matches. A bare 200, an
+  HTML page or a missing reference are failures, so no fake runtime success.
+  One request key reused across retries prevents duplicate enquiries.
+- **Content inventory** (`scripts/inventory-public-content.mjs`). Maps the live
+  release onto the contract and validates it: 11 routes, 70 sections, 159
+  paragraphs, 32 page images, 9 gallery items all with alt and dimensions. All
+  11 map cleanly. Runs in the suite; migrates nothing.
+
+### Blocked on Lane B
+
+Migration cannot start until Lane B publishes the canonical CMS schema and API
+contract. When it exists the remaining work here is a mapping function into
+`PublicPage`; if the contract or validators need changing to accommodate it,
+that is a finding worth discussing rather than patching around.
 
 ## Lane A — Public ↔ Application integration and release control
 

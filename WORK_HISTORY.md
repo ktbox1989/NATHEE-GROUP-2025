@@ -1,5 +1,17 @@
 # NATHEE GROUP 2025 — Work History
 
+## 2026-08-23 — Lane A: public CMS integration prep, inactive
+
+- Implementation commits: `b39944f`, `6b0f614`, `1f3b9c4`
+- Built the consumer-side CMS contract, an inactive integration boundary defaulting to the static release, secure preview, a publish-to-cache invalidation plan, dynamic SEO rules, media rendering and the quotation frontend contract. Nothing is wired into a rendered route.
+- Key refusals: only PUBLISHED renders; media must be a same-origin /assets/ path so private customer and job evidence cannot leak; alt text and dimensions are required; canonicals cannot point away; heading levels cannot skip; a CMS outage falls back to static.
+- Quotation success requires a matching acknowledgement, so a bare 200 or an HTML page is never reported as a received enquiry.
+- Inventoried the live release against the contract: 11/11 routes map cleanly, 70 sections, 159 paragraphs, 32 page images, 9 gallery items. The inventory runs in the suite and migrates nothing.
+- Removed dead code found while testing: redirect chains are impossible by construction, so the chain guard was replaced by an explicit, tested invariant.
+- Verification: 73 new cases, full tests 261/261 (186 unit + 75 integration), TypeScript PASS, ESLint PASS, production build PASS, inventory PASS.
+- Deployment: none. Production unchanged, /login redirect still INACTIVE, and no Auth, Supabase, D1, R2, Owner bootstrap, CMS write API or admin CMS file was touched.
+- Rollback: revert the three commits. Nothing is referenced by a rendered route, so removal has no runtime effect.
+
 ## 2026-08-23 — Semantic heading fix deployed; Z.com gates made portable
 
 - Implementation commits: `6d41848`, `bec5400`
