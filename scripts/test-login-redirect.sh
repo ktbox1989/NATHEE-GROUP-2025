@@ -71,14 +71,14 @@ rule="$(grep -E '^\s*RewriteRule \^login' "$HTACCESS" || true)"
 
 # 302, never 301: a permanent redirect is cached by browsers and cannot be
 # withdrawn if the application has to be rolled back.
-grep -Fq 'R=302' <<< "$rule" || fail "the handoff must use 302"
-if grep -Fq 'R=301' <<< "$rule"; then fail "the handoff must never use 301"; fi
+printf '%s\n' "$rule" | grep -Fq 'R=302' || fail "the handoff must use 302"
+if printf '%s\n' "$rule" | grep -Fq 'R=301'; then fail "the handoff must never use 301"; fi
 # QSA keeps returnTo and error, which the application login page needs.
-grep -Fq 'QSA' <<< "$rule" || fail "query parameters must be preserved"
-grep -Fq 'https://app.natheegroup2025.com/login' <<< "$rule" || fail "the target must be the application login URL"
-grep -Eq 'https://' <<< "$rule" || fail "the target must be HTTPS"
+printf '%s\n' "$rule" | grep -Fq 'QSA' || fail "query parameters must be preserved"
+printf '%s\n' "$rule" | grep -Fq 'https://app.natheegroup2025.com/login' || fail "the target must be the application login URL"
+printf '%s\n' "$rule" | grep -Eq 'https://' || fail "the target must be HTTPS"
 # Both /login and /login/ must be handed over.
-grep -Eq '\^login/\?\$' <<< "$rule" || fail "the rule must match /login and /login/"
+printf '%s\n' "$rule" | grep -Eq '\^login/\?\$' || fail "the rule must match /login and /login/"
 pass active-rule-contract
 
 # Only the canonical apex redirects, so the rule cannot loop if the application
