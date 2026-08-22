@@ -43,6 +43,48 @@ photographs. That was not true of the running site and has been corrected.
 
 ## Closed local milestones
 
+### The database invariants that decide who can administer the platform are proven
+
+- Found that the readiness contract **required** the last-active-OWNER and
+  role/company compatibility triggers to exist, and nothing anywhere proved what
+  they do. "Present" was the entire guarantee for the two invariants that decide
+  whether this platform can be administered at all.
+- Proven against the real migrated schema: the last active OWNER cannot be
+  deactivated, archived, demoted, or have their role assignment changed or
+  deleted; with a second OWNER present either may be stood down, and the
+  remaining one is protected again; and an **inactive** OWNER does not count
+  towards the guarantee, so two OWNER rows do not make one of them removable.
+- Writing those tests corrected two assumptions. Demoting the last OWNER through
+  the legacy role column is refused as an *incompatible pairing* rather than by
+  the last-owner rule — blocked either way, but by the earlier trigger. And a
+  company-less customer account cannot be created at all, so an unscoped customer
+  role has nothing to attach to: the guarantee holds one step earlier than the
+  role assignment. Both are now recorded as they actually behave.
+- Role and company always agree: a customer account cannot receive OWNER, ADMIN,
+  STAFF or WAREHOUSE; a staff account cannot receive a customer role; and an
+  existing assignment cannot be edited into an incompatible pairing, so a
+  customer cannot be promoted to OWNER by editing the assignment alone.
+- `scripts/test-migration-inventory.mjs` covers what is only visible across the
+  whole inventory: a gapless duplicate-free sequence, filenames in convention, a
+  ledger that agrees with the files in order and with timestamps that do not go
+  backwards, and **nothing destructive after the base migration**. The four
+  table rebuilds are recognised as legitimate only because they copy their rows
+  forward; a bare `DROP TABLE`, a `DROP COLUMN`, a `DELETE` or a `TRUNCATE` is
+  refused.
+- That gate found a real documentation defect: `docs/PRODUCTION_GO_LIVE.md`
+  required verifying the ledger but **never said to take a backup first** — for
+  an operation that is not reversible by re-running it, against a database of
+  real customer records. The backup requirement and the "restore, do not
+  continue from a failed apply" instruction are now in the runbook.
+- Twelve proven rejections + 1 acceptance for the inventory gate, including a
+  sequence gap, a duplicate index, a ledger that claims or misses a migration,
+  backwards ledger timestamps, each destructive statement kind, and the runbook
+  losing its backup or ordering instruction.
+- Verification: full tests 375/375 (183 unit + 192 integration), 10 of them new;
+  TypeScript PASS; ESLint PASS; Vinext production build PASS; all ten gates PASS.
+- No migration was added or applied. Migrations `0000`–`0025` remain unapplied to
+  Production.
+
 ### The environment verifier now covers bindings and browser-visible secrets
 
 - Extended `npm run verify:env` to the two checks it was missing. It confirms the
@@ -58,7 +100,8 @@ photographs. That was not true of the running site and has been corrected.
 - An ordinary public value such as a site name or an analytics id is not
   mistaken for a secret.
 - Covered the carriage-return case explicitly. Copying a value from a Windows
-  file or terminal appends ``, and the verifier accepts it **because the
+  file or terminal appends `
+`, and the verifier accepts it **because the
   runtime accepts it** — both trim. A verifier that failed there would send the
   Owner hunting a problem that does not exist, and the printed dashboard values
   are asserted to carry no stray carriage return either.
@@ -981,9 +1024,9 @@ photographs. That was not true of the running site and has been corrected.
 
 ## Verified source gates
 
-- Full test suite: 365 passing
+- Full test suite: 375 passing
 - Authorization/unit/CMS/settings/search/config/readiness/identity/quotation/Turnstile/image/POD-signature/Auth-throttle/recovery-grant/timestamp/audit-view/CMS-publish/gallery-mutation/application-origin/privileged-action tests: 183 passing
-- Render/schema/notification/yard/trip/container/inspection/POD/CMS/settings/query-plan/migration/Auth-throttle/recovery-grant/audit-ordering/auth-event/production-env/audit-view/readiness-schema/CMS-publish/customer-isolation/gallery-public/application-origin/QR-print/production-env tests: 182 passing
+- Render/schema/notification/yard/trip/container/inspection/POD/CMS/settings/query-plan/migration/Auth-throttle/recovery-grant/audit-ordering/auth-event/production-env/audit-view/readiness-schema/CMS-publish/customer-isolation/gallery-public/application-origin/QR-print/production-env/owner-invariants tests: 192 passing
 - Production Vinext build: PASS
 - ESLint: PASS
 - Public SEO and deployment architecture guards: PASS
@@ -998,6 +1041,7 @@ photographs. That was not true of the running site and has been corrected.
 - Readiness contract gate (`test-readiness-contract.mjs`): 37 tables, 81 triggers, 128 indexes derived from 26 migrations, with 10 proven rejections + 1 acceptance
 - CMS delivery contract gate (`test-cms-delivery-contract.mjs`): 10 managed public pages, per-request revalidation, non-indexable preview, with 12 proven rejections + 1 acceptance
 - Private media contract gate (`test-private-media-contract.mjs`): 4 read routes, 4 write routes, 1 declared public writer, with 12 proven rejections + 1 acceptance
+- Migration inventory gate (`test-migration-inventory.mjs`): 26 migrations, gapless 0000-0025, ledger agrees, 4 recognised rebuilds, 0 destructive statements, with 12 proven rejections + 1 acceptance
 - TypeScript `tsc --noEmit`: PASS
 
 ## Open Owner gates

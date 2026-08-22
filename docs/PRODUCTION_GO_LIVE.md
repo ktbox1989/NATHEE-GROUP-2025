@@ -6,9 +6,15 @@ runtime.
 
 ## 1. Platform resources
 
+- **Back up the Production D1 database before applying anything.** Applying a
+  migration to a database holding real customer records is not reversible by
+  re-running it, and a partially applied chain is the state that is hardest to
+  reason about. The backup is the rollback path; there is no other one.
 - D1 binding `DB` exists and migrations `drizzle/0000` through `0025` have
   each been applied exactly once in order. Verify the migration ledger before
   applying any missing file; never rerun the full chain blindly.
+- If an apply fails part-way, restore the backup rather than attempting to
+  continue from the failure. Then fix the cause and start again from the ledger.
 - R2 binding `FILES` exists and is private.
 - The deployed database contains the Phase 1 tables listed in
   `AUDIT_AND_MIGRATION_PLAN.md`.
