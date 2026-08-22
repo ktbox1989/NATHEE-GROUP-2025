@@ -2,11 +2,11 @@ import { and, eq } from "drizzle-orm";
 import { NextResponse, type NextRequest } from "next/server";
 import { getDb } from "@/db";
 import { auditLogs, galleryCategories, galleryImageVariants, galleryItems, transportJobs } from "@/db/schema";
-import type { GalleryVisibility } from "@/db/schema";
 import { makeAuditRecord } from "@/lib/audit";
 import { can } from "@/lib/authorization";
 import { getCurrentActor } from "@/lib/current-actor";
-import { boundedText, canPublishGalleryItem, galleryVisibilities, parseGallerySortOrder } from "@/lib/gallery";
+import { boundedText, parseGallerySortOrder } from "@/lib/gallery";
+import { canFeatureGallery, canPublishGallery, requiresPublishPermission, validateGalleryScope } from "@/lib/gallery-mutation";
 import { isSameOrigin } from "@/lib/same-origin";
 import { eventTimestamp, recordTimestamp } from "@/lib/timestamps";
 
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   if (!before) return redirect(request, "error", "not_found");
   const form = await request.formData();
   const action = boundedText(form.get("action"), 30).toUpperCase();
-  const requiresPublisher = before.status === "PUBLISHED" || ["PUBLISH", "HIDE", "FEATURE", "UNFEATURE"].includes(action);
+  const requiresPublisher = requiresPublishPermission(action, before.status);
   if (requiresPublisher && !can(actor, "gallery:publish")) return redirect(request, "error", "publish_forbidden");
 
   // publishedAt and archivedAt record when the decision happened; updatedAt is a record column.
@@ -36,13 +36,13 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     const takenAt = boundedText(form.get("takenAt"), 40) || null;
     const location = boundedText(form.get("location"), 200) || null;
     const publicJobReference = boundedText(form.get("publicJobReference"), 100) || null;
-    const visibilityValue = boundedText(form.get("visibility"), 30).toUpperCase();
-    const visibility = galleryVisibilities.has(visibilityValue as GalleryVisibility) ? visibilityValue as GalleryVisibility : null;
     const sortOrder = parseGallerySortOrder(form.get("sortOrder"));
     const companyId = boundedText(form.get("companyId"), 80) || null;
     const jobId = boundedText(form.get("jobId"), 80) || null;
-    if (!categoryId || !title || altText.length < 3 || !visibility || sortOrder === undefined) return redirect(request, "error", "invalid_gallery");
-    if ((visibility === "PUBLIC" && (companyId || jobId)) || (visibility === "CUSTOMER_JOB" && (!companyId || !jobId))) return redirect(request, "error", "invalid_scope");
+    const scope = validateGalleryScope({ visibility: boundedText(form.get("visibility"), 30), companyId, jobId });
+    if (!categoryId || !title || altText.length < 3 || sortOrder === undefined) return redirect(request, "error", "invalid_gallery");
+    if (!scope.ok) return redirect(request, "error", scope.reason);
+    const visibility = scope.visibility;
     const category = await db.select({ id: galleryCategories.id }).from(galleryCategories).where(eq(galleryCategories.id, categoryId)).get();
     if (!category) return redirect(request, "error", "invalid_category");
     if (visibility === "CUSTOMER_JOB") {
@@ -53,14 +53,14 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   } else if (action === "PUBLISH") {
     const category = await db.select({ status: galleryCategories.status }).from(galleryCategories).where(eq(galleryCategories.id, before.categoryId)).get();
     const displayVariant = await db.select({ id: galleryImageVariants.id }).from(galleryImageVariants).where(and(eq(galleryImageVariants.galleryItemId, id), eq(galleryImageVariants.role, "DISPLAY"))).get();
-    if (category?.status !== "ACTIVE" || !canPublishGalleryItem({ visibility: before.visibility, hasDisplayVariant: Boolean(displayVariant), altText: before.altText })) return redirect(request, "error", "publish_requirements");
+    if (!canPublishGallery({ categoryStatus: category?.status, visibility: before.visibility, hasDisplayVariant: Boolean(displayVariant), altText: before.altText })) return redirect(request, "error", "publish_requirements");
     values = { status: "PUBLISHED", publishedBy: actor.userId, publishedAt: occurredAt, archivedAt: null, updatedAt: recordedAt };
   } else if (action === "HIDE") {
     values = { status: "HIDDEN", isFeatured: 0, updatedAt: recordedAt };
   } else if (action === "ARCHIVE") {
     values = { status: "ARCHIVED", isFeatured: 0, archivedAt: occurredAt, updatedAt: recordedAt };
   } else if (action === "FEATURE" || action === "UNFEATURE") {
-    if (action === "FEATURE" && (before.status !== "PUBLISHED" || before.visibility !== "PUBLIC")) return redirect(request, "error", "feature_requirements");
+    if (action === "FEATURE" && !canFeatureGallery({ status: before.status, visibility: before.visibility })) return redirect(request, "error", "feature_requirements");
     values = { isFeatured: action === "FEATURE" ? 1 : 0, updatedAt: recordedAt };
   } else {
     return redirect(request, "error", "invalid_action");

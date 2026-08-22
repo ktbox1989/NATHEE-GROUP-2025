@@ -43,6 +43,45 @@ photographs. That was not true of the running site and has been corrected.
 
 ## Closed local milestones
 
+### Gallery mutation policy is testable, and draft media is proven not to leak
+
+- The rules deciding what may be done to a photograph lived inline in
+  `app/api/gallery/[id]/route.ts`, where no test could reach them: the route
+  needs a Cloudflare binding to run at all. The policy is the part worth
+  proving, so it moved to `lib/gallery-mutation.ts` and the route consults it.
+  Behaviour is unchanged — the extraction is what makes it checkable.
+- Proven about the mutation policy: editing a draft needs `gallery:write`, while
+  publishing, hiding, featuring, unfeaturing **and any edit at all to an
+  already-published item** additionally need `gallery:publish`; a PUBLIC
+  photograph may not carry a company or job, and a CUSTOMER_JOB photograph may
+  not lack either — that pairing is what stops a customer's job leaking onto the
+  marketing site; an unknown visibility is refused rather than defaulted, while
+  case and whitespace are normalised as the form posts them; publishing requires
+  an active category, a rendered display variant, real alt text and a
+  non-internal visibility; only a live public photograph can be featured; and
+  hiding, archiving or unfeaturing clears the featured flag, so nothing stays
+  promoted while invisible.
+- `tests/gallery-public-contract.test.mjs` proves the public side against the
+  real migrated schema, with a row in every state: of DRAFT, HIDDEN, ARCHIVED,
+  INTERNAL, CUSTOMER_JOB, published-in-a-hidden-category and published-public,
+  **only the last reaches an anonymous reader**. Hiding a live photograph removes
+  it immediately and clears its featured flag; archiving removes it and
+  re-publishing brings it back; hiding a category removes everything in it
+  without touching a single row; and reordering changes only the order, proven
+  against the opposite of the default tie-break so the assertion cannot pass by
+  accident.
+- All twenty-four combinations of status, visibility and category status are
+  enumerated and the database query is required to agree with the shared policy
+  on every one. Exactly one combination is public.
+- These cases mirror route logic, which goes stale silently, so the filters they
+  assume are asserted to still exist in `app/gallery/page.tsx` and
+  `components/cms-public-page.tsx`.
+- Verification: full tests 339/339 (174 unit + 165 integration), 18 of them new;
+  TypeScript PASS; ESLint PASS; Vinext production build PASS; readiness contract
+  and all six security gates PASS; `git diff --check` PASS.
+- No migration was added. No Production file, D1 row, Supabase value, R2 object,
+  DNS record or credential was changed.
+
 ### Cross-tenant isolation proven against real rows, not just the shape of the code
 
 - Lane A's `tests/customer-isolation.test.ts` proves two things about the code's
@@ -727,9 +766,9 @@ photographs. That was not true of the running site and has been corrected.
 
 ## Verified source gates
 
-- Full test suite: 321 passing
-- Authorization/unit/CMS/settings/search/config/readiness/identity/quotation/Turnstile/image/POD-signature/Auth-throttle/recovery-grant/timestamp/audit-view/CMS-publish tests: 164 passing
-- Render/schema/notification/yard/trip/container/inspection/POD/CMS/settings/query-plan/migration/Auth-throttle/recovery-grant/audit-ordering/auth-event/production-env/audit-view/readiness-schema/CMS-publish/customer-isolation tests: 157 passing
+- Full test suite: 339 passing
+- Authorization/unit/CMS/settings/search/config/readiness/identity/quotation/Turnstile/image/POD-signature/Auth-throttle/recovery-grant/timestamp/audit-view/CMS-publish/gallery-mutation tests: 174 passing
+- Render/schema/notification/yard/trip/container/inspection/POD/CMS/settings/query-plan/migration/Auth-throttle/recovery-grant/audit-ordering/auth-event/production-env/audit-view/readiness-schema/CMS-publish/customer-isolation/gallery-public tests: 165 passing
 - Production Vinext build: PASS
 - ESLint: PASS
 - Public SEO and deployment architecture guards: PASS
