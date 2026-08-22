@@ -107,6 +107,46 @@ for (const [route, html] of pages) {
     }
   }
 
+  // Accessibility contracts that a screen reader or keyboard user depends on.
+  if (!/<html[^>]+lang="[a-zA-Z-]+"/.test(html)) note(`${route}: <html> has no lang attribute`);
+  if (!/class="skip-link"[^>]*href="#main"/.test(html)) note(`${route}: no skip link to #main`);
+  if (!/<main\b[^>]*id="main"/.test(html)) note(`${route}: no <main id="main"> landmark`);
+  if (!/<nav\b/.test(html)) note(`${route}: no <nav> landmark`);
+  if (/tabindex="[1-9]/.test(html)) note(`${route}: positive tabindex breaks focus order`);
+
+  // Heading levels must not skip: an outline that jumps h1 -> h3 hides a level
+  // from assistive technology and breaks the documented semantic H1/H2 rule.
+  const headingLevels = [...html.matchAll(/<h([1-6])[\s>]/g)].map(([, level]) => Number(level));
+  if (headingLevels[0] !== 1) note(`${route}: first heading is h${headingLevels[0]}, expected h1`);
+  for (let index = 1; index < headingLevels.length; index += 1) {
+    if (headingLevels[index] - headingLevels[index - 1] > 1) {
+      note(`${route}: heading order jumps h${headingLevels[index - 1]} -> h${headingLevels[index]}`);
+      break;
+    }
+  }
+
+  // Every form control needs a programmatic name.
+  for (const control of html.match(/<(input|select|textarea)\b[^>]*>/g) || []) {
+    if (/type="(hidden|submit|button)"/.test(control)) continue;
+    const id = control.match(/\sid="([^"]+)"/)?.[1];
+    const named = /\saria-label="/.test(control)
+      || /\saria-labelledby="/.test(control)
+      || /\stitle="/.test(control)
+      || (id ? new RegExp(`<label[^>]*for="${id}"`).test(html) : false);
+    if (!named) note(`${route}: form control without a label -> ${control.slice(0, 80)}`);
+  }
+
+  // Links and buttons need discernible text.
+  for (const [, attributes, inner] of html.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/g)) {
+    const text = inner.replace(/<[^>]*>/g, "").replace(/&[a-z]+;/g, "").trim();
+    if (!text && !/\saria-label="/.test(attributes)) note(`${route}: link with no accessible name`);
+  }
+  for (const [, attributes, inner] of html.matchAll(/<button\b([^>]*)>([\s\S]*?)<\/button>/g)) {
+    const text = inner.replace(/<[^>]*>/g, "").trim();
+    const named = text || /\saria-label="/.test(attributes) || /class="sr-only"/.test(inner);
+    if (!named) note(`${route}: button with no accessible name`);
+  }
+
   // A fixed pixel width wider than the narrowest supported viewport is the
   // usual cause of horizontal overflow on a phone.
   for (const [, value] of html.matchAll(/style="[^"]*width:\s*(\d{3,})px/g)) {
@@ -198,6 +238,7 @@ process.stdout.write(`LIVE_AUDIT_BASE ${BASE}\n`);
 process.stdout.write(`LIVE_AUDIT_SEO routes=${ROUTES.length} uniqueTitles=${titles.size} uniqueDescriptions=${descriptions.size}\n`);
 process.stdout.write(`LIVE_AUDIT_LINKS checked=${linksChecked} sitemapEntries=${listed.length}\n`);
 process.stdout.write(`LIVE_AUDIT_RESPONSIVE viewports=${VIEWPORTS.join(",")} breakpoints=verified\n`);
+process.stdout.write(`LIVE_AUDIT_ACCESSIBILITY lang=verified skipLink=verified landmarks=verified headingOrder=verified labels=verified\n`);
 process.stdout.write(`LIVE_AUDIT_PWA manifest=${manifest ? "valid" : "invalid"} contentType=${contentType || "none"}\n`);
 
 if (problems.length > 0) {

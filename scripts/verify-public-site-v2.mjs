@@ -114,6 +114,25 @@ if (!htaccess.includes("AddType application/manifest+json .webmanifest")) throw 
 // A cache-first Service Worker can keep serving a superseded release.
 for (const file of files) if (/(?:^|[\\/])(?:sw|service-worker)\.js$/i.test(file)) throw new Error(`Unreviewed Service Worker in release: ${relative(root, file)}`);
 
+// Heading order must not skip a level. /services/ once jumped h1 -> h3 because
+// its card grid had no section heading, which breaks both the documented
+// semantic H1/H2 rule and the outline assistive technology reads.
+for (const name of routes.map(routeFile)) {
+  const page = text.get(name);
+  const levels = [...page.matchAll(/<h([1-6])[\s>]/g)].map(([, level]) => Number(level));
+  if (levels.length === 0) throw new Error(`No headings on ${name}`);
+  if (levels[0] !== 1) throw new Error(`First heading on ${name} is h${levels[0]}, expected h1`);
+  if (levels.filter(level => level === 1).length !== 1) throw new Error(`${name} must have exactly one h1`);
+  for (let index = 1; index < levels.length; index += 1) {
+    if (levels[index] - levels[index - 1] > 1) {
+      throw new Error(`Heading order on ${name} jumps h${levels[index - 1]} -> h${levels[index]}`);
+    }
+  }
+  if (!page.includes('class="skip-link" href="#main"')) throw new Error(`Skip link missing on ${name}`);
+  if (!/<main\b[^>]*id="main"/.test(page)) throw new Error(`Main landmark missing on ${name}`);
+  if (!/<html[^>]+lang="th"/.test(page)) throw new Error(`Language attribute missing on ${name}`);
+}
+
 const bytes = { home: Buffer.byteLength(home), css: Buffer.byteLength(text.get("assets/site.css")), js: Buffer.byteLength(text.get("assets/site.js")) }; const critical = bytes.home + bytes.css + bytes.js;
 if (bytes.home > 45 * 1024 || bytes.css > 40 * 1024 || bytes.js > 16 * 1024 || critical > 100 * 1024) throw new Error(`Mobile byte budget exceeded ${JSON.stringify(bytes)}`);
 const css = text.get("assets/site.css"); if (!css.includes("@media (max-width: 980px)") || !css.includes("@media (max-width: 680px)")) throw new Error("Responsive breakpoints missing.");
@@ -123,4 +142,5 @@ console.log(`PUBLIC_SITE_VERIFY_PASS files=${files.length} publicRoutes=${routes
 console.log(`PUBLIC_SEO_VERIFY_PASS pages=${routes.length} uniqueTitles=${titles.size} uniqueDescriptions=${descriptions.size} sitemap=public-only noindex=verified`);
 console.log(`PUBLIC_GALLERY_VERIFY_PASS version=1 categories=${gallery.categories.length} publishedItems=${gallery.items.length} privateFields=blocked`);
 console.log(`PUBLIC_MOBILE_PERFORMANCE_PASS criticalBytes=${critical} budget=${100 * 1024}`);
+console.log(`PUBLIC_ACCESSIBILITY_VERIFY_PASS pages=${routes.length} headingOrder=verified skipLink=verified landmark=verified lang=th`);
 console.log(`PUBLIC_PWA_VERIFY_PASS manifest=same-origin display=standalone icons=${webmanifest.icons.length} maskable=1 shortcuts=${webmanifest.shortcuts.length} installRoutes=${routes.length + 1} serviceWorker=absent`);
