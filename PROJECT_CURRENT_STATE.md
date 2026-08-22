@@ -43,6 +43,40 @@ photographs. That was not true of the running site and has been corrected.
 
 ## Closed local milestones
 
+### Scanning a printed code proves nothing about who is holding it
+
+- A QR sticker is on the motorcycle. Anyone walking past can photograph it, so
+  two properties matter: the code carries no customer data, and resolving it
+  reveals nothing to someone not entitled to that record. Both were true; neither
+  was covered by a test.
+- Proven against the real migrated schema: a printed identity is `mc_` plus 32
+  hex from a random UUID and contains **no** VIN, engine number, company id or
+  internal row id — asserted against the actual seeded secrets rather than by
+  eye. Two hundred freshly minted identities never repeat, and an identity of one
+  entity type never validates as another.
+- An unauthenticated scan of a vehicle, job, yard or truck code resolves to
+  `unauthorized` in every case.
+- A customer resolves their own company's vehicle and job codes and is refused
+  another company's. **The refusal is indistinguishable from a code that does not
+  exist** — both answer "not found" — so a scanner cannot enumerate which
+  identities are real by watching for a different refusal.
+- Yard, truck and trip codes are internal operational assets and stay
+  unresolvable for a customer even when that customer's own vehicles are in the
+  yard. Staff resolve them only with the matching capability: `yard:read` opens a
+  yard code, `jobs:read` alone does not.
+- A malformed, truncated, over-long, SQL-shaped or cross-type identifier is
+  refused before any lookup happens.
+- Print surfaces demand a **write** capability rather than the ability to look: a
+  customer may read their own motorcycle and still cannot print its operational
+  label, which is an internal artefact.
+- The six routes these cases mirror are asserted to still scope the way the cases
+  assume, including that the shared QR helper keeps its 401 and its internal-only
+  branch.
+- Verification: full tests 360/360 (183 unit + 177 integration), 10 of them new;
+  TypeScript PASS; ESLint PASS; Vinext production build PASS; every gate PASS.
+- No migration was added. No Production file, D1 row, Supabase value, R2 object,
+  DNS record or credential was changed.
+
 ### A session is no longer enough to change who may act
 
 - Closed the last case where possession of a session was full authority.
@@ -882,9 +916,9 @@ photographs. That was not true of the running site and has been corrected.
 
 ## Verified source gates
 
-- Full test suite: 350 passing
+- Full test suite: 360 passing
 - Authorization/unit/CMS/settings/search/config/readiness/identity/quotation/Turnstile/image/POD-signature/Auth-throttle/recovery-grant/timestamp/audit-view/CMS-publish/gallery-mutation/application-origin/privileged-action tests: 183 passing
-- Render/schema/notification/yard/trip/container/inspection/POD/CMS/settings/query-plan/migration/Auth-throttle/recovery-grant/audit-ordering/auth-event/production-env/audit-view/readiness-schema/CMS-publish/customer-isolation/gallery-public/application-origin tests: 167 passing
+- Render/schema/notification/yard/trip/container/inspection/POD/CMS/settings/query-plan/migration/Auth-throttle/recovery-grant/audit-ordering/auth-event/production-env/audit-view/readiness-schema/CMS-publish/customer-isolation/gallery-public/application-origin/QR-print tests: 177 passing
 - Production Vinext build: PASS
 - ESLint: PASS
 - Public SEO and deployment architecture guards: PASS
