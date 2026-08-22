@@ -4,9 +4,18 @@ set -Eeuo pipefail
 DOMAIN="${NATHEE_DOMAIN:-natheegroup2025.com}"
 BASE_URL="https://$DOMAIN"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd -P)"
 
 # shellcheck source=scripts/lib/deploy-file-tools.sh
 source "$SCRIPT_DIR/lib/deploy-file-tools.sh"
+# shellcheck source=scripts/lib/login-redirect.sh
+source "$SCRIPT_DIR/lib/login-redirect.sh"
+
+# The live expectation for /login/ depends on the release being deployed. If
+# this assumed /login/ is always 200, activating the redirect would make a
+# correct deployment fail its own postcheck and roll itself back.
+LOGIN_REDIRECT_STATE="$(nathee_login_redirect_state "$REPO_ROOT/public-site/.htaccess")"
+LOGIN_REDIRECT_TARGET="$(nathee_login_redirect_target "$REPO_ROOT/public-site/.htaccess")"
 
 fail() {
   printf 'PRODUCTION_POSTCHECK_FAIL: %s\n' "$1" >&2
@@ -60,7 +69,9 @@ assert_canonical_location() {
 
 fetch / "$TMP_DIR/index.html"
 fetch /login-status.html "$TMP_DIR/login-status.html"
-fetch /login/ "$TMP_DIR/login-clean.html"
+if [[ "$LOGIN_REDIRECT_STATE" != "ACTIVE" ]]; then
+  fetch /login/ "$TMP_DIR/login-clean.html"
+fi
 fetch /services/ "$TMP_DIR/services.html"
 fetch /motorcycle-transport/ "$TMP_DIR/motorcycle-transport.html"
 fetch /international/ "$TMP_DIR/international.html"
@@ -114,7 +125,9 @@ if grep -Eiq 'login-status|/login/|/auth/|/app/|/api/' "$TMP_DIR/sitemap.xml"; t
   fail "live sitemap exposes a private or noindex route"
 fi
 grep -Fq '<meta name="robots" content="noindex,nofollow,noarchive">' "$TMP_DIR/login-status.html" || fail "live login status noindex is missing"
-grep -Fq '<meta name="robots" content="noindex,nofollow,noarchive">' "$TMP_DIR/login-clean.html" || fail "live clean login route noindex is missing"
+if [[ "$LOGIN_REDIRECT_STATE" != "ACTIVE" ]]; then
+  grep -Fq '<meta name="robots" content="noindex,nofollow,noarchive">' "$TMP_DIR/login-clean.html" || fail "live clean login route noindex is missing"
+fi
 
 for route in services motorcycle-transport international storage container-loading dealer-fleet gallery about contact quotation; do
   grep -Fq "<link rel=\"canonical\" href=\"https://natheegroup2025.com/$route/\">" "$TMP_DIR/$route.html" || fail "live /$route/ canonical is wrong"
@@ -194,10 +207,28 @@ grep -Eiq '^x-robots-tag:[[:space:]]*noindex,[[:space:]]*nofollow,[[:space:]]*no
 
 capture_response "$BASE_URL/login/" "$TMP_DIR/login-clean.headers" "$TMP_DIR/login-clean.body"
 login_clean_status="$(response_status "$TMP_DIR/login-clean.headers")"
+login_clean_location="$(response_location "$TMP_DIR/login-clean.headers")"
 printf 'PRODUCTION_CLEAN_LOGIN_STATUS=%s\n' "$login_clean_status"
-[[ "$login_clean_status" == "200" ]] || fail "clean login route is not 200"
-grep -Eiq '^x-robots-tag:[[:space:]]*noindex,[[:space:]]*nofollow,[[:space:]]*noarchive$' "$TMP_DIR/login-clean.headers" \
-  || fail "clean login route X-Robots-Tag is missing"
+printf 'PRODUCTION_LOGIN_REDIRECT_STATE=%s\n' "$LOGIN_REDIRECT_STATE"
+
+if [[ "$LOGIN_REDIRECT_STATE" == "ACTIVE" ]]; then
+  printf 'PRODUCTION_LOGIN_REDIRECT_LOCATION=%s\n' "${login_clean_location:-NONE}"
+  # 302 only. A 301 would be cached by browsers and could not be withdrawn if
+  # the application had to be rolled back.
+  [[ "$login_clean_status" == "302" ]] || fail "clean login route must hand off with 302 (status=$login_clean_status)"
+  [[ -n "$LOGIN_REDIRECT_TARGET" ]] || fail "the release declares no login redirect target"
+  [[ "$login_clean_location" == "$LOGIN_REDIRECT_TARGET" ]] \
+    || fail "login redirect target is wrong (location=${login_clean_location:-NONE}, expected=$LOGIN_REDIRECT_TARGET)"
+  case "$login_clean_location" in
+    "https://$DOMAIN"/*) fail "login redirect points back at the public host and would loop" ;;
+    https://*) ;;
+    *) fail "login redirect target must be HTTPS (location=$login_clean_location)" ;;
+  esac
+else
+  [[ "$login_clean_status" == "200" ]] || fail "clean login route is not 200"
+  grep -Eiq '^x-robots-tag:[[:space:]]*noindex,[[:space:]]*nofollow,[[:space:]]*noarchive$' "$TMP_DIR/login-clean.headers" \
+    || fail "clean login route X-Robots-Tag is missing"
+fi
 
 capture_response "https://www.$DOMAIN/" "$TMP_DIR/www.headers" "$TMP_DIR/www.body"
 www_status="$(response_status "$TMP_DIR/www.headers")"
@@ -239,6 +270,10 @@ grep -Eiq '^x-robots-tag:[[:space:]]*noindex,[[:space:]]*nofollow,[[:space:]]*no
 
 printf 'PRODUCTION_NOINDEX_PASS login=header+meta clean-login=header+meta 404=header+meta\n'
 printf 'PRODUCTION_COMPONENT public-static-site=LIVE root=%s routes=11\n' "$BASE_URL"
-printf 'PRODUCTION_COMPONENT login-auth=STATIC_PLACEHOLDER_ONLY url=%s/login/\n' "$BASE_URL"
+if [[ "$LOGIN_REDIRECT_STATE" == "ACTIVE" ]]; then
+  printf 'PRODUCTION_COMPONENT login-auth=HANDED_OFF_TO_APPLICATION url=%s target=%s\n' "$BASE_URL/login/" "$LOGIN_REDIRECT_TARGET"
+else
+  printf 'PRODUCTION_COMPONENT login-auth=STATIC_PLACEHOLDER_ONLY url=%s/login/\n' "$BASE_URL"
+fi
 printf 'PRODUCTION_COMPONENT full-application=NOT_CHECKED_BY_PUBLIC_POSTCHECK\n'
 printf 'PRODUCTION_POSTCHECK_PASS component=public-static-site domain=%s publicRoutes=11 fullApplication=NOT_CLAIMED\n' "$DOMAIN"

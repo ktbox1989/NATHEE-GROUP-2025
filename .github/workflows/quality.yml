@@ -23,6 +23,7 @@ jobs:
       - run: npm test
       - run: bash scripts/verify-public-site.sh
       - run: bash scripts/test-app-readiness.sh
+      - run: bash scripts/test-login-redirect.sh
       - run: bash scripts/test-public-site-gate.sh
       - run: bash scripts/test-production-postcheck-contract.sh
       - run: bash scripts/test-public-seo-gates.sh

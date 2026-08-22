@@ -11,6 +11,15 @@ ErrorDocument 404 /404.html
   RewriteRule ^ https://natheegroup2025.com%{REQUEST_URI} [R=301,L,NE]
 </IfModule>
 
+# BEGIN NATHEE LOGIN REDIRECT
+# NATHEE_LOGIN_REDIRECT_STATE=INACTIVE
+# NATHEE_LOGIN_REDIRECT_TARGET=https://app.natheegroup2025.com/login
+#
+# The public /login/ page is served from this site while the application
+# runtime is not accepted. Managed by scripts/set-login-redirect.mjs;
+# do not edit by hand.
+# END NATHEE LOGIN REDIRECT
+
 <IfModule mod_mime.c>
   # Shared hosting does not map this extension by default, and a manifest
   # served as text/plain is ignored by the browser.

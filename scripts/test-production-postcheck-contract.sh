@@ -16,6 +16,8 @@ POSTCHECK="$SCRIPT_DIR/postcheck-production.sh"
 
 # shellcheck source=scripts/lib/deploy-file-tools.sh
 source "$SCRIPT_DIR/lib/deploy-file-tools.sh"
+# shellcheck source=scripts/lib/login-redirect.sh
+source "$SCRIPT_DIR/lib/login-redirect.sh"
 
 fail() {
   printf 'POSTCHECK_CONTRACT_TEST_FAIL: %s\n' "$1" >&2
@@ -47,8 +49,8 @@ mkdir -p "$TMP_DIR"
 # Resolve each `fetch <path> "$TMP_DIR/<name>"` against the real release so the
 # fetch list can never drift away from what this test actually checks.
 fetch_map="$WORK_ROOT/fetch-map.txt"
-grep -E '^fetch ' "$POSTCHECK" \
-  | sed -E 's/^fetch[[:space:]]+([^[:space:]]+)[[:space:]]+"\$TMP_DIR\/([^"]+)".*$/\1 \2/' \
+grep -E '^[[:space:]]*fetch ' "$POSTCHECK" \
+  | sed -E 's/^[[:space:]]*fetch[[:space:]]+([^[:space:]]+)[[:space:]]+"\$TMP_DIR\/([^"]+)".*$/\1 \2/' \
   > "$fetch_map"
 
 [[ -s "$fetch_map" ]] || fail "could not resolve the postcheck fetch list"
@@ -81,6 +83,8 @@ runner="$WORK_ROOT/run-assertions.sh"
 {
   printf 'set -Eeuo pipefail\n'
   printf 'TMP_DIR=%s\n' "$TMP_DIR"
+  printf 'LOGIN_REDIRECT_STATE=%s\n' "$(nathee_login_redirect_state "$SOURCE_ROOT/.htaccess")"
+  printf 'LOGIN_REDIRECT_TARGET=%s\n' "$(nathee_login_redirect_target "$SOURCE_ROOT/.htaccess")"
   printf 'fail() { printf %s "$1" >&2; exit 1; }\n' "'POSTCHECK_ASSERTION_FAIL: %s\\n'"
   cat "$assertions"
 } > "$runner"
