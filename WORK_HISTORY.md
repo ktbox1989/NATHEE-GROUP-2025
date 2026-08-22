@@ -1,5 +1,15 @@
 # NATHEE GROUP 2025 — Work History
 
+## 2026-08-22 — Installable public website
+
+- Implementation commit: `9e75d5c`
+- Added a same-origin Web App Manifest, the 192/512/maskable-512/Apple-180 icon set derived from the Owner-supplied brand artwork, and install metadata on all eleven public routes plus `/login/`.
+- Declared `application/manifest+json` in `.htaccess`; an unmapped `.webmanifest` is served as `text/plain` and silently ignored.
+- Deliberately shipped no Service Worker, and made both verifiers fail if one appears, to avoid reintroducing stale-release serving.
+- Verification: PNG `IHDR` headers parsed and matched to declared sizes, release gate 9 negative + 1 positive, postcheck contract 29 routes, full tests 174/174, TypeScript PASS, ESLint PASS, production build PASS.
+- Deployment: source only. Ships with the pending public release; no Z.com file, D1 row, R2 object, DNS record or credential changed.
+- Rollback: revert `9e75d5c`. Home-screen installs already made would keep the icon set until reinstalled; nothing else is affected.
+
 ## 2026-08-22 — Repaired the Z.com release gates
 
 - Implementation commits: `3df9c43`, `f01f561`, `53ec689`

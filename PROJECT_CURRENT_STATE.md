@@ -5,9 +5,9 @@ Updated: 2026-08-21 (Asia/Bangkok)
 ## Source checkpoint
 
 - Branch: `main`
-- Full HEAD: `53ec689dd41df3e5d88bb0307ad9fd0637c478fc`
+- Full HEAD: `9e75d5c7118b87619cb81ff992b2ee155eb33784`
 - Remote `origin/main` verified equal to local HEAD.
-- Latest verified implementation milestone: Repaired Z.com release gates so the pending public release can actually deploy (`3df9c43`, `f01f561`, `53ec689`)
+- Latest verified implementation milestone: Installable public website (`9e75d5c`)
 - Canonical repository: `ktbox1989/NATHEE-GROUP-2025`
 - Working rule: resolve the current checkpoint-document commit with `git rev-parse HEAD`; never infer Production deployment from source HEAD.
 
@@ -42,6 +42,16 @@ photographs. That was not true of the running site and has been corrected.
 - Full application Production acceptance: NOT PASSED
 
 ## Closed local milestones
+
+### Installable public website (`9e75d5c`)
+
+- PWA readiness was in scope but entirely absent: no Web App Manifest, no icons beyond a 385-byte favicon and no Apple touch icon, so adding the site to a home screen produced a generic bookmark.
+- Added `/site.webmanifest` (same-origin, `standalone`, scope `/`, Thai locale) with shortcuts to the real `/quotation/`, `/gallery/` and `/contact/` routes, plus 192, 512, maskable 512 and Apple 180 icons. The manifest link, Apple touch icon and `theme-color` are present on all eleven public routes and `/login/`.
+- `scripts/generate-pwa-icons.mjs` derives every icon from the Owner-supplied brand artwork; nothing is invented. It is idempotent, rejects artwork that is not square or under 512px, pads maskable icons into a 64% safe zone and uses 256-colour palette PNGs (312KB total rather than 879KB).
+- `.htaccess` declares `application/manifest+json`, because shared hosting serves an unmapped `.webmanifest` as `text/plain` and the browser then ignores it. The live postcheck asserts the response `Content-Type`.
+- **No Service Worker is shipped and both verifiers fail if one appears.** A cache-first worker on a static marketing site can keep serving a superseded release, which is the exact failure Production is recovering from. Offline support stays a separate reviewed decision.
+- Verification: icon PNG `IHDR` headers parsed and matched against the declared sizes, release gate 9 negative cases + 1 positive, postcheck contract 29 routes PASS, full tests 174/174 (106 unit + 68 integration), TypeScript PASS, ESLint PASS, Vinext production build PASS, SEO and deploy-tools gates PASS. Critical mobile payload 61,081 of 102,400 bytes.
+- No Production file, backup, DNS record or credential was changed. This ships with the same pending public deployment.
 
 ### Repaired the Z.com release gates (`3df9c43`, `f01f561`, `53ec689`)
 
@@ -335,8 +345,8 @@ photographs. That was not true of the running site and has been corrected.
 - ESLint: PASS
 - Public SEO and deployment architecture guards: PASS
 - Migrations through `0021` packaged in `dist/.openai/drizzle/`: PASS
-- Release gate negative tests (`test-public-site-gate.sh`): 4 rejections + 1 acceptance
-- Postcheck contract test (`test-production-postcheck-contract.sh`): 24 routes, content-only
+- Release gate negative tests now cover installability: 9 rejections + 1 acceptance
+- Postcheck contract test (`test-production-postcheck-contract.sh`): 29 routes, content-only
 - TypeScript `tsc --noEmit`: PASS
 
 ## Open Owner gates
@@ -368,7 +378,7 @@ refuses to deploy a tree that does not contain the reviewed release, and
 fails.
 
 Minimum required release commit:
-`53ec689dd41df3e5d88bb0307ad9fd0637c478fc`
+`9e75d5c7118b87619cb81ff992b2ee155eb33784`
 
 The block refuses to deploy unless that commit is an ancestor of the pulled
 `main`, so a newer documentation-only commit is accepted while an older or
@@ -379,7 +389,7 @@ and `deploy-zcom.sh` prints the same value as `DEPLOY_SOURCE_COMMIT=`.
 cd /home/zptqqwps/nathee-deploy && \
 GIT_SSH_COMMAND='ssh -i ~/.ssh/nathee_deploy -p 443' git fetch origin main && \
 GIT_SSH_COMMAND='ssh -i ~/.ssh/nathee_deploy -p 443' git pull --ff-only origin main && \
-git merge-base --is-ancestor 53ec689dd41df3e5d88bb0307ad9fd0637c478fc HEAD && \
+git merge-base --is-ancestor 9e75d5c7118b87619cb81ff992b2ee155eb33784 HEAD && \
 git rev-parse HEAD && \
 bash scripts/probe-zcom-runtime.sh && \
 bash scripts/verify-public-site.sh && \
@@ -397,7 +407,8 @@ that `deploy-zcom.sh` prints; it is the exact rollback target for
 
 After it passes, the live site must show 7 real photographs on the homepage,
 9 server-rendered photographs on `/gallery/`, all 54 gallery variants
-resolving, and no `loading` placeholder.
+resolving, no `loading` placeholder, and an installable Web App Manifest
+served as `application/manifest+json`.
 
 ## Prohibited claims
 
