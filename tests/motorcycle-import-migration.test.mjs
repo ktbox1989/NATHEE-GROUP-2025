@@ -44,14 +44,14 @@ test("the production confirmation plan atomically imports 500 rows with contiguo
   db.exec(`INSERT INTO motorcycle_import_batches (id, request_key, job_id, company_id, source_filename, source_type, checksum, row_count, valid_count, error_count, created_by) VALUES ('batch-500', '0198f708-44a3-7ef7-8d4f-4f477922aa01', 'job', 'company', 'five-hundred.csv', 'CSV', '${"b".repeat(64)}', 500, 500, 0, 'owner')`);
   const insert = db.prepare(`INSERT INTO motorcycle_import_rows (id, batch_id, source_row_number, record_id, public_id, raw_payload, vin, vehicle_condition, validation_status) VALUES (?, 'batch-500', ?, ?, ?, ?, ?, 'NEW', 'VALID')`);
   for (let index = 0; index < 500; index += 1) insert.run(`row-${index}`, index + 2, `mc-${index}`, `mc_public_${index}`, JSON.stringify({ vin: `VIN-${index}` }), `VIN-${index}`);
-  const plan = motorcycleImportConfirmationPlan({ batchId: "batch-500", importRequestKey: "0198f708-44a3-7ef7-8d4f-4f477922aa02", actorUserId: "owner", auditId: "audit-batch-500", now: "2026-08-21T03:00:00.000Z" });
+  const plan = motorcycleImportConfirmationPlan({ batchId: "batch-500", importRequestKey: "0198f708-44a3-7ef7-8d4f-4f477922aa02", actorUserId: "owner", auditId: "audit-batch-500", recordedAt: "2026-08-21 03:00:00", occurredAt: "2026-08-21T03:00:00.000Z" });
   runPlan(db, plan);
   assert.deepEqual({ ...db.prepare("SELECT count(*) AS total, min(sequence_number) AS first, max(sequence_number) AS last FROM motorcycles WHERE job_id='job'").get() }, { total: 500, first: 1, last: 500 });
   assert.equal(db.prepare("SELECT count(*) AS total FROM status_events WHERE motorcycle_id LIKE 'mc-%'").get().total, 500);
   assert.equal(db.prepare("SELECT count(*) AS total FROM motorcycle_import_rows WHERE batch_id='batch-500' AND validation_status='IMPORTED'").get().total, 500);
   assert.equal(db.prepare("SELECT status FROM motorcycle_import_batches WHERE id='batch-500'").get().status, "IMPORTED");
   assert.equal(db.prepare("SELECT value FROM sequence_counters WHERE name='motorcycle:job'").get().value, 500);
-  assert.throws(() => runPlan(db, motorcycleImportConfirmationPlan({ batchId: "batch-500", importRequestKey: "0198f708-44a3-7ef7-8d4f-4f477922aa03", actorUserId: "owner", auditId: "audit-replay", now: "2026-08-21T03:01:00.000Z" })));
+  assert.throws(() => runPlan(db, motorcycleImportConfirmationPlan({ batchId: "batch-500", importRequestKey: "0198f708-44a3-7ef7-8d4f-4f477922aa03", actorUserId: "owner", auditId: "audit-replay", recordedAt: "2026-08-21 03:01:00", occurredAt: "2026-08-21T03:01:00.000Z" })));
   assert.equal(db.prepare("SELECT count(*) AS total FROM motorcycles").get().total, 500);
   db.close();
 });

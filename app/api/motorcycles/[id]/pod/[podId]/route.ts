@@ -6,6 +6,7 @@ import { can, isInternalRole } from "@/lib/authorization";
 import { normalizeInspectionText } from "@/lib/inspections";
 import { getCurrentActor } from "@/lib/current-actor";
 import { isSameOrigin } from "@/lib/same-origin";
+import { eventTimestamp, recordTimestamp } from "@/lib/timestamps";
 
 export async function POST(
   request: NextRequest,
@@ -41,7 +42,8 @@ export async function POST(
     || !can(actor, "status:write", pod.companyId)
   ) return redirect(request, motorcycleId, "error", "pod_not_voidable");
 
-  const now = new Date().toISOString();
+  const voidedAt = eventTimestamp();
+  const recordedAt = recordTimestamp();
   const auditId = crypto.randomUUID();
   try {
     const d1 = getD1();
@@ -50,7 +52,7 @@ export async function POST(
         UPDATE proof_of_delivery_records
         SET status = 'VOIDED', void_reason = ?, voided_by = ?, voided_at = ?
         WHERE id = ? AND motorcycle_id = ? AND status = 'ACTIVE'
-      `).bind(reason, actor.userId, now, podId, motorcycleId),
+      `).bind(reason, actor.userId, voidedAt, podId, motorcycleId),
       d1.prepare(`
         INSERT INTO audit_logs
           (id, actor_user_id, company_id, action, entity_type, entity_id, before_json, after_json, reason, created_at)
@@ -63,10 +65,10 @@ export async function POST(
         JSON.stringify({ status: "ACTIVE" }),
         JSON.stringify({ status: "VOIDED" }),
         reason,
-        now,
+        recordedAt,
         podId,
         motorcycleId,
-        now,
+        voidedAt,
       ),
     ]);
     if ((results[0].meta.changes ?? 0) !== 1 || (results[1].meta.changes ?? 0) !== 1) {

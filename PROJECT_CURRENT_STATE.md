@@ -43,6 +43,50 @@ photographs. That was not true of the running site and has been corrected.
 
 ## Closed local milestones
 
+### The Audit page was showing the day's events in the wrong order
+
+- Found and fixed a real, user-visible defect while preparing to add
+  authentication events to the Audit trail. `audit_logs.created_at` was written
+  two different ways: routes using the Drizzle helper let the column default to
+  SQLite's `CURRENT_TIMESTAMP` (`2026-08-23 23:59:00`), while routes using raw
+  SQL bound an ISO-8601 string (`2026-08-23T00:00:01.000Z`). Text comparison puts
+  `T` above a space, so **within any single day every raw-SQL event sorted above
+  every Drizzle event regardless of the actual time** — a role change at one
+  minute past midnight displayed above a company created at one minute to
+  midnight. The Owner's record of who changed what was out of order, and the
+  keyset pagination added by migration `0019` walked that same wrong order.
+- The confusion was not limited to Audit. Twenty-four call sites wrote
+  `new Date().toISOString()` into `created_at` and `updated_at` across
+  motorcycles, trips, containers, yard zones, gallery, site content, settings,
+  quotations, bulk imports and user management.
+- `lib/timestamps.ts` now states the contract in one place. `recordTimestamp()`
+  produces exactly what `CURRENT_TIMESTAMP` writes, for `created_at` and
+  `updated_at` — the only two columns in the schema with a database default.
+  `eventTimestamp()` produces ISO-8601 for every other `*_at` column, which
+  records when something happened in the real world.
+- The two are deliberately **not** interchangeable, and the reason is verified
+  rather than asserted: `ck_yard_placements_time_order`, `ck_trip_assignments_
+  time_order` and their siblings compare those columns against each other as
+  text, so a record-form exit written against an ISO-form entry is rejected. A
+  test proves that rejection, which is also why no migration rewrites existing
+  rows — the representation switch is safe only because Production holds no
+  application rows at all.
+- Every call site now names which kind it means, so the choice is reviewable
+  where it is made rather than inferred from the column later.
+- `scripts/test-timestamp-contract.mjs` keeps it: no server source may use the
+  `new Date().toISOString()` idiom that caused this, only `created_at` and
+  `updated_at` may carry a `CURRENT_TIMESTAMP` default in the schema or in any
+  migration, and a file writing one kind of column must be able to produce that
+  kind of value. Eight proven rejections + 1 acceptance.
+- Verification: full tests 247/247 (142 unit + 105 integration), 19 of them new;
+  the ordering defect and its fix are both proven against the real migrated
+  schema, including that keyset pagination stays index-backed on
+  `idx_audit_logs_created_id`; timestamp contract 8 rejections + 1 acceptance;
+  TypeScript PASS; ESLint PASS; Vinext production build PASS; all public and
+  security guards PASS; `git diff --check` PASS.
+- No migration was added and no stored row was rewritten. No Production file, D1
+  row, Supabase value, R2 object, DNS record or credential was changed.
+
 ### Authorization coverage and response headers became build gates
 
 - Server-side authorization held on all 84 protected surfaces, but it held
@@ -464,9 +508,9 @@ photographs. That was not true of the running site and has been corrected.
 
 ## Verified source gates
 
-- Full test suite: 234 passing
-- Authorization/unit/CMS/settings/search/config/readiness/identity/quotation/Turnstile/image/POD-signature/Auth-throttle/recovery-grant tests: 135 passing
-- Render/schema/notification/yard/trip/container/inspection/POD/CMS/settings/query-plan/migration/Auth-throttle/recovery-grant tests: 99 passing
+- Full test suite: 247 passing
+- Authorization/unit/CMS/settings/search/config/readiness/identity/quotation/Turnstile/image/POD-signature/Auth-throttle/recovery-grant/timestamp tests: 142 passing
+- Render/schema/notification/yard/trip/container/inspection/POD/CMS/settings/query-plan/migration/Auth-throttle/recovery-grant/audit-ordering tests: 105 passing
 - Production Vinext build: PASS
 - ESLint: PASS
 - Public SEO and deployment architecture guards: PASS
@@ -476,6 +520,7 @@ photographs. That was not true of the running site and has been corrected.
 - Auth wiring gate (`test-auth-security-gates.mjs`): PASS, with 24 proven rejections + 1 acceptance
 - Authorization coverage gate (`test-authorization-coverage.mjs`): 84 surfaces, 78 authorized, 6 declared public, with 9 proven rejections + 1 acceptance
 - Response security header gate (`test-response-security-headers.mjs`): 6 headers, 4 CSP directives, 117 sources, with 13 proven rejections + 1 acceptance
+- Timestamp contract gate (`test-timestamp-contract.mjs`): 108 sources, with 8 proven rejections + 1 acceptance
 - TypeScript `tsc --noEmit`: PASS
 
 ## Open Owner gates

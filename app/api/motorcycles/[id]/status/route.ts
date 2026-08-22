@@ -9,6 +9,7 @@ import { STATUS_NOTIFICATION_INSERT_SQL } from "@/lib/notification-sql";
 import { statusNotificationContent } from "@/lib/notifications";
 import { isSameOrigin } from "@/lib/same-origin";
 import { canTransition } from "@/lib/status-transitions";
+import { recordTimestamp } from "@/lib/timestamps";
 
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   if (!isSameOrigin(request)) return new NextResponse("Forbidden", { status: 403 });
@@ -32,7 +33,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     return NextResponse.redirect(new URL(`/app/motorcycles/${id}?error=transition`, request.url), 303);
   }
 
-  const now = new Date().toISOString();
+  const recordedAt = recordTimestamp();
   const eventId = crypto.randomUUID();
   const auditId = crypto.randomUUID();
   const notification = statusNotificationContent({
@@ -49,20 +50,20 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         SELECT ?, id, company_id, current_status, ?, ?, ?, ?
         FROM motorcycles
         WHERE id = ? AND current_status = ?
-      `).bind(eventId, newStatus, note, actor.userId, now, id, motorcycle.currentStatus),
+      `).bind(eventId, newStatus, note, actor.userId, recordedAt, id, motorcycle.currentStatus),
       d1.prepare(`
         UPDATE motorcycles
         SET current_status = ?, updated_at = ?
         WHERE id = ? AND current_status = ?
           AND EXISTS (SELECT 1 FROM status_events WHERE id = ?)
-      `).bind(newStatus, now, id, motorcycle.currentStatus, eventId),
+      `).bind(newStatus, recordedAt, id, motorcycle.currentStatus, eventId),
       d1.prepare(STATUS_NOTIFICATION_INSERT_SQL).bind(
         eventId,
         notification.severity,
         notification.title,
         notification.body,
         notification.href,
-        now,
+        recordedAt,
         eventId,
       ),
       d1.prepare(`
@@ -79,7 +80,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         JSON.stringify({ currentStatus: motorcycle.currentStatus }),
         JSON.stringify({ currentStatus: newStatus }),
         note,
-        now,
+        recordedAt,
         eventId,
       ),
     ]);

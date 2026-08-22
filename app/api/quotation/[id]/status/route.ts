@@ -5,6 +5,7 @@ import { auditLogs, QUOTE_STATUSES, quoteRequests } from "@/db/schema";
 import { makeAuditRecord } from "@/lib/audit";
 import { getCurrentActor } from "@/lib/current-actor";
 import { isSameOrigin } from "@/lib/same-origin";
+import { recordTimestamp } from "@/lib/timestamps";
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   if (!isSameOrigin(request)) return new NextResponse("Forbidden", { status: 403 });
@@ -19,7 +20,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (!before) return result(request, "error");
   try {
     await db.batch([
-      db.update(quoteRequests).set({ status, updatedAt: new Date().toISOString() }).where(eq(quoteRequests.id, id)),
+      db.update(quoteRequests).set({ status, updatedAt: recordTimestamp() }).where(eq(quoteRequests.id, id)),
       db.insert(auditLogs).values(makeAuditRecord({ actor, action: "UPDATE_QUOTATION_STATUS", entityType: "quote_request", entityId: id, before: { status: before.status }, after: { status, requestNumber: before.requestNumber } })),
     ]);
     return result(request, "updated");

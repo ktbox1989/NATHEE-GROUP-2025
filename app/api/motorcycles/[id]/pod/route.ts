@@ -12,6 +12,7 @@ import { canCreateProofOfDelivery, isReasonableRecordedTime, normalizeInspection
 import { hasPodSignatureAttestation, isPodSignatureGeometry, parsePodSignatureDimension, POD_SIGNATURE_CONTENT_TYPE, POD_SIGNATURE_MAX_BYTES, readPngDimensions } from "@/lib/pod-signature";
 import { isSameOrigin } from "@/lib/same-origin";
 import { bangkokInputToUtc, isTripRequestKey } from "@/lib/trips";
+import { eventTimestamp } from "@/lib/timestamps";
 
 const MAX_REQUEST_BYTES = 2 * 1024 * 1024;
 
@@ -53,12 +54,12 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   const signatureId = crypto.randomUUID();
   const signatureChecksum = await sha256Hex(signatureBytes);
   const signatureStorageKey = `companies/${motorcycle.companyId}/motorcycles/${motorcycleId}/pod/${podId}/signature-${signatureId}.png`;
-  const now = new Date().toISOString();
+  const attestedAt = eventTimestamp();
   try {
     await env.FILES.put(signatureStorageKey, signatureBytes, { httpMetadata: { contentType: POD_SIGNATURE_CONTENT_TYPE }, customMetadata: { podId, motorcycleId, companyId: motorcycle.companyId, attestedBy: actor.userId, checksum: signatureChecksum } });
     await db.batch([
       db.insert(proofOfDeliveryRecords).values({ id: podId, requestKey, motorcycleId, companyId: motorcycle.companyId, recipientName, recipientPhone, deliveryLocation, deliveredAt, evidenceImageId, notes, receivedBy: actor.userId, signatureRequired: 1 }),
-      db.insert(proofOfDeliverySignatures).values({ id: signatureId, podId, companyId: motorcycle.companyId, storageKey: signatureStorageKey, contentType: POD_SIGNATURE_CONTENT_TYPE, width: signatureWidth, height: signatureHeight, byteSize: signature.size, checksum: signatureChecksum, attestedBy: actor.userId, attestedAt: now }),
+      db.insert(proofOfDeliverySignatures).values({ id: signatureId, podId, companyId: motorcycle.companyId, storageKey: signatureStorageKey, contentType: POD_SIGNATURE_CONTENT_TYPE, width: signatureWidth, height: signatureHeight, byteSize: signature.size, checksum: signatureChecksum, attestedBy: actor.userId, attestedAt }),
       db.insert(auditLogs).values(makeAuditRecord({ actor, action: "CREATE", entityType: "proof_of_delivery", entityId: podId, companyId: motorcycle.companyId, after: { motorcycleId, deliveredAt, evidenceImageId, hasRecipientPhone: Boolean(recipientPhone), hasSignature: true, signatureId, signatureChecksum } })),
     ]);
   } catch {

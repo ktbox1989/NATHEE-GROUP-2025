@@ -5,6 +5,7 @@ import { notifications } from "@/db/schema";
 import { getCurrentActor } from "@/lib/current-actor";
 import { isSafeNotificationHref } from "@/lib/notifications";
 import { isSameOrigin } from "@/lib/same-origin";
+import { eventTimestamp } from "@/lib/timestamps";
 
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   if (!isSameOrigin(request)) return new NextResponse("Forbidden", { status: 403 });
@@ -24,7 +25,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   if (!row.readAt) {
     await db
       .update(notifications)
-      .set({ readAt: new Date().toISOString() })
+      .set({ readAt: eventTimestamp() })
       .where(and(
         eq(notifications.id, id),
         eq(notifications.recipientUserId, actor.userId),

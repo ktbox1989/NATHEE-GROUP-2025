@@ -15,6 +15,7 @@ import {
 } from "@/lib/containers";
 import { getCurrentActor } from "@/lib/current-actor";
 import { isSameOrigin } from "@/lib/same-origin";
+import { eventTimestamp, recordTimestamp } from "@/lib/timestamps";
 
 const actionTargets = {
   MARK_LOADED: "LOADED",
@@ -68,7 +69,10 @@ export async function POST(
     return redirect(request, containerId, "error", "assignment_state_mismatch");
   }
 
-  const now = new Date().toISOString();
+  // Load-state instants are CHECK-compared against assigned_at as text; the
+  // record columns sort against rows that took the CURRENT_TIMESTAMP default.
+  const occurredAt = eventTimestamp();
+  const recordedAt = recordTimestamp();
   const auditId = crypto.randomUUID();
   try {
     const d1 = getD1();
@@ -85,14 +89,14 @@ export async function POST(
       `).bind(
         newState,
         newState,
-        now,
+        occurredAt,
         newState,
-        now,
+        occurredAt,
         newState,
-        now,
+        occurredAt,
         newState,
         reason,
-        now,
+        recordedAt,
         assignmentId,
         containerId,
         assignment.state,
@@ -109,11 +113,11 @@ export async function POST(
         JSON.stringify({ state: assignment.state }),
         JSON.stringify({ state: newState }),
         reason,
-        now,
+        recordedAt,
         assignmentId,
         containerId,
         newState,
-        now,
+        recordedAt,
       ),
     ]);
     if ((results[0].meta.changes ?? 0) !== 1 || (results[1].meta.changes ?? 0) !== 1) {

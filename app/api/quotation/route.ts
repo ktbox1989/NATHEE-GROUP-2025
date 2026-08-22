@@ -10,6 +10,7 @@ import { prepareQuotationAttachments, QUOTATION_MAX_REQUEST_BYTES } from "@/lib/
 import { isSameOrigin } from "@/lib/same-origin";
 import { getAppOrigin } from "@/lib/app-origin";
 import { turnstileRemoteIp, verifyTurnstile } from "@/lib/turnstile";
+import { eventTimestamp } from "@/lib/timestamps";
 
 export async function POST(request: NextRequest) {
   if (!isSameOrigin(request)) return new NextResponse("Forbidden", { status: 403 });
@@ -51,7 +52,7 @@ export async function POST(request: NextRequest) {
   try {
     const id = crypto.randomUUID();
     const requestNumber = await nextBusinessNumber("QT");
-    const consentAt = new Date().toISOString();
+    const consentAt = eventTimestamp();
     const attachments = attachmentResult.value.map((attachment) => {
       const attachmentId = crypto.randomUUID();
       return { ...attachment, id: attachmentId, storageKey: `quotations/${id}/${attachmentId}.${attachment.extension}` };

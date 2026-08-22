@@ -8,6 +8,7 @@ import { getCurrentActor } from "@/lib/current-actor";
 import { MOTORCYCLE_IMPORT_MAX_REQUEST_BYTES, prepareMotorcycleImport } from "@/lib/motorcycle-import";
 import { isSameOrigin } from "@/lib/same-origin";
 import { isTripRequestKey } from "@/lib/trips";
+import { recordTimestamp } from "@/lib/timestamps";
 
 export async function POST(request: NextRequest) {
   if (!isSameOrigin(request)) return new NextResponse("Forbidden", { status: 403 });
@@ -34,7 +35,7 @@ export async function POST(request: NextRequest) {
   if (existingFile) return NextResponse.redirect(new URL(`/app/motorcycles/imports/${existingFile.id}?status=file_exists`, request.url), 303);
 
   const batchId = crypto.randomUUID();
-  const now = new Date().toISOString();
+  const recordedAt = recordTimestamp();
   const validCount = prepared.rows.filter((row) => row.validationStatus === "VALID").length;
   const errorCount = prepared.rows.length - validCount;
   const rowsJson = JSON.stringify(prepared.rows);
@@ -46,7 +47,7 @@ export async function POST(request: NextRequest) {
           (id, request_key, job_id, company_id, source_filename, source_type, checksum,
            row_count, valid_count, error_count, status, created_by, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'VALIDATED', ?, ?)
-      `).bind(batchId, requestKey, job.id, job.companyId, prepared.sourceFilename, prepared.sourceType, prepared.checksum, prepared.rows.length, validCount, errorCount, actor.userId, now),
+      `).bind(batchId, requestKey, job.id, job.companyId, prepared.sourceFilename, prepared.sourceType, prepared.checksum, prepared.rows.length, validCount, errorCount, actor.userId, recordedAt),
       d1.prepare(`
         INSERT INTO motorcycle_import_rows
           (id, batch_id, source_row_number, record_id, public_id, raw_payload, make, model, variant,
@@ -61,7 +62,7 @@ export async function POST(request: NextRequest) {
           json_extract(value, '$.vehicleCondition'), json_extract(value, '$.notes'),
           json_extract(value, '$.validationStatus'), json_extract(value, '$.errorMessage'), ?
         FROM json_each(?)
-      `).bind(batchId, now, rowsJson),
+      `).bind(batchId, recordedAt, rowsJson),
       d1.prepare(`
         UPDATE motorcycle_import_rows AS source
         SET validation_status = 'ERROR',
@@ -90,7 +91,7 @@ export async function POST(request: NextRequest) {
                       'validCount', valid_count, 'errorCount', error_count, 'checksum', checksum),
           'Server-validated bulk import staging', ?
         FROM motorcycle_import_batches WHERE id = ?
-      `).bind(crypto.randomUUID(), actor.userId, now, batchId),
+      `).bind(crypto.randomUUID(), actor.userId, recordedAt, batchId),
     ]);
   } catch {
     const raced = await db.select({ id: motorcycleImportBatches.id }).from(motorcycleImportBatches).where(or(eq(motorcycleImportBatches.requestKey, requestKey), and(eq(motorcycleImportBatches.jobId, job.id), eq(motorcycleImportBatches.checksum, prepared.checksum)))).get();

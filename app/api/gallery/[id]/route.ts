@@ -8,6 +8,7 @@ import { can } from "@/lib/authorization";
 import { getCurrentActor } from "@/lib/current-actor";
 import { boundedText, canPublishGalleryItem, galleryVisibilities, parseGallerySortOrder } from "@/lib/gallery";
 import { isSameOrigin } from "@/lib/same-origin";
+import { eventTimestamp, recordTimestamp } from "@/lib/timestamps";
 
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   if (!isSameOrigin(request)) return new NextResponse("Forbidden", { status: 403 });
@@ -23,7 +24,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   const requiresPublisher = before.status === "PUBLISHED" || ["PUBLISH", "HIDE", "FEATURE", "UNFEATURE"].includes(action);
   if (requiresPublisher && !can(actor, "gallery:publish")) return redirect(request, "error", "publish_forbidden");
 
-  const now = new Date().toISOString();
+  // publishedAt and archivedAt record when the decision happened; updatedAt is a record column.
+  const occurredAt = eventTimestamp();
+  const recordedAt = recordTimestamp();
   let values: Partial<typeof galleryItems.$inferInsert>;
   if (action === "UPDATE") {
     const categoryId = boundedText(form.get("categoryId"), 80);
@@ -46,19 +49,19 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       const job = await db.select({ id: transportJobs.id }).from(transportJobs).where(and(eq(transportJobs.id, jobId!), eq(transportJobs.companyId, companyId!))).get();
       if (!job) return redirect(request, "error", "invalid_job_scope");
     }
-    values = { categoryId, title, caption, altText, takenAt, location, publicJobReference, visibility, sortOrder, companyId, jobId, updatedAt: now };
+    values = { categoryId, title, caption, altText, takenAt, location, publicJobReference, visibility, sortOrder, companyId, jobId, updatedAt: recordedAt };
   } else if (action === "PUBLISH") {
     const category = await db.select({ status: galleryCategories.status }).from(galleryCategories).where(eq(galleryCategories.id, before.categoryId)).get();
     const displayVariant = await db.select({ id: galleryImageVariants.id }).from(galleryImageVariants).where(and(eq(galleryImageVariants.galleryItemId, id), eq(galleryImageVariants.role, "DISPLAY"))).get();
     if (category?.status !== "ACTIVE" || !canPublishGalleryItem({ visibility: before.visibility, hasDisplayVariant: Boolean(displayVariant), altText: before.altText })) return redirect(request, "error", "publish_requirements");
-    values = { status: "PUBLISHED", publishedBy: actor.userId, publishedAt: now, archivedAt: null, updatedAt: now };
+    values = { status: "PUBLISHED", publishedBy: actor.userId, publishedAt: occurredAt, archivedAt: null, updatedAt: recordedAt };
   } else if (action === "HIDE") {
-    values = { status: "HIDDEN", isFeatured: 0, updatedAt: now };
+    values = { status: "HIDDEN", isFeatured: 0, updatedAt: recordedAt };
   } else if (action === "ARCHIVE") {
-    values = { status: "ARCHIVED", isFeatured: 0, archivedAt: now, updatedAt: now };
+    values = { status: "ARCHIVED", isFeatured: 0, archivedAt: occurredAt, updatedAt: recordedAt };
   } else if (action === "FEATURE" || action === "UNFEATURE") {
     if (action === "FEATURE" && (before.status !== "PUBLISHED" || before.visibility !== "PUBLIC")) return redirect(request, "error", "feature_requirements");
-    values = { isFeatured: action === "FEATURE" ? 1 : 0, updatedAt: now };
+    values = { isFeatured: action === "FEATURE" ? 1 : 0, updatedAt: recordedAt };
   } else {
     return redirect(request, "error", "invalid_action");
   }

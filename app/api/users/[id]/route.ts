@@ -23,6 +23,7 @@ import {
   type ManagedUserStatus,
 } from "@/lib/member-lifecycle";
 import { isSameOrigin } from "@/lib/same-origin";
+import { recordTimestamp } from "@/lib/timestamps";
 
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   if (!isSameOrigin(request)) return new NextResponse("Forbidden", { status: 403 });
@@ -120,7 +121,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   }
 
   const requestId = crypto.randomUUID();
-  const now = new Date().toISOString();
+  const recordedAt = recordTimestamp();
   const legacyBefore = legacyRoleFor(before.role);
   const legacyAfter = legacyRoleFor(after.role);
   const legacyGroupChanges = legacyBefore !== legacyAfter;
@@ -132,7 +133,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     WHERE id = ? AND management_revision = ?
       AND status = ? AND role = ?
       AND ((company_id IS NULL AND ? IS NULL) OR company_id = ?)
-  `).bind(requestId, now, id, target.managementRevision, target.status, target.legacyRole, target.companyId, target.companyId)];
+  `).bind(requestId, recordedAt, id, target.managementRevision, target.status, target.legacyRole, target.companyId, target.companyId)];
 
   if (legacyGroupChanges) {
     operations.push(d1.prepare(`
@@ -145,7 +146,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   operations.push(d1.prepare(`
     UPDATE users SET role = ?, company_id = ?, status = ?, updated_at = ?
     WHERE id = ? AND last_management_request_id = ?
-  `).bind(legacyAfter, after.companyId, after.status, now, id, requestId));
+  `).bind(legacyAfter, after.companyId, after.status, recordedAt, id, requestId));
 
   if (roleChanges || !target.assignedRole) {
     operations.push(d1.prepare(`
@@ -154,7 +155,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       WHERE id = ? AND last_management_request_id = ?
       ON CONFLICT(user_id) DO UPDATE SET
         role = excluded.role, assigned_by = excluded.assigned_by, updated_at = excluded.updated_at
-    `).bind(after.role, actor.userId, now, now, id, requestId));
+    `).bind(after.role, actor.userId, recordedAt, recordedAt, id, requestId));
   }
 
   operations.push(d1.prepare(`
@@ -167,7 +168,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       INSERT INTO user_permissions (user_id, permission, granted_by, created_at)
       SELECT id, ?, ?, ? FROM users
       WHERE id = ? AND last_management_request_id = ?
-    `).bind(permission, actor.userId, now, id, requestId));
+    `).bind(permission, actor.userId, recordedAt, id, requestId));
   }
 
   const audit = makeAuditRecord({
@@ -188,7 +189,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     FROM users WHERE id = ? AND last_management_request_id = ?
   `).bind(
     audit.id, audit.actorUserId, audit.companyId, audit.action, audit.entityType,
-    audit.entityId, audit.beforeJson, audit.afterJson, audit.reason, now, id, requestId,
+    audit.entityId, audit.beforeJson, audit.afterJson, audit.reason, recordedAt, id, requestId,
   ));
 
   try {

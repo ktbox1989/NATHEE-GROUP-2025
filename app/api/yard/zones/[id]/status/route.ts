@@ -5,6 +5,7 @@ import { yardZones } from "@/db/schema";
 import { can } from "@/lib/authorization";
 import { getCurrentActor } from "@/lib/current-actor";
 import { isSameOrigin } from "@/lib/same-origin";
+import { recordTimestamp } from "@/lib/timestamps";
 
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   if (!isSameOrigin(request)) return new NextResponse("Forbidden", { status: 403 });
@@ -27,7 +28,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     return NextResponse.redirect(new URL("/app/yard?error=stale_zone", request.url), 303);
   }
 
-  const now = new Date().toISOString();
+  const recordedAt = recordTimestamp();
   const auditId = crypto.randomUUID();
   try {
     const results = await getD1().batch([
@@ -41,7 +42,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
               WHERE active.yard_zone_id = yard_zones.id AND active.exited_at IS NULL
             )
           )
-      `).bind(newStatus, now, id, zone.status, newStatus),
+      `).bind(newStatus, recordedAt, id, zone.status, newStatus),
       getD1().prepare(`
         INSERT INTO audit_logs
           (id, actor_user_id, action, entity_type, entity_id,
@@ -53,10 +54,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         actor.userId,
         JSON.stringify({ status: zone.status }),
         JSON.stringify({ status: newStatus }),
-        now,
+        recordedAt,
         id,
         newStatus,
-        now,
+        recordedAt,
       ),
     ]);
     if ((results[0].meta.changes ?? 0) !== 1 || (results[1].meta.changes ?? 0) !== 1) {

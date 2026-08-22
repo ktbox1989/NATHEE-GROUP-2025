@@ -7,6 +7,7 @@ import { getCurrentActor } from "@/lib/current-actor";
 import { motorcycleImportConfirmationPlan } from "@/lib/motorcycle-import-transaction";
 import { isSameOrigin } from "@/lib/same-origin";
 import { isTripRequestKey } from "@/lib/trips";
+import { eventTimestamp, recordTimestamp } from "@/lib/timestamps";
 
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   if (!isSameOrigin(request)) return new NextResponse("Forbidden", { status: 403 });
@@ -22,10 +23,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   if (batch.status === "IMPORTED") return redirect(request, id, "already_imported", "status");
   if (batch.status !== "VALIDATED" || batch.errorCount !== 0) return redirect(request, id, "not_ready");
 
-  const now = new Date().toISOString();
   const d1 = getD1();
   try {
-    const plan = motorcycleImportConfirmationPlan({ batchId: id, importRequestKey, actorUserId: actor.userId, auditId: crypto.randomUUID(), now });
+    const plan = motorcycleImportConfirmationPlan({ batchId: id, importRequestKey, actorUserId: actor.userId, auditId: crypto.randomUUID(), recordedAt: recordTimestamp(), occurredAt: eventTimestamp() });
     const result = await d1.batch(plan.map((item) => d1.prepare(item.sql).bind(...item.params)));
     if (Number(result[0]?.meta?.changes ?? 0) !== 1 || Number(result[7]?.meta?.changes ?? 0) !== 1) return redirect(request, id, "stale");
   } catch {

@@ -6,6 +6,7 @@ import { makeAuditRecord } from "@/lib/audit";
 import { can } from "@/lib/authorization";
 import { getCurrentActor } from "@/lib/current-actor";
 import { isSameOrigin } from "@/lib/same-origin";
+import { recordTimestamp } from "@/lib/timestamps";
 
 export async function POST(request: NextRequest) {
   if (!isSameOrigin(request)) return new NextResponse("Forbidden", { status: 403 });
@@ -23,7 +24,7 @@ export async function POST(request: NextRequest) {
   const revision = await db.select({ id: siteSettingsRevisions.id }).from(siteSettingsRevisions).where(eq(siteSettingsRevisions.id, revisionId)).get();
   if (!revision) return redirectError(request, "revision_not_found");
   const eventId = crypto.randomUUID();
-  const createdAt = new Date().toISOString();
+  const createdAt = recordTimestamp();
   try {
     await db.batch([
       db.insert(siteSettingsPublicationEvents).values({ id: eventId, requestKey, revisionId, note, createdBy: actor.userId, createdAt }),

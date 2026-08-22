@@ -7,6 +7,7 @@ import { can } from "@/lib/authorization";
 import { nextSequence } from "@/lib/business-numbers";
 import { getCurrentActor } from "@/lib/current-actor";
 import { isSameOrigin } from "@/lib/same-origin";
+import { recordTimestamp } from "@/lib/timestamps";
 
 export async function POST(request: NextRequest) {
   if (!isSameOrigin(request)) return new NextResponse("Forbidden", { status: 403 });
@@ -79,7 +80,7 @@ export async function POST(request: NextRequest) {
       }),
       db
         .update(transportJobs)
-        .set({ status: "IN_PROGRESS", updatedAt: new Date().toISOString() })
+        .set({ status: "IN_PROGRESS", updatedAt: recordTimestamp() })
         .where(and(eq(transportJobs.id, job.id), eq(transportJobs.status, "OPEN"))),
       db.insert(auditLogs).values(makeAuditRecord({ actor, action: "CREATE", entityType: "motorcycle", entityId: id, companyId: job.companyId, after: record })),
     ]);

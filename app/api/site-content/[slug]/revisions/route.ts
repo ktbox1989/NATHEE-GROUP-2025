@@ -8,6 +8,7 @@ import { getCurrentActor } from "@/lib/current-actor";
 import { sha256Hex } from "@/lib/image-validation";
 import { isSameOrigin } from "@/lib/same-origin";
 import { isSitePageSlug, parseCmsPageContentJson, serializeCmsPageContent, SITE_PAGE_DEFINITIONS } from "@/lib/site-cms";
+import { recordTimestamp } from "@/lib/timestamps";
 
 export async function POST(request: NextRequest, context: { params: Promise<{ slug: string }> }) {
   if (!isSameOrigin(request)) return new NextResponse("Forbidden", { status: 403 });
@@ -29,12 +30,12 @@ export async function POST(request: NextRequest, context: { params: Promise<{ sl
   if (existing) return NextResponse.redirect(new URL(`/app/site-content/${slug}?status=already_saved&revision=${existing.id}`, request.url), 303);
   const pageId = `site-page-${slug}`;
   const revisionId = crypto.randomUUID();
-  const now = new Date().toISOString();
+  const recordedAt = recordTimestamp();
   try {
     await db.batch([
-      db.insert(sitePages).values({ id: pageId, slug, displayName: SITE_PAGE_DEFINITIONS[slug].label, createdBy: actor.userId, updatedAt: now }).onConflictDoNothing(),
+      db.insert(sitePages).values({ id: pageId, slug, displayName: SITE_PAGE_DEFINITIONS[slug].label, createdBy: actor.userId, updatedAt: recordedAt }).onConflictDoNothing(),
       db.insert(sitePageRevisions).values({ id: revisionId, requestKey, pageId, contentJson, contentHash, changeNote, createdBy: actor.userId }),
-      db.update(sitePages).set({ updatedAt: now }).where(eq(sitePages.id, pageId)),
+      db.update(sitePages).set({ updatedAt: recordedAt }).where(eq(sitePages.id, pageId)),
       db.insert(auditLogs).values(makeAuditRecord({ actor, action: "CREATE_REVISION", entityType: "site_page", entityId: pageId, after: { slug, revisionId, contentHash, sectionCount: content.sections.length, changeNote } })),
     ]);
   } catch {
