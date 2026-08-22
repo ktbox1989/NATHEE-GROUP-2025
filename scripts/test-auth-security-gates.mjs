@@ -222,6 +222,58 @@ for (const guard of ["consumed_at IS NULL", "expires_at > ?", "external_auth_id 
   );
 }
 
+// Inviting a member and changing a role decide who may act at all. A session
+// alone must not be enough: a stolen OWNER session could otherwise invite a
+// second OWNER and survive the real Owner changing their password.
+const PRIVILEGED_ROUTES = [
+  { path: "app/api/users/invite/route.ts", write: "admin.auth.admin.inviteUserByEmail(" },
+  { path: "app/api/users/[id]/route.ts", write: "d1.batch(operations)" },
+];
+for (const route of PRIVILEGED_ROUTES) {
+  const source = await read(route.path);
+  require(
+    source.includes("requireCurrentPassword("),
+    `${route.path}: a privileged write must require the actor's current password`,
+  );
+  orderedBefore(source, "requireCurrentPassword(", route.write, route.path);
+  require(
+    source.includes("privilegedProofAccepted("),
+    `${route.path}: the proof must be checked, not merely obtained`,
+  );
+  require(
+    source.includes('actor.role !== "OWNER"'),
+    `${route.path}: the OWNER-only check must remain in addition to the proof`,
+  );
+  require(
+    source.includes("isSameOrigin(request)"),
+    `${route.path}: same-origin mutation check is missing`,
+  );
+}
+
+const privilegedGuard = await read("lib/privileged-action-guard.ts");
+require(
+  privilegedGuard.includes("reserveAuthAttempt("),
+  "lib/privileged-action-guard.ts: verifying a password is a guess and must spend the login budget",
+);
+orderedBefore(
+  privilegedGuard,
+  "reserveAuthAttempt(",
+  "signInWithPassword(",
+  "lib/privileged-action-guard.ts",
+);
+require(
+  privilegedGuard.includes('return { ok: false, error: "unavailable" }'),
+  "lib/privileged-action-guard.ts: an unreachable counter must refuse the write, not allow it",
+);
+
+// The admin surface has to actually ask for the password, or the control is
+// only reachable by hand-crafting a request.
+const usersPage = await read("app/app/users/page.tsx");
+require(
+  (usersPage.match(/name="currentPassword"/g) ?? []).length >= 2,
+  "app/app/users/page.tsx: both the invite and the role form must ask for the current password",
+);
+
 const clientAddress = await read("lib/client-address.ts");
 require(
   clientAddress.includes('headers.get("cf-connecting-ip")'),
@@ -287,5 +339,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  `AUTH_SECURITY_GATE_PASS throttledRoutes=${throttledRoutes.length} clientScope=cf-connecting-ip passwordChange=grant-or-current-password auditedEvents=sign-in,sign-in-denied,password-changed readiness=auth_attempt_counters,auth_recovery_grants`,
+  `AUTH_SECURITY_GATE_PASS throttledRoutes=${throttledRoutes.length} clientScope=cf-connecting-ip passwordChange=grant-or-current-password privilegedWrites=reauthenticated auditedEvents=sign-in,sign-in-denied,password-changed readiness=auth_attempt_counters,auth_recovery_grants`,
 );

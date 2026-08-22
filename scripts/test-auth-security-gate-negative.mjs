@@ -26,6 +26,11 @@ const TRACKED = [
   "lib/auth-throttle.ts",
   "lib/auth-throttle-sql.ts",
   "lib/auth-throttle-store.ts",
+  "app/api/users/invite/route.ts",
+  "app/api/users/[id]/route.ts",
+  "app/app/users/page.tsx",
+  "lib/privileged-action.ts",
+  "lib/privileged-action-guard.ts",
   "lib/auth-events.ts",
   "lib/auth-events-sql.ts",
   "lib/auth-events-store.ts",
@@ -207,7 +212,44 @@ const CASES = [
     file: "lib/runtime-readiness.ts",
     edit: (source) => source.replace(entryLine("trg_audit_logs_no_delete"), ""),
   },
+  {
+    name: "an invitation no longer requires the inviter's password",
+    file: "app/api/users/invite/route.ts",
+    edit: (source) => source.replace("requireCurrentPassword(", "skipCurrentPassword("),
+  },
+  {
+    name: "a role change no longer requires the actor's password",
+    file: "app/api/users/[id]/route.ts",
+    edit: (source) => source.replace("requireCurrentPassword(", "skipCurrentPassword("),
+  },
+  {
+    name: "the proof is obtained but never checked",
+    file: "app/api/users/[id]/route.ts",
+    edit: (source) => source.replace("privilegedProofAccepted(proof.proof)", "true"),
+  },
+  {
+    name: "the OWNER-only check is dropped now that a password is required",
+    file: "app/api/users/invite/route.ts",
+    edit: (source) => source.replace('actor.role !== "OWNER"', "false"),
+  },
+  {
+    name: "the re-authentication check stops spending the login budget",
+    file: "lib/privileged-action-guard.ts",
+    edit: (source) => source.replace("reserveAuthAttempt(", "skipReserve("),
+  },
+  {
+    name: "an unreachable counter lets a privileged write through",
+    file: "lib/privileged-action-guard.ts",
+    edit: (source) =>
+      source.replace('return { ok: false, error: "unavailable" };', 'return { ok: true, proof: "current_password" };'),
+  },
+  {
+    name: "the admin page stops asking for the password",
+    file: "app/app/users/page.tsx",
+    edit: (source) => source.replace('name="currentPassword"', 'name="unusedField"'),
+  },
 ];
+
 
 function makeCopy() {
   const directory = mkdtempSync(join(tmpdir(), "nathee-auth-gate-"));

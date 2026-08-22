@@ -22,7 +22,10 @@ import {
   type ManagedUserState,
   type ManagedUserStatus,
 } from "@/lib/member-lifecycle";
+import { privilegedProofAccepted } from "@/lib/privileged-action";
+import { requireCurrentPassword } from "@/lib/privileged-action-guard";
 import { isSameOrigin } from "@/lib/same-origin";
+import { createSupabaseRouteClient } from "@/lib/supabase/route";
 import { recordTimestamp } from "@/lib/timestamps";
 
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
@@ -62,6 +65,29 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   };
 
   const form = await request.formData();
+
+  // Changing a role, a permission set or an account's status decides who may
+  // act. Holding a session is not enough to do it.
+  const { client, applyAuthCookies } = createSupabaseRouteClient(request);
+  const { data: session } = await client.auth.getUser();
+  const proof = await requireCurrentPassword({
+    client,
+    email: session.user?.email,
+    submitted: form.get("currentPassword"),
+    headers: request.headers,
+  });
+  if (!proof.ok || !privilegedProofAccepted(proof.proof)) {
+    const code = proof.ok ? "reauthenticate" : proof.error;
+    const suffix = !proof.ok && proof.error === "too_many_attempts" && proof.retryAfterSeconds ? `&retryAfter=${proof.retryAfterSeconds}` : "";
+    return applyAuthCookies(
+      NextResponse.redirect(new URL(`/app/users?error=${code}${suffix}`, request.url), 303),
+    );
+  }
+
+  // Re-authenticating rotated the session, so every exit from here must carry
+  // the refreshed cookies or a successful change signs the Owner out.
+  const done = (key: string, value: string) => applyAuthCookies(redirect(request, key, value));
+
   const rawRole = String(form.get("role") ?? "");
   const rawStatus = String(form.get("status") ?? "");
   const reason = String(form.get("reason") ?? "").trim();
@@ -70,14 +96,14 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     !MANAGED_USER_STATUSES.includes(rawStatus as ManagedUserStatus) ||
     reason.length < 3 ||
     reason.length > 500
-  ) return redirect(request, "error", "invalid");
+  ) return done("error", "invalid");
 
   const role = rawRole as UserRole;
   let companyId: string | null;
   try {
     companyId = normalizeManagedCompany(role, String(form.get("companyId") ?? "") || null);
   } catch {
-    return redirect(request, "error", "company");
+    return done("error", "company");
   }
   if (companyId) {
     const company = await db
@@ -85,7 +111,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       .from(companies)
       .where(and(eq(companies.id, companyId), eq(companies.status, "ACTIVE")))
       .get();
-    if (!company) return redirect(request, "error", "company");
+    if (!company) return done("error", "company");
   }
 
   const after: ManagedUserState = {
@@ -95,7 +121,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     status: rawStatus as ManagedUserStatus,
     permissions: normalizeManagedPermissions(role, form.getAll("permissions").map(String)),
   };
-  if (!hasManagedUserChange(before, after)) return redirect(request, "status", "no_change");
+  if (!hasManagedUserChange(before, after)) return done("status", "no_change");
 
   const d1 = getD1();
   const ownerCount = await d1.prepare(`
@@ -116,8 +142,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       activeOwnerCount: Number(ownerCount?.total ?? 0),
     });
   } catch (error) {
-    if (error instanceof MemberLifecycleError) return redirect(request, "error", error.code.toLowerCase());
-    return redirect(request, "error", "invalid");
+    if (error instanceof MemberLifecycleError) return done("error", error.code.toLowerCase());
+    return done("error", "invalid");
   }
 
   const requestId = crypto.randomUUID();
@@ -195,15 +221,16 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   try {
     const results = await d1.batch(operations);
     if ((results[0].meta.changes ?? 0) !== 1 || (results.at(-1)?.meta.changes ?? 0) !== 1) {
-      return redirect(request, "error", "stale");
+      return done("error", "stale");
     }
   } catch {
-    return redirect(request, "error", "save");
+    return done("error", "save");
   }
 
-  return NextResponse.redirect(new URL(`/app/users?status=updated#${id}`, request.url), 303);
+  return applyAuthCookies(NextResponse.redirect(new URL(`/app/users?status=updated#${id}`, request.url), 303));
 }
 
 function redirect(request: NextRequest, key: string, value: string) {
   return NextResponse.redirect(new URL(`/app/users?${key}=${encodeURIComponent(value)}`, request.url), 303);
 }
+

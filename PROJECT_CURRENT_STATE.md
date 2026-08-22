@@ -43,6 +43,40 @@ photographs. That was not true of the running site and has been corrected.
 
 ## Closed local milestones
 
+### A session is no longer enough to change who may act
+
+- Closed the last case where possession of a session was full authority.
+  Inviting a member and changing a role, permission set or account status
+  required only a session that resolved to OWNER. A stolen OWNER session could
+  therefore **invite a second OWNER and keep that access after the real Owner
+  changed their password** — persistence, not merely impersonation.
+- Both writes now require the actor's current password, verified through the
+  identity provider on the same request that performs the write. The OWNER-only
+  check is unchanged and additional, not replaced.
+- There is deliberately **no "sudo window"**. A time-boxed grant would be more
+  state to store, another lifetime to get wrong and another cookie worth
+  stealing. These actions are rare and consequential, so each carries its own
+  proof.
+- Verifying the password is a password guess, so it reserves from the same
+  `login:*` budgets a guess at `/api/auth/login` would, **before** the provider
+  is asked anything. A counter the guard cannot reach refuses the write rather
+  than waving it through.
+- An absent password and a wrong one are refused identically, because reporting
+  them differently tells an attacker which half to work on.
+- Re-authenticating rotates the session, so all nine exits from the role-change
+  route and all six from the invitation route now carry the refreshed cookies —
+  otherwise a successful change would sign the Owner out of their own success.
+- The admin page asks for the password on both forms and explains why. A control
+  that is only reachable by hand-crafting a request is not a control.
+- Verification: full tests 350/350 (183 unit + 167 integration), 6 of them new;
+  Auth wiring gate now 37 proven rejections + 1 acceptance, including an
+  invitation that stops requiring the password, a proof that is obtained but
+  never checked, an unreachable counter that lets the write through, and an
+  admin page that stops asking; TypeScript PASS; ESLint PASS; Vinext production
+  build PASS; every other gate PASS.
+- No migration was added. No Production file, D1 row, Supabase value, R2 object,
+  DNS record or credential was changed.
+
 ### The application moved to its own origin (Owner correction)
 
 - The Owner corrected the application origin to `https://app.natheegroup2025.com`.
@@ -848,8 +882,8 @@ photographs. That was not true of the running site and has been corrected.
 
 ## Verified source gates
 
-- Full test suite: 344 passing
-- Authorization/unit/CMS/settings/search/config/readiness/identity/quotation/Turnstile/image/POD-signature/Auth-throttle/recovery-grant/timestamp/audit-view/CMS-publish/gallery-mutation/application-origin tests: 177 passing
+- Full test suite: 350 passing
+- Authorization/unit/CMS/settings/search/config/readiness/identity/quotation/Turnstile/image/POD-signature/Auth-throttle/recovery-grant/timestamp/audit-view/CMS-publish/gallery-mutation/application-origin/privileged-action tests: 183 passing
 - Render/schema/notification/yard/trip/container/inspection/POD/CMS/settings/query-plan/migration/Auth-throttle/recovery-grant/audit-ordering/auth-event/production-env/audit-view/readiness-schema/CMS-publish/customer-isolation/gallery-public/application-origin tests: 167 passing
 - Production Vinext build: PASS
 - ESLint: PASS
@@ -857,7 +891,7 @@ photographs. That was not true of the running site and has been corrected.
 - Migrations through `0025` packaged in `dist/.openai/drizzle/`: PASS
 - Release gate negative tests now cover installability: 9 rejections + 1 acceptance
 - Postcheck contract test (`test-production-postcheck-contract.sh`): 29 routes, content-only
-- Auth wiring gate (`test-auth-security-gates.mjs`): PASS, with 30 proven rejections + 1 acceptance
+- Auth wiring gate (`test-auth-security-gates.mjs`): PASS, with 37 proven rejections + 1 acceptance
 - Authorization coverage gate (`test-authorization-coverage.mjs`): 84 surfaces, 78 authorized, 6 declared public, with 9 proven rejections + 1 acceptance
 - Response security header gate (`test-response-security-headers.mjs`): 6 headers, 4 CSP directives, 117 sources, with 13 proven rejections + 1 acceptance
 - Timestamp contract gate (`test-timestamp-contract.mjs`): 108 sources, with 8 proven rejections + 1 acceptance
