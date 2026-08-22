@@ -77,6 +77,9 @@ fetch /assets/gallery.json "$TMP_DIR/gallery.json"
 fetch /assets/brand/nathee-logo-display.webp "$TMP_DIR/nathee-logo-display.webp"
 fetch /assets/contact/line-qr-owner-supplied.png "$TMP_DIR/line-qr-owner-supplied.png"
 fetch /assets/gallery/motorcycle-container-loading-01-display.webp "$TMP_DIR/motorcycle-container-loading-01-display.webp"
+fetch /assets/gallery/motorcycle-container-loading-01-display.jpg "$TMP_DIR/motorcycle-container-loading-01-display.jpg"
+fetch /assets/gallery/motorcycle-truck-loading-01-thumbnail.webp "$TMP_DIR/motorcycle-truck-loading-01-thumbnail.webp"
+fetch /assets/brand/nathee-logo-display.jpg "$TMP_DIR/nathee-logo-display.jpg"
 fetch /robots.txt "$TMP_DIR/robots.txt"
 fetch /sitemap.xml "$TMP_DIR/sitemap.xml"
 
@@ -90,7 +93,9 @@ grep -Fq 'type="application/ld+json"' "$TMP_DIR/index.html" || fail "live struct
 grep -Fq '"Organization"' "$TMP_DIR/index.html" || fail "live Organization structured data is missing"
 grep -Fq 'href="tel:0631941191"' "$TMP_DIR/index.html" || fail "live primary telephone link is missing"
 grep -Fq 'href="tel:0856802082"' "$TMP_DIR/index.html" || fail "live secondary telephone link is missing"
-grep -Fq 'src="/assets/brand/nathee-logo-display.jpg"' "$TMP_DIR/index.html" || fail "live homepage logo artwork is missing"
+grep -Fq '"image":"https://natheegroup2025.com/assets/brand/nathee-logo-display.jpg"' "$TMP_DIR/index.html" || fail "live homepage brand artwork structured data is missing"
+live_home_photos="$(grep -oE '<img[^>]*src="/assets/gallery/[^"]+"' "$TMP_DIR/index.html" | wc -l | tr -d ' ' || true)"
+[[ "$live_home_photos" -ge 4 ]] || fail "live homepage does not show real company work photography"
 grep -Fq 'href="/contact/#line"' "$TMP_DIR/index.html" || fail "live LINE QR entry is missing"
 grep -Fq 'src="/assets/contact/line-qr-owner-supplied.png"' "$TMP_DIR/contact.html" || fail "live LINE QR image is missing"
 grep -Fq 'https://natheegroup2025.com/sitemap.xml' "$TMP_DIR/robots.txt" || fail "live robots sitemap URL is wrong"
@@ -112,6 +117,11 @@ for route in services motorcycle-transport international storage container-loadi
   grep -Fq 'type="application/ld+json"' "$TMP_DIR/$route.html" || fail "live /$route/ structured data is missing"
 done
 grep -Fq '"version": 1' "$TMP_DIR/gallery.json" || fail "live Gallery manifest version is wrong"
+live_gallery_photos="$(grep -oE '<img[^>]*src="/assets/gallery/[^"]+"' "$TMP_DIR/gallery.html" | wc -l | tr -d ' ' || true)"
+[[ "$live_gallery_photos" -ge 9 ]] || fail "live Gallery does not server-render the nine approved photographs"
+if grep -RInE --include='*.html' -e 'กำลังโหลด' "$TMP_DIR"; then
+  fail "live site still shows a placeholder loading state"
+fi
 for gallery_id in motorcycle-truck-loading-01 motorcycle-storage-yard-01 nathee-yard-front-01 motorcycle-yard-container-01 motorcycle-storage-yard-02 motorcycle-fleet-staging-01 nathee-six-wheel-truck-01 motorcycle-pickup-loading-01 motorcycle-container-loading-01; do
   grep -Fq "\"id\": \"$gallery_id\"" "$TMP_DIR/gallery.json" || fail "live Gallery item is missing ($gallery_id)"
 done
@@ -129,7 +139,7 @@ critical_bytes=$((index_bytes + css_bytes + js_bytes))
 grep -Fq '<script src="/assets/site.js" defer></script>' "$TMP_DIR/index.html" || fail "live JavaScript is not deferred"
 printf 'PRODUCTION_SEO_CONTENT_PASS pages=11 metadata=verified jsonld=verified sitemap=public-only\n'
 printf 'PRODUCTION_GALLERY_CONTENT_PASS manifest=v1 publishedItems=9 privacy=public-only\n'
-printf 'PRODUCTION_OWNER_MEDIA_PASS logo=live lineQr=checksum-verified galleryItems=9\n'
+printf 'PRODUCTION_OWNER_MEDIA_PASS logo=live lineQr=checksum-verified galleryItems=9 homePhotos=%s galleryPhotos=%s variants=jpg+webp\n' "$live_home_photos" "$live_gallery_photos"
 printf 'PRODUCTION_MOBILE_BUDGET_PASS criticalBytes=%s budget=102400\n' "$critical_bytes"
 
 wrong_domain_regex='natee''group2025\.com'

@@ -33,6 +33,7 @@ GIT_SSH_COMMAND='ssh -i ~/.ssh/nathee_deploy -p 443' git pull --ff-only origin m
 cd /home/zptqqwps/nathee-deploy
 bash scripts/verify-public-site.sh
 bash scripts/test-public-site-gate.sh
+bash scripts/test-production-postcheck-contract.sh
 bash scripts/test-deploy-file-tools.sh
 bash scripts/test-public-seo-gates.sh
 bash scripts/probe-zcom-runtime.sh
