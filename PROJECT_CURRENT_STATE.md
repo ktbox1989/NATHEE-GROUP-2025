@@ -43,6 +43,47 @@ photographs. That was not true of the running site and has been corrected.
 
 ## Closed local milestones
 
+### Cross-tenant isolation proven against real rows, not just the shape of the code
+
+- Lane A's `tests/customer-isolation.test.ts` proves two things about the code's
+  shape: `can()` denies customers across companies, and every route touching
+  company-owned data calls *some* authorization check. Neither proves the check
+  is handed the company that **owns the row being returned**.
+- That distinction is the leak. `can(actor, "documents:read", actor.companyId)`
+  always succeeds and satisfies a static "calls can() with a company" scan; the
+  correct call is `can(actor, "documents:read", row.companyId)`. The new tests
+  make that difference explicit and assert the wrong form would pass while the
+  right form denies.
+- `tests/customer-isolation-data.test.mjs` is behavioural: two companies with
+  complete operational records in a real migrated database — jobs, motorcycles,
+  status events, private evidence images, yard placements, gallery items,
+  notifications and a **signed** Proof of Delivery with its signature object —
+  walked through the real `can()` one surface at a time.
+- Covered: every company-scoped list returns only the requester's company and
+  the Owner still sees both; opening another company's record by id is refused
+  rather than served, across jobs, motorcycles, evidence images, status events
+  and yard placements; private media and documents are bound to the storing
+  company, not the requester; the POD signature object is separately bound;
+  operational report counts are company-filtered for customers and unfiltered
+  for the Owner; notifications are recipient-bound, so even a company-mate is
+  not a reader; and a customer holds no write capability over any company,
+  including its own.
+- The fixtures satisfy the real invariants rather than working around them: a
+  POD is only accepted for an `ARRIVED` motorcycle with matching same-company
+  `DELIVERY` evidence, and migration `0021` requires every new POD to declare
+  signed evidence. Writing the fixture surfaced both rules.
+- Behavioural tests that mirror route logic go stale silently, so eight
+  constructs the cases assume — the list scopes, the row-company checks in the
+  motorcycle detail, documents, images and POD signature surfaces, the report
+  filter and the notification recipient filter — are asserted to still be
+  present in those routes, and the two API surfaces are additionally asserted
+  *not* to authorize on the requester's own company.
+- Verification: full tests 321/321 (164 unit + 157 integration), 10 of them new;
+  TypeScript PASS; ESLint PASS; Vinext production build PASS; readiness contract
+  and all six security gates PASS; `git diff --check` PASS.
+- No migration was added. No Production file, D1 row, Supabase value, R2 object,
+  DNS record or credential was changed.
+
 ### Publishing now verifies the media it is about to show
 
 - Reviewed the existing CMS backend against the Lane B scope rather than
@@ -686,9 +727,9 @@ photographs. That was not true of the running site and has been corrected.
 
 ## Verified source gates
 
-- Full test suite: 311 passing
+- Full test suite: 321 passing
 - Authorization/unit/CMS/settings/search/config/readiness/identity/quotation/Turnstile/image/POD-signature/Auth-throttle/recovery-grant/timestamp/audit-view/CMS-publish tests: 164 passing
-- Render/schema/notification/yard/trip/container/inspection/POD/CMS/settings/query-plan/migration/Auth-throttle/recovery-grant/audit-ordering/auth-event/production-env/audit-view/readiness-schema/CMS-publish tests: 147 passing
+- Render/schema/notification/yard/trip/container/inspection/POD/CMS/settings/query-plan/migration/Auth-throttle/recovery-grant/audit-ordering/auth-event/production-env/audit-view/readiness-schema/CMS-publish/customer-isolation tests: 157 passing
 - Production Vinext build: PASS
 - ESLint: PASS
 - Public SEO and deployment architecture guards: PASS
