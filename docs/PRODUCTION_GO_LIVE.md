@@ -63,9 +63,11 @@ Production is ready only when it returns HTTP 200 and all six checks are
 `authentication` validates the Supabase HTTPS URL and current publishable-key
 format. `adminAuthentication` independently validates that a server-only
 secret is configured. `canonicalOrigin` requires the exact canonical
-Production origin. `database` verifies representative tables, indexes and
-invariant triggers through migration `0025`, not merely that D1 answers a
-query. `storage` performs a read-only R2 metadata probe. `antiAbuse` requires both validated Turnstile runtime keys. The endpoint never
+Production origin. `database` verifies **every** table, index and invariant
+trigger the migrations create through `0025` — 37 tables, 81 triggers and 128
+indexes — not a representative sample and not merely that D1 answers a query.
+A runtime missing any one of them reports `degraded`, and
+`missingDatabaseObjects()` names which. `storage` performs a read-only R2 metadata probe. `antiAbuse` requires both validated Turnstile runtime keys. The endpoint never
 returns credentials or connection strings.
 
 ## 5. Acceptance flow
