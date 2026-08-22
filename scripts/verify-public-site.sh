@@ -58,6 +58,10 @@ if grep -RInE -- "$forbidden_regex" "$SITE_DIR"; then
   fail "demo, placeholder, or wrong-domain content found"
 fi
 
+if grep -RInE --include='*.html' -e 'กำลังโหลด' "$SITE_DIR"; then
+  fail "server-rendered placeholder loading state found"
+fi
+
 grep -Fq -- '<link rel="canonical" href="https://natheegroup2025.com/">' "$SITE_DIR/index.html" || fail "canonical link is missing"
 grep -Fq -- '<meta property="og:title"' "$SITE_DIR/index.html" || fail "Open Graph title is missing"
 grep -Fq -- '<meta property="og:description"' "$SITE_DIR/index.html" || fail "Open Graph description is missing"
@@ -68,7 +72,9 @@ grep -Fq -- 'type="application/ld+json"' "$SITE_DIR/index.html" || fail "structu
 grep -Fq -- '"Organization"' "$SITE_DIR/index.html" || fail "Organization structured data is missing"
 grep -Fq -- 'href="tel:0631941191"' "$SITE_DIR/index.html" || fail "primary telephone link is missing"
 grep -Fq -- 'href="tel:0856802082"' "$SITE_DIR/index.html" || fail "secondary telephone link is missing"
-grep -Fq -- 'src="/assets/brand/nathee-logo-display.jpg"' "$SITE_DIR/index.html" || fail "homepage logo artwork is missing"
+grep -Fq -- '"image":"https://natheegroup2025.com/assets/brand/nathee-logo-display.jpg"' "$SITE_DIR/index.html" || fail "homepage brand artwork structured data is missing"
+home_photo_count="$(grep -oE -- '<img[^>]*src="/assets/gallery/[^"]+"' "$SITE_DIR/index.html" | wc -l | tr -d ' ' || true)"
+[[ "$home_photo_count" -ge 4 ]] || fail "homepage does not server-render real company work photography"
 grep -Fq -- 'href="/contact/#line"' "$SITE_DIR/index.html" || fail "LINE QR entry is missing"
 grep -Fq -- 'src="/assets/contact/line-qr-owner-supplied.png"' "$SITE_DIR/contact/index.html" || fail "Owner-supplied LINE QR is missing"
 line_qr_sha="$(sha256sum "$SITE_DIR/assets/contact/line-qr-owner-supplied.png" | awk '{ print $1 }')"
@@ -122,10 +128,22 @@ grep -Fq -- '"items": [' "$SITE_DIR/assets/gallery.json" || fail "gallery manife
 for gallery_id in motorcycle-truck-loading-01 motorcycle-storage-yard-01 nathee-yard-front-01 motorcycle-yard-container-01 motorcycle-storage-yard-02 motorcycle-fleet-staging-01 nathee-six-wheel-truck-01 motorcycle-pickup-loading-01 motorcycle-container-loading-01; do
   grep -Fq -- "\"id\": \"$gallery_id\"" "$SITE_DIR/assets/gallery.json" || fail "gallery item is missing: $gallery_id"
 done
+gallery_photo_count="$(grep -oE -- '<img[^>]*src="/assets/gallery/[^"]+"' "$SITE_DIR/gallery/index.html" | wc -l | tr -d ' ' || true)"
+[[ "$gallery_photo_count" -ge 9 ]] || fail "gallery page does not server-render the nine approved photographs"
+
+missing_assets=0
+for asset_ref in $(grep -rhoE --include='*.html' -e '(src|href)="/assets/[^"]+"' "$SITE_DIR" | sed -E 's/^(src|href)="//; s/"$//' | sort -u || true); do
+  [[ -f "$SITE_DIR$asset_ref" ]] || { printf 'MISSING_ASSET %s\n' "$asset_ref" >&2; missing_assets=$((missing_assets + 1)); }
+done
+for asset_ref in $(grep -rhoE --include='*.html' -e 'srcset="[^"]+"' "$SITE_DIR" | sed -E 's/^srcset="//; s/"$//' | tr ',' '\n' | awk '{ print $1 }' | grep -E '^/assets/' | sort -u || true); do
+  [[ -f "$SITE_DIR$asset_ref" ]] || { printf 'MISSING_ASSET %s\n' "$asset_ref" >&2; missing_assets=$((missing_assets + 1)); }
+done
+[[ $missing_assets -eq 0 ]] || fail "$missing_assets referenced release asset(s) do not exist"
+
 grep -Fq -- 'private_route' "$SITE_DIR/.htaccess" || fail "private route X-Robots-Tag guard is missing"
 
 printf 'PUBLIC_SITE_VERIFY_PASS files=%s publicRoutes=11\n' "$(find "$SITE_DIR" -type f | wc -l | tr -d ' ')"
 printf 'PUBLIC_SEO_VERIFY_PASS pages=11 jsonld=verified noindex=verified sitemap=public-only images=alt-checked\n'
 printf 'PUBLIC_GALLERY_VERIFY_PASS manifest=v1 categories=10 publishedItems=9\n'
-printf 'PUBLIC_OWNER_MEDIA_VERIFY_PASS logo=present lineQr=checksum-verified\n'
+printf 'PUBLIC_OWNER_MEDIA_VERIFY_PASS logo=present lineQr=checksum-verified homePhotos=%s galleryPhotos=%s assetRefs=resolved\n' "$home_photo_count" "$gallery_photo_count"
 printf 'PUBLIC_MOBILE_PERFORMANCE_PASS criticalBytes=%s budget=102400 javascript=defer breakpoints=980,680\n' "$critical_bytes"

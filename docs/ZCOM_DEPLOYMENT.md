@@ -32,6 +32,7 @@ GIT_SSH_COMMAND='ssh -i ~/.ssh/nathee_deploy -p 443' git pull --ff-only origin m
 ```bash
 cd /home/zptqqwps/nathee-deploy
 bash scripts/verify-public-site.sh
+bash scripts/test-public-site-gate.sh
 bash scripts/test-deploy-file-tools.sh
 bash scripts/test-public-seo-gates.sh
 bash scripts/probe-zcom-runtime.sh
@@ -59,9 +60,13 @@ postcheck require one canonical homepage URL, complete title/description/Open
 Graph/Twitter metadata, valid Organization JSON-LD, a public-only sitemap,
 robots exclusions plus HTTP `X-Robots-Tag` protection for noindex pages, image
 alt attributes, deferred JavaScript, responsive breakpoints, and bounded mobile
-critical bytes. The current static package contains no content images; if an
-`img` is added later, verification fails unless it has an explicit `alt`
-attribute. Authenticated application routes are never listed in the sitemap.
+critical bytes. Every `img` must carry an explicit `alt` attribute. The release also fails
+closed when any referenced `/assets/` file is absent, when server-rendered HTML
+still shows the client-side loading placeholder, when the homepage does not
+render real company work photography, or when `/gallery/` does not
+server-render the nine approved photographs. `scripts/test-public-site-gate.sh`
+proves each of those guards by rejecting deliberately broken copies of the real
+release. Authenticated application routes are never listed in the sitemap.
 
 Each backup also records `CREATED_FILES.txt`. Rollback removes only files that
 the exact release created and then atomically restores the verified snapshot;
