@@ -43,6 +43,32 @@ photographs. That was not true of the running site and has been corrected.
 
 ## Closed local milestones
 
+### Production environment values are checkable before a deploy
+
+- Activation fails for boring reasons — a key pasted from the wrong dashboard
+  field, the publishable and secret values swapped, a project URL with a path on
+  it, an `APP_ORIGIN` that is not canonical. Every one of those produces a
+  runtime that starts, refuses every login, and can only report
+  `authentication: false`. `npm run verify:env` names the mistake instead.
+- It applies the same validators the runtime applies rather than restating them,
+  so the check cannot drift from the behaviour it predicts. Where the runtime
+  validator takes two values together, each is checked against a well-formed
+  stand-in for the other, so a wrong key is never reported as a wrong URL.
+- When the origin is valid it prints the exact Supabase Auth Site URL and
+  Redirect URL to enter, derived from the configured value rather than retyped.
+- **It never prints a value it was given**, proven across every failure path
+  including the one that reports a secret key sitting in the browser-visible
+  slot. **It contacts no provider**: it proves the values are well formed and
+  mutually consistent, not that Supabase accepts them, and it says so in its own
+  output (`shapeOnly=true providerNotContacted=true`). Proving acceptance needs
+  the real credentials against the live project, which stays the Owner's step.
+- Verification: full tests 266/266 (142 unit + 124 integration), 10 of them new
+  and all driving the real script in a child process with fixture values;
+  TypeScript PASS; ESLint PASS; Vinext production build PASS; all public and
+  security guards PASS; `git diff --check` PASS.
+- No migration was added. No Production file, D1 row, Supabase value, R2 object,
+  DNS record or credential was changed, and no Production secret was read.
+
 ### An Audit trail that records getting in, and cannot be rewritten (`0024`)
 
 - The Audit trail recorded what people changed once they were inside and nothing
@@ -544,9 +570,9 @@ photographs. That was not true of the running site and has been corrected.
 
 ## Verified source gates
 
-- Full test suite: 256 passing
+- Full test suite: 266 passing
 - Authorization/unit/CMS/settings/search/config/readiness/identity/quotation/Turnstile/image/POD-signature/Auth-throttle/recovery-grant/timestamp tests: 142 passing
-- Render/schema/notification/yard/trip/container/inspection/POD/CMS/settings/query-plan/migration/Auth-throttle/recovery-grant/audit-ordering/auth-event tests: 114 passing
+- Render/schema/notification/yard/trip/container/inspection/POD/CMS/settings/query-plan/migration/Auth-throttle/recovery-grant/audit-ordering/auth-event/production-env tests: 124 passing
 - Production Vinext build: PASS
 - ESLint: PASS
 - Public SEO and deployment architecture guards: PASS

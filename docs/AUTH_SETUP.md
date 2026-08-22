@@ -31,6 +31,31 @@ Password-reset and invitation callbacks are constructed only from the trusted
 without a valid trusted origin fails closed instead of sending an authentication
 link to an untrusted origin.
 
+### Check the values before deploying anything
+
+```bash
+npm run verify:env
+```
+
+Run it in the shell that holds the Production values. It applies the exact
+validators the runtime applies, so a mistake is named rather than discovered as
+"every login is refused and `/api/health` says `authentication: false`".
+
+It catches the failures activation actually hits: a key pasted from the wrong
+dashboard field, the publishable and secret values swapped, a project URL with a
+path on it, an `APP_ORIGIN` that is not the canonical Production origin, one
+Turnstile key set without the other. When the origin is valid it also prints the
+exact Site URL and Redirect URL to enter in the Supabase Auth dashboard, derived
+from the configured value rather than retyped.
+
+Two boundaries it states about itself:
+
+- **It never prints a value it was given.** A test asserts that across every
+  failure path, including the one that reports a secret key in the public slot.
+- **It contacts no provider.** It proves the values are well formed and
+  consistent with each other, not that Supabase accepts them. Proving that needs
+  the real credentials against the live project, which is the Owner's step.
+
 ## 3. Apply the database migration and storage bindings
 
 The fresh D1 schema is in `drizzle/0000_harsh_speed_demon.sql`. Hosting bindings are declared in `.openai/hosting.json`:
