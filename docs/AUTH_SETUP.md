@@ -4,9 +4,9 @@ The application code is ready for managed email/password authentication. Real lo
 
 ## 1. Create the authentication project
 
-Create a Supabase project owned by NATHEE GROUP. In Authentication URL configuration, set the production Site URL to `https://natheegroup2025.com` and allow these redirect paths:
+Create a Supabase project owned by NATHEE GROUP. In Authentication URL configuration, set the production Site URL to `https://app.natheegroup2025.com` and allow these redirect paths:
 
-- `https://natheegroup2025.com/auth/callback`
+- `https://app.natheegroup2025.com/auth/callback`
 - `http://localhost:3000/auth/callback` for local verification only
 
 Email/password must be enabled. Configure the sender name and email template before inviting customers.
@@ -15,7 +15,7 @@ Email/password must be enabled. Configure the sender name and email template bef
 
 Copy `.env.example` to `.env.local` for local work and replace the examples with the project values:
 
-- `APP_ORIGIN`: trusted application origin. Production must be exactly `https://natheegroup2025.com`; an exact HTTPS `*.chatgpt.site` origin may be used only for a private preview, and localhost is allowed only outside Production
+- `APP_ORIGIN`: trusted application origin. Production must be exactly `https://app.natheegroup2025.com`; an exact HTTPS `*.chatgpt.site` origin may be used only for a private preview, and localhost is allowed only outside Production. **The public marketing website `https://natheegroup2025.com` is refused as an application origin.** The application holds sessions, customer records and private media; the apex is a static document root deployed by file copy, and sharing an origin would share every Auth cookie and redirect target with it
 - `NEXT_PUBLIC_SUPABASE_URL`: Project URL
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`: publishable key used by server-side auth clients
 - `SUPABASE_SECRET_KEY`: secret server key used only for owner-controlled invitations

@@ -18,7 +18,9 @@ runtime.
 
 Configure these values in the hosting environment, never in source control:
 
-- `APP_ORIGIN=https://natheegroup2025.com`
+- `APP_ORIGIN=https://app.natheegroup2025.com` — the application origin.
+  The public marketing website stays on the apex `https://natheegroup2025.com`
+  and is refused as an application origin.
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
 - `SUPABASE_SECRET_KEY` as a server-only secret
@@ -32,8 +34,8 @@ database password, JWT signing secret, or private key must never be exposed as a
 Configure the final production domain in Supabase Auth and allow:
 
 ```text
-Site URL: https://natheegroup2025.com
-Callback: https://natheegroup2025.com/auth/callback
+Site URL: https://app.natheegroup2025.com
+Callback: https://app.natheegroup2025.com/auth/callback
 ```
 
 ## 3. First owner
@@ -47,7 +49,7 @@ create a demo owner and do not store an owner password in a script or document.
 After deployment, request:
 
 ```text
-GET /api/health
+GET https://app.natheegroup2025.com/api/health
 ```
 
 Production is ready only when it returns HTTP 200 and all six checks are

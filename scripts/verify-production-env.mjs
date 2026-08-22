@@ -1,5 +1,11 @@
 #!/usr/bin/env node
-import { normalizeConfiguredAppOrigin, buildAuthCallbackUrl, CANONICAL_PRODUCTION_ORIGIN } from "../lib/app-origin.ts";
+import {
+  buildAuthCallbackUrl,
+  CANONICAL_PRODUCTION_ORIGIN,
+  isPublicWebsiteOrigin,
+  normalizeConfiguredAppOrigin,
+  PUBLIC_WEBSITE_ORIGIN,
+} from "../lib/app-origin.ts";
 import { isSupabaseSecretKey } from "../lib/supabase/admin.ts";
 import { parseSupabaseConfig } from "../lib/supabase/config.ts";
 import { turnstileKeysReady } from "../lib/turnstile.ts";
@@ -32,11 +38,20 @@ function present(value) {
 const appOrigin = normalizeConfiguredAppOrigin(env.APP_ORIGIN);
 if (!present(env.APP_ORIGIN)) {
   record("APP_ORIGIN", false, "not set; Production fails closed without a trusted origin");
+} else if (isPublicWebsiteOrigin(env.APP_ORIGIN)) {
+  // The most plausible wrong value, so it is named rather than lumped in with
+  // "not accepted": the apex is the public marketing site, and the application
+  // must not share an origin with a document root deployed by file copy.
+  record(
+    "APP_ORIGIN",
+    false,
+    `set to the public website (${PUBLIC_WEBSITE_ORIGIN}). The application has its own origin: ${CANONICAL_PRODUCTION_ORIGIN}`,
+  );
 } else if (!appOrigin) {
   record(
     "APP_ORIGIN",
     false,
-    "not an accepted origin; expected exactly https://natheegroup2025.com with no path, query or trailing slash",
+    `not an accepted origin; expected exactly ${CANONICAL_PRODUCTION_ORIGIN} with no path, query or trailing slash`,
   );
 } else if (appOrigin !== CANONICAL_PRODUCTION_ORIGIN) {
   record("APP_ORIGIN", false, `set to a non-Production origin (${appOrigin}); Production requires ${CANONICAL_PRODUCTION_ORIGIN}`);

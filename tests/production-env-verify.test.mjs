@@ -15,7 +15,7 @@ const TURNSTILE_SITE = `0x${"A".repeat(22)}`;
 const TURNSTILE_SECRET = `0x${"B".repeat(22)}`;
 
 const VALID = {
-  APP_ORIGIN: "https://natheegroup2025.com",
+  APP_ORIGIN: "https://app.natheegroup2025.com",
   NEXT_PUBLIC_SUPABASE_URL: "https://exampleref.supabase.co",
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: PUBLISHABLE,
   SUPABASE_SECRET_KEY: SECRET,
@@ -93,7 +93,7 @@ test("swapped keys are reported as swapped, not as a broken URL", () => {
 test("a non-Production application origin is refused", () => {
   for (const origin of [
     "http://natheegroup2025.com",
-    "https://natheegroup2025.com/app",
+    "https://app.natheegroup2025.com/app",
     "https://attacker.invalid",
     "http://localhost:3000",
   ]) {
@@ -105,9 +105,27 @@ test("a non-Production application origin is refused", () => {
 
 test("the dashboard values the Owner must mirror are derived, not typed", () => {
   const { output } = run(VALID);
-  assert.match(output, /Site URL: {10}https:\/\/natheegroup2025\.com/);
-  assert.match(output, /Redirect URL: {6}https:\/\/natheegroup2025\.com\/auth\/callback/);
-  assert.match(output, /Recovery lands on: https:\/\/natheegroup2025\.com\/auth\/callback\?next=%2Freset-password/);
+  assert.match(output, /Site URL: {10}https:\/\/app\.natheegroup2025\.com$/m);
+  assert.match(output, /Redirect URL: {6}https:\/\/app\.natheegroup2025\.com\/auth\/callback$/m);
+  assert.match(output, /Recovery lands on: https:\/\/app\.natheegroup2025\.com\/auth\/callback\?next=%2Freset-password/);
+});
+
+test("the public website is refused as the application origin, and said so by name", () => {
+  // The single most plausible wrong value: the application must not share an
+  // origin with a document root Lane A deploys to by file copy.
+  for (const apex of ["https://natheegroup2025.com", "https://natheegroup2025.com/"]) {
+    const { status, output } = run({ ...VALID, APP_ORIGIN: apex });
+    assert.equal(status, 1, apex);
+    assert.match(output, /FAIL APP_ORIGIN: set to the public website/, apex);
+    assert.match(output, /The application has its own origin: https:\/\/app\.natheegroup2025\.com/, apex);
+  }
+});
+
+test("a www or bare host is not quietly accepted as the application", () => {
+  for (const origin of ["https://www.natheegroup2025.com", "https://app.natheegroup2025.com:8443", "https://natheegroup2025.com.attacker.invalid"]) {
+    const { status } = run({ ...VALID, APP_ORIGIN: origin });
+    assert.equal(status, 1, origin);
+  }
 });
 
 test("missing anti-abuse keys warn without blocking activation", () => {

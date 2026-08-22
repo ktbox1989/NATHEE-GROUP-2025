@@ -1,4 +1,25 @@
-export const CANONICAL_PRODUCTION_ORIGIN = "https://natheegroup2025.com";
+/**
+ * The application and the public website are two different origins, and mixing
+ * them is a security decision rather than a cosmetic one.
+ *
+ * The public website is a static marketing site on shared hosting. The
+ * application holds authenticated sessions, customer records and private media.
+ * Putting the application on the apex would make every Auth cookie and every
+ * redirect target shared with a document root that Lane A deploys to by file
+ * copy, so the application has its own origin.
+ *
+ * The apex is therefore rejected as an application origin, not merely "not
+ * preferred" — it is the most plausible wrong value someone would type.
+ */
+export const CANONICAL_PRODUCTION_ORIGIN = "https://app.natheegroup2025.com";
+
+/** The public marketing site. Never a valid `APP_ORIGIN`. */
+export const PUBLIC_WEBSITE_ORIGIN = "https://natheegroup2025.com";
+
+export function isPublicWebsiteOrigin(value: string | undefined): boolean {
+  const normalized = value?.trim().replace(/\/$/, "");
+  return normalized === PUBLIC_WEBSITE_ORIGIN || normalized === "http://natheegroup2025.com";
+}
 
 export function normalizeConfiguredAppOrigin(value: string | undefined): string | null {
   const normalized = value?.trim();

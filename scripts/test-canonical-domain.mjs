@@ -3,8 +3,14 @@ import { dirname, extname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+// Two origins, deliberately. The public marketing website is the apex; the
+// application has its own subdomain because it holds authenticated sessions and
+// private media, and must not share an origin with a static document root that
+// a deploy script overwrites by file copy.
 const canonicalDomain = "natheegroup2025.com";
 const canonicalUrl = `https://${canonicalDomain}`;
+const applicationOrigin = `https://app.${canonicalDomain}`;
+const applicationCallback = `${applicationOrigin}/auth/callback`;
 const wrongDomain = ["natee", "group2025.com"].join("");
 const productionRoot = `/home/zptqqwps/public_html/${canonicalDomain}`;
 const ignored = new Set([".git", ".next", ".vinext", ".wrangler", "dist", "node_modules", "outputs"]);
@@ -36,13 +42,26 @@ const contracts = new Map([
   ["scripts/rollback-zcom.sh", productionRoot],
   ["scripts/postcheck-production.sh", canonicalDomain],
   ["scripts/build-public-site.mjs", canonicalUrl],
-  ["docs/AUTH_SETUP.md", `${canonicalUrl}/auth/callback`],
-  ["docs/PRODUCTION_GO_LIVE.md", `${canonicalUrl}/auth/callback`],
-  [".env.example", `${canonicalUrl}/auth/callback`],
+  // Application origin, not the public apex.
+  ["docs/AUTH_SETUP.md", applicationCallback],
+  ["docs/PRODUCTION_GO_LIVE.md", applicationCallback],
+  [".env.example", applicationCallback],
 ]);
 for (const [name, expected] of contracts) {
   const content = await readFile(join(root, name), "utf8");
   if (!content.includes(expected)) throw new Error(`Canonical domain contract missing from ${name}: ${expected}`);
 }
 
-console.log(`CANONICAL_DOMAIN_GUARD_PASS domain=${canonicalDomain} filesScanned=${files.length} productionRoot=locked authCallback=locked`);
+// The apex callback is the value this project used before the application was
+// given its own origin. It must not come back: an Auth callback on the public
+// document root would put session cookies in the static site's scope.
+const applicationFiles = ["docs/AUTH_SETUP.md", "docs/PRODUCTION_GO_LIVE.md", ".env.example", "lib/app-origin.ts"];
+for (const name of applicationFiles) {
+  const content = await readFile(join(root, name), "utf8");
+  if (content.includes(`APP_ORIGIN=${canonicalUrl}`) || content.includes(`Site URL: ${canonicalUrl}
+`)) {
+    throw new Error(`Application origin must not be the public apex in ${name}`);
+  }
+}
+
+console.log(`CANONICAL_DOMAIN_GUARD_PASS publicDomain=${canonicalDomain} applicationOrigin=${applicationOrigin} filesScanned=${files.length} productionRoot=locked authCallback=locked`);

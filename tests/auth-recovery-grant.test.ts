@@ -74,7 +74,7 @@ test("only a callback that completes a recovery or invitation mints a grant", ()
 });
 
 test("the grant cookie cannot be read by script or attached to a cross-site post", () => {
-  const secure = recoveryGrantCookieOptions("https://natheegroup2025.com/auth/callback");
+  const secure = recoveryGrantCookieOptions("https://app.natheegroup2025.com/auth/callback");
   assert.equal(secure.httpOnly, true);
   assert.equal(secure.sameSite, "lax");
   assert.equal(secure.secure, true);
@@ -86,7 +86,7 @@ test("the grant cookie cannot be read by script or attached to a cross-site post
   // An unparseable URL must not be treated as insecure.
   assert.equal(recoveryGrantCookieOptions("not-a-url").secure, true);
 
-  const cleared = clearedRecoveryGrantCookieOptions("https://natheegroup2025.com/x");
+  const cleared = clearedRecoveryGrantCookieOptions("https://app.natheegroup2025.com/x");
   assert.equal(cleared.maxAge, 0);
   assert.equal(cleared.httpOnly, true);
   assert.equal(cleared.path, "/");

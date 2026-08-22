@@ -10,9 +10,9 @@ application, API, database, storage or authentication is deployed.
 | --- | --- | --- | --- |
 | Public static website | `public-site/` | `/home/zptqqwps/public_html/natheegroup2025.com` / `https://natheegroup2025.com/` | `PUBLIC_STATIC_LIVE` |
 | Public Gallery | `public-site/gallery/`, `public-site/assets/gallery.json` | `/home/zptqqwps/public_html/natheegroup2025.com/gallery` / `https://natheegroup2025.com/gallery/` | Repository release manifest contains nine Owner-approved real photographs; live status still requires the guarded deploy/postcheck evidence for that exact commit |
-| Login/Auth frontend | `app/login/`, `app/api/auth/`, `app/auth/callback/` | No accepted canonical runtime. `https://natheegroup2025.com/login/` is only a noindex status page. | `LOGIN_STATIC_PLACEHOLDER` |
-| OWNER/STAFF/CUSTOMER application | `app/app/`, `app/portal/` | No accepted canonical runtime; `https://natheegroup2025.com/app` returned 404 | `FULL_APPLICATION_NOT_DEPLOYED` |
-| Backend/API | `app/api/`, `worker/` | No accepted canonical runtime; `https://natheegroup2025.com/api/health` returned 404 | `BACKEND_API_NOT_DEPLOYED` |
+| Login/Auth frontend | `app/login/`, `app/api/auth/`, `app/auth/callback/` | Canonical runtime origin is `https://app.natheegroup2025.com`, not yet deployed. `https://natheegroup2025.com/login/` is only a noindex status page on the public site. | `LOGIN_STATIC_PLACEHOLDER` |
+| OWNER/STAFF/CUSTOMER application | `app/app/`, `app/portal/` | Canonical runtime origin is `https://app.natheegroup2025.com/app`, not yet deployed; the apex `/app` returned 404 and is not the application's address | `FULL_APPLICATION_NOT_DEPLOYED` |
+| Backend/API | `app/api/`, `worker/` | Canonical runtime origin is `https://app.natheegroup2025.com/api/health`, not yet deployed; the apex `/api/health` returned 404 and is not the application's address | `BACKEND_API_NOT_DEPLOYED` |
 | Database/migrations | `db/`, `drizzle/0000` through `0025` | A protected Sites D1 has the ten `0000` base tables, but no verified migration ledger and no `0001`–`0025` operational/authorization/CMS/settings/search-index/quotation-attachment/bulk-import/operational-QR/Audit-pagination/private-evidence/signed-POD/Auth-throttle/recovery-grant/Audit-immutability migrations | `DATABASE_NOT_PRODUCTION_VERIFIED` |
 | QR / label printing | Opaque Vehicle/Job/Yard/Truck/Trip QR APIs, authorized scanner, entity labels and bounded vehicle-batch labels in source | No Production URL because application runtime is absent | Source/build only |
 | Notifications | In-app notification table, recipient-scoped APIs and bounded inbox UI; no external provider adapter | No Production URL because application runtime is absent | `NOTIFICATIONS_SOURCE_ONLY`; LINE/email delivery remains pending |
@@ -62,7 +62,15 @@ presence of Node or PHP on Z.com would not provide Cloudflare D1/R2 bindings.
 1. Keep the public company website on Z.com at
    `https://natheegroup2025.com/` until a separately reviewed cutover.
 2. Deploy the full Worker artifact to a Cloudflare-compatible Sites runtime
-   with real D1/R2 bindings.
+   with real D1/R2 bindings, served from its **own origin**
+   `https://app.natheegroup2025.com`.
+
+   The two origins are separate on purpose. The public site is a static
+   document root that a deploy script overwrites by file copy; the application
+   holds authenticated sessions, customer records and private media. Sharing an
+   origin would put every Auth cookie and every redirect target in that same
+   document root's scope. `APP_ORIGIN` therefore refuses the apex outright
+   rather than merely discouraging it.
 3. Keep the application private until `/api/health` returns HTTP 200 with
    `authentication`, `adminAuthentication`, `canonicalOrigin`, `database`, and
    `storage` all `true`.

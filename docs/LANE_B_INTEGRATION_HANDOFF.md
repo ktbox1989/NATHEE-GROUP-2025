@@ -4,7 +4,7 @@ Prepared instead of merging. Nothing in this document has been merged, pushed to
 `main`, or applied to Production.
 
 - Lane B branch: `lane-b/auth-runtime`
-- Lane B HEAD: `ee041c3c6631b9b4bbda4ba6f820694bb05892dd`
+- Lane B HEAD: see `git rev-parse HEAD` on `lane-b/auth-runtime` (this document is updated per milestone)
 - Merge base with `main`: `0f3205b432cd2aba2fb499b8b7d76fe3e6d25716`
 - Lane A `main` at analysis time: `1f3b9c4`
 
@@ -20,10 +20,10 @@ without touching any branch or working tree:
 | `docs/PRODUCTION_GO_LIVE.md` | auto-merges cleanly |
 | everything else | auto-merges cleanly |
 
-No source file conflicts, and the two lanes have touched **no source file in
-common**. Lane B touched nothing under `public-site/`, no
+No source file conflicts. Lane B touched nothing under `public-site/`, no
 `scripts/build-public-site.mjs`, no `scripts/deploy-zcom.sh`, and no public page
-component.
+component — but it did change one Lane A file, `scripts/test-canonical-domain.mjs`,
+for the reason given below.
 
 ## The merged tree was actually tested, not just diffed
 
@@ -68,7 +68,7 @@ One lane only — take that lane's version:
 Both lanes append to "Closed local milestones" and edit "Verified source gates".
 Keep **both** lanes' sections. Lane B's measured figures after this branch:
 
-- Full test suite: **339** passing — 174 unit + 165 integration
+- Full test suite: **344** passing — 177 unit + 167 integration
 - Migrations: through **`0025`**, all unapplied
 - Gates: seven, listed below
 
@@ -100,11 +100,50 @@ Two differences the Owner should decide on rather than have decided for them:
    have no application account.
 2. **Revalidation.** Lane B's public routes are per-request, so there is no cache
    to invalidate. Lane A's static site is cached, so a publish must compute
-   invalidation paths. Both are correct for their own surface. Which one is live
-   depends on the **application routing model**, which is still an open Owner
-   gate.
+   invalidation paths. Both are correct for their own surface. With the routing
+   model now decided — the application on `app.natheegroup2025.com`, the public
+   site on the apex — **both are live at once**, each governing its own origin.
+   Lane A's invalidation planning applies to the Z.com static site; Lane B's
+   per-request resolution applies to the application.
 
 Neither difference blocks the merge.
+
+## Lane A file changed — needs review before merge
+
+`scripts/test-canonical-domain.mjs` is Lane A's gate, and Lane B changed it. It
+is the only Lane A file this branch touches, and it could not be avoided.
+
+The Owner corrected the application origin to `https://app.natheegroup2025.com`,
+with the public website staying on the apex. That gate hard-coded the **apex**
+Auth callback as a required contract in `docs/AUTH_SETUP.md`,
+`docs/PRODUCTION_GO_LIVE.md` and `.env.example`, so applying the correction
+without touching it would have failed `npm run test:public`.
+
+Rather than retarget it, the gate now encodes the two-origin reality:
+
+- public-site contracts (`public-site/*`, `deploy-zcom.sh`, `rollback-zcom.sh`,
+  `postcheck-production.sh`, `build-public-site.mjs`) still require the apex —
+  **unchanged**;
+- the three application files require `https://app.natheegroup2025.com/auth/callback`;
+- a new check refuses a regression that puts `APP_ORIGIN` or the Supabase Site
+  URL back on the apex;
+- the pass line now reports both origins.
+
+Everything else Lane A owns is untouched: nothing under `public-site/`, no
+deploy or verify script, no public page component. Please review this one file.
+
+## The application origin changed
+
+`APP_ORIGIN` is now `https://app.natheegroup2025.com`, and the apex is
+**refused** rather than discouraged — it is the most plausible wrong value, and
+the application must not share an origin with a document root that
+`deploy-zcom.sh` overwrites by file copy.
+
+What this does **not** change: the public SEO canonicals. `lib/cms-public-route.ts`,
+`lib/site-structured-data.ts` and the public page metadata still point at the
+apex, because the public site remains the canonical copy of that content. If the
+application ever serves those pages at its own origin they will still canonicalise
+to the apex, which is the correct outcome.
 
 ## What Lane B changed that Lane A depends on
 

@@ -43,6 +43,49 @@ photographs. That was not true of the running site and has been corrected.
 
 ## Closed local milestones
 
+### The application moved to its own origin (Owner correction)
+
+- The Owner corrected the application origin to `https://app.natheegroup2025.com`.
+  The public marketing website stays on the apex `https://natheegroup2025.com`.
+  The apex is now **refused** as an application origin rather than merely
+  discouraged, because it is the single most plausible wrong value to type.
+- The reason is a security boundary, not a preference. The public site is a
+  static document root that a deploy script overwrites by file copy; the
+  application holds authenticated sessions, customer records and private media.
+  Sharing an origin would put every Auth cookie and every redirect target inside
+  that document root's scope.
+- `lib/app-origin.ts` now exports both origins and `isPublicWebsiteOrigin()`, so
+  the environment verifier can name the specific mistake instead of reporting a
+  generic rejection: *"set to the public website … The application has its own
+  origin: https://app.natheegroup2025.com"*.
+- Proven: the app origin is accepted and the apex, `www`, `http://`, a port, a
+  path, and five lookalike hosts (`…com.attacker.invalid`,
+  `app-natheegroup2025.com`, `evil.app.…`) are all refused; configuring the apex
+  as `APP_ORIGIN` makes **every** same-origin mutation check deny rather than
+  fall back to the request's own host; and the Supabase dashboard values the
+  verifier prints are derived from the configured origin.
+- Corrected the Auth callback, Site URL, `APP_ORIGIN` and the `/api/health`
+  address across `.env.example`, `docs/AUTH_SETUP.md`,
+  `docs/PRODUCTION_GO_LIVE.md` and `docs/DEPLOYMENT_ARCHITECTURE.md`, and
+  recorded the routing model as decided.
+- **`scripts/test-canonical-domain.mjs` is a Lane A gate that hard-coded the apex
+  Auth callback in three files**, so the correction could not be applied without
+  it failing. Rather than retarget it, it now encodes the two-origin reality: the
+  public-site contracts still require the apex, the application contracts require
+  the app origin, and a new check refuses a regression that puts `APP_ORIGIN` or
+  the Supabase Site URL back on the apex. **This is a Lane A file and is flagged
+  in the integration handoff.**
+- Untouched: everything under `public-site/`, the Z.com deploy and verify
+  scripts, and the public SEO canonicals — `lib/cms-public-route.ts`,
+  `lib/site-structured-data.ts` and the public page metadata still point at the
+  apex, which is correct because the public site remains the canonical copy.
+- Verification: full tests 344/344 (177 unit + 167 integration), 5 of them new;
+  TypeScript PASS; ESLint PASS; Vinext production build PASS; canonical domain,
+  deployment architecture, readiness contract and all seven security gates PASS;
+  `git diff --check` PASS.
+- No migration was added or applied. No Production file, D1 row, Supabase value,
+  R2 object, DNS record or credential was changed.
+
 ### The CMS delivery contract is enforced rather than habitual
 
 - Checked the two properties that make Publish mean anything, and found both
@@ -790,7 +833,7 @@ photographs. That was not true of the running site and has been corrected.
 
 ### Trusted Production Auth origin and runtime readiness
 
-- Added a single allowlisted application-origin contract. Production accepts only `https://natheegroup2025.com`; private `*.chatgpt.site` previews and localhost are explicit non-Production cases.
+- Added a single allowlisted application-origin contract. Production accepts only `https://app.natheegroup2025.com`; private `*.chatgpt.site` previews and localhost are explicit non-Production cases, and the public apex is refused outright.
 - Password recovery, invitations and the Auth callback no longer derive sensitive redirect destinations from the request Host. Same-origin mutation checks now reject Host-spoofed requests and a Production runtime without `APP_ORIGIN` fails closed.
 - Supabase public/admin configuration rejects placeholders, malformed URLs, secret/public key confusion and values outside the approved `sb_publishable_...` / `sb_secret_...` contract.
 - `/api/health` now requires six independent checks: public Auth, admin Auth, canonical origin, every D1 table, index and trigger the migrations create through `0025`, a read-only R2 metadata probe and anti-abuse readiness. A bare database connection or binding name can no longer claim Production readiness.
@@ -805,9 +848,9 @@ photographs. That was not true of the running site and has been corrected.
 
 ## Verified source gates
 
-- Full test suite: 339 passing
-- Authorization/unit/CMS/settings/search/config/readiness/identity/quotation/Turnstile/image/POD-signature/Auth-throttle/recovery-grant/timestamp/audit-view/CMS-publish/gallery-mutation tests: 174 passing
-- Render/schema/notification/yard/trip/container/inspection/POD/CMS/settings/query-plan/migration/Auth-throttle/recovery-grant/audit-ordering/auth-event/production-env/audit-view/readiness-schema/CMS-publish/customer-isolation/gallery-public tests: 165 passing
+- Full test suite: 344 passing
+- Authorization/unit/CMS/settings/search/config/readiness/identity/quotation/Turnstile/image/POD-signature/Auth-throttle/recovery-grant/timestamp/audit-view/CMS-publish/gallery-mutation/application-origin tests: 177 passing
+- Render/schema/notification/yard/trip/container/inspection/POD/CMS/settings/query-plan/migration/Auth-throttle/recovery-grant/audit-ordering/auth-event/production-env/audit-view/readiness-schema/CMS-publish/customer-isolation/gallery-public/application-origin tests: 167 passing
 - Production Vinext build: PASS
 - ESLint: PASS
 - Public SEO and deployment architecture guards: PASS
@@ -825,7 +868,7 @@ photographs. That was not true of the running site and has been corrected.
 
 ## Open Owner gates
 
-- Approve application routing model: apex edge routes or an application subdomain.
+- ~~Approve application routing model~~ — **decided by the Owner: the application is served from `https://app.natheegroup2025.com`.** The public marketing website stays on the apex `https://natheegroup2025.com`, and the apex is refused as an application origin. Provisioning that hostname and pointing it at the runtime remains an Owner action.
 - Supply/configure Supabase Production values through a secure hosting channel.
 - Backup and apply migrations `0001`–`0025` to the protected D1 runtime.
 - Verify private R2 readiness.
