@@ -47,6 +47,16 @@ It applies the same validators the runtime applies, prints no value it was
 given, and contacts no provider. It names the specific mistake — a swapped key,
 a secret in the browser-visible slot, or the apex used as the application origin.
 
+It also checks that the artifact declares the D1 `DB` and private R2 `FILES`
+bindings, and refuses any `NEXT_PUBLIC_` value that carries a secret shape (a
+Supabase secret, a JWT, a provider key, a private key). That last one is the
+mistake that cannot be walked back: a `NEXT_PUBLIC_` value is compiled into
+pages customers download, so once shipped it is public and must be rotated
+rather than removed.
+
+A value pasted with a trailing carriage return — which is what copying from a
+Windows file gives you — is accepted, because the runtime accepts it too.
+
 ## Gate 3 — D1 backup and migrations
 
 - [ ] Back up the Production D1 database **before** applying anything.

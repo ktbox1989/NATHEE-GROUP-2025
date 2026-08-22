@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { readFileSync } from "node:fs";
 import {
   buildAuthCallbackUrl,
   CANONICAL_PRODUCTION_ORIGIN,
@@ -132,6 +133,55 @@ if (!present(env.NEXT_PUBLIC_TURNSTILE_SITE_KEY) && !present(env.TURNSTILE_SECRE
   record("TURNSTILE", true, "site and secret key shapes", { required: false });
 }
 
+// --- Runtime bindings -------------------------------------------------------
+// Declared, not probed: the verifier runs before anything is deployed, so it
+// checks that the artifact asks for the right bindings. Whether the live
+// bindings exist is what /api/health answers after a deploy.
+let hosting = null;
+try {
+  hosting = JSON.parse(readFileSync(new URL("../.openai/hosting.json", import.meta.url), "utf8"));
+} catch {
+  hosting = null;
+}
+if (!hosting) {
+  record("RUNTIME_BINDINGS", false, "cannot read .openai/hosting.json; the artifact declares no bindings");
+} else {
+  const d1 = hosting.d1 === "DB";
+  const r2 = hosting.r2 === "FILES";
+  record(
+    "RUNTIME_BINDINGS",
+    d1 && r2,
+    d1 && r2
+      ? "artifact declares D1 'DB' and private R2 'FILES'"
+      : `artifact declares d1=${JSON.stringify(hosting.d1)} r2=${JSON.stringify(hosting.r2)}; expected "DB" and "FILES"`,
+  );
+}
+
+// --- Nothing secret may be browser-visible ----------------------------------
+// NEXT_PUBLIC_ values are compiled into pages a customer downloads. This is the
+// mistake that cannot be walked back: once shipped, the value is public.
+const SECRET_SHAPES = [
+  [/^sb_secret_/, "a Supabase secret key"],
+  [/^eyJ[A-Za-z0-9_-]+\./, "a JWT, which for Supabase is a service-role token"],
+  [/-----BEGIN [A-Z ]*PRIVATE KEY-----/, "a private key"],
+  [/^sk[-_]/, "a provider secret key"],
+];
+const exposed = [];
+for (const [name, value] of Object.entries(env)) {
+  if (!name.startsWith("NEXT_PUBLIC_") || typeof value !== "string") continue;
+  const trimmed = value.trim();
+  for (const [shape, described] of SECRET_SHAPES) {
+    if (shape.test(trimmed)) exposed.push(`${name} holds ${described}`);
+  }
+}
+record(
+  "BROWSER_EXPOSED_SECRETS",
+  exposed.length === 0,
+  exposed.length === 0
+    ? "no NEXT_PUBLIC_ value carries a secret shape"
+    : `${exposed.join("; ")}. Rotate before deploying; a shipped public value cannot be recalled`,
+);
+
 // --- Derived values the Owner must mirror in the provider dashboard ---------
 const callback = appOrigin ? buildAuthCallbackUrl("/reset-password", undefined, env.APP_ORIGIN, "production") : null;
 
@@ -161,5 +211,5 @@ if (failed.length > 0) {
 
 const warnings = checks.filter((check) => !check.required && !check.ok).length;
 console.log(
-  `PRODUCTION_ENV_VERIFY_PASS required=${required.length} warnings=${warnings} shapeOnly=true providerNotContacted=true`,
+  `PRODUCTION_ENV_VERIFY_PASS required=${required.length} warnings=${warnings} shapeOnly=true providerNotContacted=true bindingsDeclared=true`,
 );

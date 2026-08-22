@@ -43,6 +43,31 @@ photographs. That was not true of the running site and has been corrected.
 
 ## Closed local milestones
 
+### The environment verifier now covers bindings and browser-visible secrets
+
+- Extended `npm run verify:env` to the two checks it was missing. It confirms the
+  artifact declares the D1 `DB` and private R2 `FILES` bindings — declared rather
+  than probed, because the verifier runs before anything is deployed and
+  `/api/health` is what answers whether the live bindings exist.
+- Added the check for the mistake that **cannot be walked back**: any
+  `NEXT_PUBLIC_` value carrying a secret shape — a Supabase secret, a JWT (which
+  for Supabase is a service-role token), a provider `sk-` key, or a PEM private
+  key. Those values are compiled into pages customers download, so once shipped
+  the value is public and must be rotated, not removed. The refusal names what
+  kind of secret it found and still never prints the value.
+- An ordinary public value such as a site name or an analytics id is not
+  mistaken for a secret.
+- Covered the carriage-return case explicitly. Copying a value from a Windows
+  file or terminal appends ``, and the verifier accepts it **because the
+  runtime accepts it** — both trim. A verifier that failed there would send the
+  Owner hunting a problem that does not exist, and the printed dashboard values
+  are asserted to carry no stray carriage return either.
+- Verification: full tests 365/365 (183 unit + 182 integration), 5 of them new;
+  TypeScript PASS; ESLint PASS; Vinext production build PASS; all nine gates
+  PASS.
+- No Production value was read. Whether the live D1 and R2 bindings exist stays
+  an Owner gate.
+
 ### Private storage cannot be read, written or cached without a decision
 
 - R2 holds what a customer would least like published: inspection and damage
@@ -956,9 +981,9 @@ photographs. That was not true of the running site and has been corrected.
 
 ## Verified source gates
 
-- Full test suite: 360 passing
+- Full test suite: 365 passing
 - Authorization/unit/CMS/settings/search/config/readiness/identity/quotation/Turnstile/image/POD-signature/Auth-throttle/recovery-grant/timestamp/audit-view/CMS-publish/gallery-mutation/application-origin/privileged-action tests: 183 passing
-- Render/schema/notification/yard/trip/container/inspection/POD/CMS/settings/query-plan/migration/Auth-throttle/recovery-grant/audit-ordering/auth-event/production-env/audit-view/readiness-schema/CMS-publish/customer-isolation/gallery-public/application-origin/QR-print tests: 177 passing
+- Render/schema/notification/yard/trip/container/inspection/POD/CMS/settings/query-plan/migration/Auth-throttle/recovery-grant/audit-ordering/auth-event/production-env/audit-view/readiness-schema/CMS-publish/customer-isolation/gallery-public/application-origin/QR-print/production-env tests: 182 passing
 - Production Vinext build: PASS
 - ESLint: PASS
 - Public SEO and deployment architecture guards: PASS
