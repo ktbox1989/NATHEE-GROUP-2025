@@ -14,6 +14,9 @@ REPO_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd -P)"
 SOURCE_ROOT="$REPO_ROOT/public-site"
 POSTCHECK="$SCRIPT_DIR/postcheck-production.sh"
 
+# shellcheck source=scripts/lib/deploy-file-tools.sh
+source "$SCRIPT_DIR/lib/deploy-file-tools.sh"
+
 fail() {
   printf 'POSTCHECK_CONTRACT_TEST_FAIL: %s\n' "$1" >&2
   exit 1
@@ -28,7 +31,7 @@ cleanup() {
   trap - EXIT
   if [[ -n "$WORK_ROOT" && -d "$WORK_ROOT" ]]; then
     case "$WORK_ROOT" in
-      */nathee-postcheck-contract-*) rm -rf "$WORK_ROOT" ;;
+      */nathee-postcheck-contract.*) rm -rf "$WORK_ROOT" ;;
       *) printf 'CONTRACT_TEST_CLEANUP_SKIPPED unsafe=%s\n' "$WORK_ROOT" >&2 ;;
     esac
   fi
@@ -36,12 +39,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-if command -v mktemp >/dev/null 2>&1; then
-  WORK_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/nathee-postcheck-contract-XXXXXX")"
-else
-  WORK_ROOT="${TMPDIR:-/tmp}/nathee-postcheck-contract-$$"
-  mkdir "$WORK_ROOT"
-fi
+WORK_ROOT="$(nathee_make_temp_dir nathee-postcheck-contract)" || fail "could not create a temporary directory"
 
 TMP_DIR="$WORK_ROOT/fetched"
 mkdir -p "$TMP_DIR"
