@@ -40,26 +40,67 @@ The fresh D1 schema is in `drizzle/0000_harsh_speed_demon.sql`. Hosting bindings
 
 Apply the migration before the first login. The migration contains company boundaries, uniqueness rules, status checks, image metadata, and audit records.
 
-## 4. Create the first owner
+## 4. Create the canonical OWNER
 
-Only the initial owner requires a one-time bootstrap:
+Only the first owner needs a one-time bootstrap. Do not hand-write this SQL:
+a mistyped UUID creates an identity the runtime silently refuses to resolve,
+and a hand-written `INSERT` skips both the canonical role assignment and the
+audit record.
 
-1. Create and email-confirm the owner's email/password account in the Supabase dashboard and copy its user UUID.
-2. Insert one mapped OWNER record into D1, replacing all values below with the real UUID, email, and name.
+1. Create and **email-confirm** the owner account in the Supabase dashboard,
+   then copy its user UUID. The runtime resolves an application user only from
+   a confirmed identity whose UUID exactly matches `users.external_auth_id`.
+2. Generate the bootstrap SQL:
 
-```sql
-INSERT INTO users
-  (id, external_auth_id, email, display_name, role, status)
-VALUES
-  ('GENERATE-A-NEW-UUID', 'SUPABASE-USER-UUID', 'owner@example.com', 'Owner name', 'OWNER', 'ACTIVE');
+```bash
+npm run owner:bootstrap -- \
+  --auth-id '<SUPABASE-USER-UUID>' \
+  --email '<CONFIRMED-EMAIL>' \
+  --display-name '<OWNER NAME>' \
+  > owner-bootstrap.sql
 ```
 
-After that owner signs in, all internal and customer accounts should be created from **สมาชิก / สิทธิ์**. The system sends an invitation, records the canonical role in `user_role_assignments`, requires a company for CUSTOMER_ADMIN and CUSTOMER_VIEWER, and assigns explicit capabilities to every non-owner internal role. Migration `0004_role_system_foundation` maps legacy CUSTOMER identities to least-privilege CUSTOMER_VIEWER without locking out existing OWNER or STAFF accounts.
+The generator takes **no secret** — a Supabase user UUID is an identifier, not
+a credential — so the generated file is safe to review, but it maps a
+privileged identity and must not be committed to Git.
 
-Runtime authorization uses only the exact confirmed Supabase user UUID stored in
-`users.external_auth_id`. It does not auto-link an account by matching email and
-does not rewrite identity mappings during a page read. A mistaken or replaced
-identity must be repaired by a reviewed, audited administrative procedure.
+3. Review the two `PREFLIGHT` queries at the top of the file. Before the very
+   first bootstrap both must return zero.
+4. Apply the file to the Production D1 database, then read the `VERIFY` query
+   output. It must return exactly one row with `effective_role = OWNER`,
+   `status = ACTIVE` and `audit_entries = 1`. Any other result means the
+   bootstrap did not apply and must be investigated before anyone signs in.
+
+What the generated SQL guarantees:
+
+- **Idempotent.** Running it twice changes nothing, so a partially applied run
+  can simply be repeated.
+- **No silent rebinding.** If the email already belongs to another account, or
+  the Supabase identity is already mapped, every statement is skipped rather
+  than overwriting an existing mapping.
+- **Canonical role.** It writes `user_role_assignments`, which the role system
+  treats as authoritative, instead of relying on the legacy `users.role`
+  fallback.
+- **Audited.** Creating the first privileged identity leaves the same evidence
+  as any other privileged change.
+
+`tests/owner-bootstrap.test.mjs` proves all of the above against the real
+migrated schema, including that a hostile display name is stored literally
+rather than executed.
+
+After this owner signs in, create every other internal and customer account
+from **สมาชิก / สิทธิ์**. The system sends an invitation, records the canonical
+role in `user_role_assignments`, requires a company for `CUSTOMER_ADMIN` and
+`CUSTOMER_VIEWER`, and assigns explicit capabilities to every non-owner
+internal role. Migration `0004_role_system_foundation` maps legacy CUSTOMER
+identities to least-privilege `CUSTOMER_VIEWER` without locking out existing
+OWNER or STAFF accounts.
+
+Runtime authorization uses only the exact confirmed Supabase user UUID stored
+in `users.external_auth_id`. It does not auto-link an account by matching
+email and does not rewrite identity mappings during a page read. A mistaken or
+replaced identity must be repaired by a reviewed, audited administrative
+procedure.
 
 ## 5. Acceptance check
 

@@ -40,3 +40,6 @@ yarn-error.log*
 /outputs/
 /work/
 *.tsbuildinfo
+
+# Generated OWNER bootstrap SQL maps a privileged identity.
+owner-bootstrap*.sql
