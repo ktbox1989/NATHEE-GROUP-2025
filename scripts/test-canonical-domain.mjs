@@ -56,11 +56,18 @@ for (const [name, expected] of contracts) {
 // given its own origin. It must not come back: an Auth callback on the public
 // document root would put session cookies in the static site's scope.
 const applicationFiles = ["docs/AUTH_SETUP.md", "docs/PRODUCTION_GO_LIVE.md", ".env.example", "lib/app-origin.ts"];
+// Line-agnostic: a checkout on Windows holds CRLF, and a check anchored to a
+// newline would silently match nothing there while passing here.
+const apexApplicationValues = [`APP_ORIGIN=${canonicalUrl}`, `Site URL: ${canonicalUrl}`, `Callback: ${canonicalUrl}/auth/callback`];
 for (const name of applicationFiles) {
   const content = await readFile(join(root, name), "utf8");
-  if (content.includes(`APP_ORIGIN=${canonicalUrl}`) || content.includes(`Site URL: ${canonicalUrl}
-`)) {
-    throw new Error(`Application origin must not be the public apex in ${name}`);
+  for (const forbidden of apexApplicationValues) {
+    // `endsWith` on the line, not the file, so `https://app.<domain>` never
+    // matches `https://<domain>` by being a longer string that contains it.
+    const lines = content.split("\n").map((line) => line.trimEnd());
+    if (lines.some((line) => line.includes(forbidden) && !line.includes(`https://app.${canonicalDomain}`))) {
+      throw new Error(`Application origin must not be the public apex in ${name}: ${forbidden}`);
+    }
   }
 }
 
