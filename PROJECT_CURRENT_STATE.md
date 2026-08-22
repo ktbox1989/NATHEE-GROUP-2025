@@ -43,6 +43,45 @@ photographs. That was not true of the running site and has been corrected.
 
 ## Closed local milestones
 
+### The CMS delivery contract is enforced rather than habitual
+
+- Checked the two properties that make Publish mean anything, and found both
+  already true — but held by habit, with nothing keeping them true.
+- **Revalidation.** All ten public pages that render managed content declare
+  `force-dynamic`, so a publish is visible on the next request and there is no
+  cache to invalidate. The failure this prevents is silent: a cached public page
+  would let an editor publish, be told it succeeded, and leave the live site
+  serving the previous revision with nothing reporting anything wrong.
+- **Preview privacy.** The protected tree declares `index:false, follow:false`
+  and resolves per request; preview requires an authenticated actor and
+  `site:read`, renders through the same component as the live site with a
+  "ยังไม่เผยแพร่" banner, and scopes the revision to its own page so one page
+  cannot preview another's draft.
+- **No draft has a path to an anonymous reader.** Nothing outside the protected
+  tree reads `site_page_revisions` or `site_settings_revisions`; public pages
+  resolve only through the published-state helpers, and the live revision is the
+  one named by the most recent publication event, with a HIDE winning when it is
+  most recent.
+- `scripts/test-cms-delivery-contract.mjs` enforces all of it, with a negative
+  test proving twelve specific breakages are rejected — a public page that stops
+  being per-request, one that starts reading revisions, a helper that stops
+  requiring a published state, a hide event that stops winning, an indexable
+  protected tree, and a preview that loses its actor check, its capability
+  check, its page scoping or its draft banner.
+- Documented the delivery contract in `docs/SITE_CONTENT_CMS.md`, including what
+  is **not** supported: there is no scheduled or expiring publish. That would
+  need a runtime that wakes without a request, which this deployment does not
+  have, so it is stated as absent rather than approximated.
+- Rollback needed no new code and is now described accurately: revisions are
+  immutable and publication events cannot be deleted, so restoring an earlier
+  version is publishing that revision again, and the history records the
+  rollback as its own event.
+- Verification: full tests 339/339 (174 unit + 165 integration); TypeScript PASS;
+  ESLint PASS; Vinext production build PASS; readiness contract and all seven
+  security gates PASS; `git diff --check` PASS.
+- No migration was added. No Production file, D1 row, Supabase value, R2 object,
+  DNS record or credential was changed.
+
 ### Gallery mutation policy is testable, and draft media is proven not to leak
 
 - The rules deciding what may be done to a photograph lived inline in
@@ -781,6 +820,7 @@ photographs. That was not true of the running site and has been corrected.
 - Timestamp contract gate (`test-timestamp-contract.mjs`): 108 sources, with 8 proven rejections + 1 acceptance
 - Session refresh coverage gate (`test-session-refresh-coverage.mjs`): 80 session readers, all covered, with 9 proven rejections + 1 acceptance
 - Readiness contract gate (`test-readiness-contract.mjs`): 37 tables, 81 triggers, 128 indexes derived from 26 migrations, with 10 proven rejections + 1 acceptance
+- CMS delivery contract gate (`test-cms-delivery-contract.mjs`): 10 managed public pages, per-request revalidation, non-indexable preview, with 12 proven rejections + 1 acceptance
 - TypeScript `tsc --noEmit`: PASS
 
 ## Open Owner gates

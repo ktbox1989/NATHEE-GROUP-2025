@@ -52,6 +52,53 @@ The Media Library accepts a bounded batch of up to 20 images, each up to 20 MB. 
 
 The existing server independently verifies signatures, types, sizes and checksums before committing metadata. Upload never publishes automatically. Publishing, hiding, featuring, categorizing and ordering continue through the audited Gallery permission boundary.
 
+## Delivery contract
+
+What happens between an editor pressing Publish and a reader seeing the change,
+and what deliberately does not.
+
+**Draft → Preview → Publish.** Saving writes a revision and changes nothing
+public. Preview renders that exact revision through the same component the
+public site uses, behind authentication, requiring `site:read`, marked with an
+"ยังไม่เผยแพร่" banner, and scoped so one page cannot preview another page's
+revision. Publishing appends an event naming the revision; the live page is
+whatever the most recent event says.
+
+**Rollback is another publish, never an edit.** Revisions are immutable and
+publication events cannot be deleted, so restoring an earlier version means
+publishing that revision again. The history therefore records what was live and
+when, including the rollback itself.
+
+**The public site resolves content per request.** Every public page that renders
+managed content declares `force-dynamic`. There is no cache to invalidate: a
+publish is visible on the next request. This matters more than it sounds — a
+cached public page would let an editor publish, be told it succeeded, and have
+the live site keep serving the previous revision with nothing reporting a
+failure.
+
+**Nothing outside the protected tree reads a revision.** Public pages resolve
+content only through the published-state helpers, so a draft has no path to an
+anonymous reader. Preview is the single deliberate exception and lives behind
+authentication under a `index:false, follow:false` directive.
+
+**Publishing verifies the media it is about to show**, refusing a revision whose
+images or gallery categories a reader could not be served. See
+`docs/AUTH_SETUP.md` for the equivalent Auth contracts.
+
+**The home page can never be hidden.** `trg_site_home_cannot_hide` refuses a HIDE
+event for it at the database level, so the public site always has an entry point
+no matter what is published elsewhere.
+
+**Scheduling is not supported.** There is no future-dated publish and no expiry.
+A publication event takes effect when it is written. Anything that reads as
+scheduling would need a runtime that wakes up without a request, which this
+deployment does not have, so it is absent rather than approximated.
+
+`scripts/test-cms-delivery-contract.mjs` enforces all of the above, and its
+negative test proves the gate rejects twelve specific ways the contract can be
+broken — including a public page that stops being per-request and a preview that
+stops being private.
+
 ## Production activation
 
 1. Back up D1 and record table counts/checksum evidence.
