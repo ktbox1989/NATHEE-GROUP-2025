@@ -102,10 +102,50 @@ mutate_strip_home_photos() {
   rm -f "$root/index.html.bak"
 }
 
+# A page without the manifest link cannot be installed from that route.
+mutate_drop_manifest_link() {
+  local root="$1"
+  sed -i.bak 's|<link rel="manifest" href="/site.webmanifest">||' "$root/contact/index.html"
+  rm -f "$root/contact/index.html.bak"
+}
+
+# An icon of the wrong size is rejected by the installer at install time,
+# which is far too late to find out.
+mutate_wrong_icon_size() {
+  local root="$1"
+  cp "$root/assets/brand/icon-192.png" "$root/assets/brand/icon-512.png"
+}
+
+# A manifest icon hosted off-origin breaks installation and leaks the identity.
+mutate_offsite_manifest_scope() {
+  local root="$1"
+  sed -i.bak 's|"src": "/assets/brand/icon-192.png"|"src": "https://example.com/icon-192.png"|g' "$root/site.webmanifest"
+  rm -f "$root/site.webmanifest.bak"
+}
+
+# A cache-first Service Worker is exactly how a superseded release keeps
+# being served after a deployment.
+mutate_add_service_worker() {
+  local root="$1"
+  printf 'self.addEventListener("fetch", () => {});\n' > "$root/sw.js"
+}
+
+# The manifest is ignored entirely when the host serves it as text/plain.
+mutate_drop_manifest_mime() {
+  local root="$1"
+  sed -i.bak 's|AddType application/manifest+json .webmanifest||' "$root/.htaccess"
+  rm -f "$root/.htaccess.bak"
+}
+
 expect_reject missing-referenced-asset 'referenced release asset(s) do not exist' mutate_delete_referenced_asset
 expect_reject placeholder-loading-state 'server-rendered placeholder loading state found' mutate_inject_placeholder
 expect_reject gallery-not-server-rendered 'gallery page does not server-render the nine approved photographs' mutate_strip_gallery_photos
 expect_reject homepage-without-real-photos 'homepage does not server-render real company work photography' mutate_strip_home_photos
+expect_reject missing-manifest-link 'manifest link is missing for /contact/' mutate_drop_manifest_link
+expect_reject wrong-app-icon-size 'app icon has the wrong dimensions' mutate_wrong_icon_size
+expect_reject offsite-manifest-scope 'web app manifest must use same-origin paths' mutate_offsite_manifest_scope
+expect_reject unreviewed-service-worker 'an unreviewed Service Worker is present in the release' mutate_add_service_worker
+expect_reject missing-manifest-mime 'webmanifest MIME type is not declared' mutate_drop_manifest_mime
 
 # The unmodified real release must still pass, so the guards are not blanket denials.
 unmodified_dir="$WORK_ROOT/unmodified"

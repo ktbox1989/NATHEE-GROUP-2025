@@ -1,0 +1,72 @@
+{
+  "id": "/",
+  "name": "NATHEE GROUP 2025 | บริษัท นทีกรุ๊ป2025 จำกัด",
+  "short_name": "NATHEE 2025",
+  "description": "บริการขนส่งรถจักรยานยนต์ทั่วประเทศและต่างประเทศ รับฝาก สต๊อก ขึ้นตู้ Container และงาน Dealer หรือ Fleet",
+  "lang": "th",
+  "dir": "ltr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "theme_color": "#0a1020",
+  "background_color": "#0a1020",
+  "icons": [
+    {
+      "src": "/assets/brand/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/brand/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/brand/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "ขอใบเสนอราคา",
+      "short_name": "ใบเสนอราคา",
+      "url": "/quotation/",
+      "icons": [
+        {
+          "src": "/assets/brand/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "ผลงานและ Gallery",
+      "short_name": "ผลงาน",
+      "url": "/gallery/",
+      "icons": [
+        {
+          "src": "/assets/brand/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "ติดต่อทีมงาน",
+      "short_name": "ติดต่อ",
+      "url": "/contact/",
+      "icons": [
+        {
+          "src": "/assets/brand/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ]
+}

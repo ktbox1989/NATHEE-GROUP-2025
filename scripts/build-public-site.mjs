@@ -5,6 +5,9 @@ import { fileURLToPath } from "node:url";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..", "public-site");
 const domain = "https://natheegroup2025.com";
 const company = "บริษัท นทีกรุ๊ป2025 จำกัด";
+const appName = "NATHEE GROUP 2025";
+const appShortName = "NATHEE 2025";
+const appDescription = "บริการขนส่งรถจักรยานยนต์ทั่วประเทศและต่างประเทศ รับฝาก สต๊อก ขึ้นตู้ Container และงาน Dealer หรือ Fleet";
 const mapsSearch = "https://www.google.com/maps/search/?api=1&query=%E0%B8%9A%E0%B8%A3%E0%B8%B4%E0%B8%A9%E0%B8%B1%E0%B8%97+%E0%B8%99%E0%B8%97%E0%B8%B5%E0%B8%81%E0%B8%A3%E0%B8%B8%E0%B9%8A%E0%B8%9B2025+%E0%B8%88%E0%B8%B3%E0%B8%81%E0%B8%B1%E0%B8%94";
 const manifest = JSON.parse(await readFile(join(root, "assets", "gallery.json"), "utf8"));
 const categoryLabels = new Map(manifest.categories.map((item) => [item.id, item.label]));
@@ -94,6 +97,32 @@ await write("gallery/index.html", page({
     `<section class="section gallery-section"><div class="shell"><div class="gallery-filters" data-gallery-filters aria-label="กรองหมวดผลงาน"><button class="is-active" type="button" data-category="all" aria-pressed="true">ทั้งหมด</button></div><div class="gallery-grid" data-gallery-grid data-gallery-initial aria-live="polite">${galleryCards(galleryItems, true)}</div><button class="button gallery-load-more" type="button" data-gallery-more hidden>ดูภาพเพิ่มเติม</button></div></section><div class="gallery-lightbox" data-lightbox hidden role="dialog" aria-modal="true" aria-label="ภาพผลงาน"><button type="button" class="lightbox-close" data-lightbox-close aria-label="ปิด">×</button><button type="button" class="lightbox-prev" data-lightbox-prev aria-label="ภาพก่อนหน้า">‹</button><figure><picture data-lightbox-picture></picture><figcaption><strong data-lightbox-title></strong><span data-lightbox-caption></span></figcaption></figure><button type="button" class="lightbox-next" data-lightbox-next aria-label="ภาพถัดไป">›</button></div>`,
 }));
 
+await write("site.webmanifest", `${JSON.stringify({
+  id: "/",
+  name: `${appName} | ${company}`,
+  short_name: appShortName,
+  description: appDescription,
+  lang: "th",
+  dir: "ltr",
+  start_url: "/",
+  scope: "/",
+  display: "standalone",
+  orientation: "any",
+  theme_color: "#0a1020",
+  background_color: "#0a1020",
+  icons: [
+    { src: "/assets/brand/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+    { src: "/assets/brand/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+    { src: "/assets/brand/icon-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+  ],
+  shortcuts: [
+    { name: "ขอใบเสนอราคา", short_name: "ใบเสนอราคา", url: "/quotation/", icons: [{ src: "/assets/brand/icon-192.png", sizes: "192x192", type: "image/png" }] },
+    { name: "ผลงานและ Gallery", short_name: "ผลงาน", url: "/gallery/", icons: [{ src: "/assets/brand/icon-192.png", sizes: "192x192", type: "image/png" }] },
+    { name: "ติดต่อทีมงาน", short_name: "ติดต่อ", url: "/contact/", icons: [{ src: "/assets/brand/icon-192.png", sizes: "192x192", type: "image/png" }] },
+  ],
+}, null, 2)}
+`);
+
 await write("login/index.html", noindexPage("เข้าสู่ระบบ | NATHEE GROUP 2025", "ระบบเข้าสู่ระบบ Production อยู่ระหว่างการเชื่อมต่อ", "เพื่อความปลอดภัย ไม่มีบัญชีหรือรหัสผ่าน Demo บนเว็บไซต์จริง"));
 
 async function write(path, content) {
@@ -146,11 +175,17 @@ function page({ route, title, description, type, body, faqs = [] }) {
     ? { "@context": "https://schema.org", "@type": ["Organization", "LocalBusiness"], name: company, url: `${domain}/`, image: `${domain}/assets/brand/nathee-logo-display.jpg`, telephone: ["+66-63-194-1191", "+66-85-680-2082"], areaServed: "TH", knowsAbout: ["ขนส่งรถจักรยานยนต์", "รับฝากรถจักรยานยนต์", "ขึ้นตู้รถจักรยานยนต์", "ส่งออกรถจักรยานยนต์"] }
     : { "@context": "https://schema.org", "@type": type, name: title.split(" | ")[0], description, url, provider: { "@type": "Organization", name: company, url: `${domain}/` }, breadcrumb: { "@type": "BreadcrumbList", itemListElement: [{ "@type": "ListItem", position: 1, name: "หน้าแรก", item: `${domain}/` }, { "@type": "ListItem", position: 2, name: title.split(" | ")[0], item: url }] } };
   const structured = faqs.length ? [mainEntity, { "@context": "https://schema.org", "@type": "FAQPage", mainEntity: faqs.map(([name, text]) => ({ "@type": "Question", name, acceptedAnswer: { "@type": "Answer", text } })) }] : mainEntity;
-  return `<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${title}</title><meta name="description" content="${description}"><meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1"><meta name="theme-color" content="#0a1020"><meta name="referrer" content="strict-origin-when-cross-origin"><link rel="canonical" href="${url}"><link rel="alternate" hreflang="th-TH" href="${url}"><link rel="alternate" hreflang="x-default" href="${url}"><meta property="og:type" content="website"><meta property="og:locale" content="th_TH"><meta property="og:site_name" content="NATHEE GROUP 2025"><meta property="og:title" content="${title}"><meta property="og:description" content="${description}"><meta property="og:url" content="${url}"><meta property="og:image" content="${domain}/assets/brand/nathee-logo-display.jpg"><meta property="og:image:width" content="1000"><meta property="og:image:height" content="1000"><meta property="og:image:alt" content="โลโก้ NATHEE GROUP 2025 พร้อมภาพรถจักรยานยนต์และรถบรรทุก"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="${domain}/assets/brand/nathee-logo-display.jpg"><meta name="twitter:title" content="${title}"><meta name="twitter:description" content="${description}"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/assets/site.css"><script type="application/ld+json">${JSON.stringify(structured).replaceAll("<", "\\u003c")}</script></head><body><a class="skip-link" href="#main">ข้ามไปยังเนื้อหาหลัก</a>${header()}<main id="main">${body}</main>${footer()}<script src="/assets/site.js" defer></script></body></html>`;
+  return `<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${title}</title><meta name="description" content="${description}"><meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1"><meta name="theme-color" content="#0a1020"><meta name="referrer" content="strict-origin-when-cross-origin"><link rel="canonical" href="${url}"><link rel="alternate" hreflang="th-TH" href="${url}"><link rel="alternate" hreflang="x-default" href="${url}"><meta property="og:type" content="website"><meta property="og:locale" content="th_TH"><meta property="og:site_name" content="NATHEE GROUP 2025"><meta property="og:title" content="${title}"><meta property="og:description" content="${description}"><meta property="og:url" content="${url}"><meta property="og:image" content="${domain}/assets/brand/nathee-logo-display.jpg"><meta property="og:image:width" content="1000"><meta property="og:image:height" content="1000"><meta property="og:image:alt" content="โลโก้ NATHEE GROUP 2025 พร้อมภาพรถจักรยานยนต์และรถบรรทุก"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="${domain}/assets/brand/nathee-logo-display.jpg"><meta name="twitter:title" content="${title}"><meta name="twitter:description" content="${description}"><link rel="icon" href="/favicon.svg" type="image/svg+xml">${installLinks()}<link rel="stylesheet" href="/assets/site.css"><script type="application/ld+json">${JSON.stringify(structured).replaceAll("<", "\\u003c")}</script></head><body><a class="skip-link" href="#main">ข้ามไปยังเนื้อหาหลัก</a>${header()}<main id="main">${body}</main>${footer()}<script src="/assets/site.js" defer></script></body></html>`;
 }
+
+// Installability metadata. The site is installable and correctly branded;
+// it deliberately ships no Service Worker, because a cache-first worker on
+// a static marketing site can keep serving a superseded release after a
+// deployment. Offline support is a separate, reviewed decision.
+function installLinks() { return `<link rel="manifest" href="/site.webmanifest"><link rel="apple-touch-icon" sizes="180x180" href="/assets/brand/apple-touch-icon-180.png"><meta name="apple-mobile-web-app-title" content="${appShortName}"><meta name="application-name" content="${appShortName}"><meta name="mobile-web-app-capable" content="yes">`; }
 
 function header() { return `<header class="site-header" data-header><div class="shell header-inner"><a class="brand" href="/" aria-label="NATHEE GROUP 2025 หน้าแรก"><span class="brand-mark" aria-hidden="true">N</span><span><strong>NATHEE GROUP 2025</strong><small>Motorcycle Logistics</small></span></a><button class="menu-toggle" type="button" aria-expanded="false" aria-controls="site-nav" data-menu-toggle><span class="sr-only">เปิดเมนู</span><span></span><span></span><span></span></button><nav class="site-nav" id="site-nav" aria-label="เมนูหลัก" data-menu><a href="/services/">บริการ</a><a href="/gallery/">ผลงาน</a><a href="/about/">เกี่ยวกับเรา</a><a href="/contact/">ติดต่อ</a><a href="/login/">เข้าสู่ระบบ</a><a class="button button-small" href="/quotation/">ขอใบเสนอราคา</a></nav></div></header>`; }
 function footer() { return `<footer class="site-footer"><div class="shell footer-layout"><div><a class="brand footer-brand" href="/"><span class="brand-mark" aria-hidden="true">N</span><span><strong>NATHEE GROUP 2025</strong><small>Motorcycle Logistics</small></span></a><p>${company}</p></div><div class="footer-links"><a href="/services/">บริการ</a><a href="/gallery/">ผลงาน</a><a href="/about/">เกี่ยวกับเรา</a><a href="/contact/">ติดต่อ</a></div><div class="footer-contact"><a href="tel:0631941191">063-194-1191</a><a href="tel:0856802082">085-680-2082</a><a href="/contact/#line">LINE: สแกน QR</a></div></div><div class="shell footer-bottom"><span>© 2026 ${company}</span><a href="/login/">ระบบลูกค้า</a></div></footer>`; }
-function noindexPage(title, heading, message) { return `<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${title}</title><meta name="robots" content="noindex,nofollow,noarchive"><meta name="referrer" content="no-referrer"><link rel="stylesheet" href="/assets/site.css"></head><body>${header()}<main id="main">${contentHero("CUSTOMER SYSTEM", heading, message)}<section class="section"><div class="shell"><div class="empty-state"><strong>ยังไม่เปิดรับการเข้าสู่ระบบ</strong><span>กรุณาติดต่อทีมงานที่ 063-194-1191 หรือ 085-680-2082</span></div></div></section></main>${footer()}<script src="/assets/site.js" defer></script></body></html>`; }
+function noindexPage(title, heading, message) { return `<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${title}</title><meta name="robots" content="noindex,nofollow,noarchive"><meta name="referrer" content="no-referrer"><meta name="theme-color" content="#0a1020"><link rel="icon" href="/favicon.svg" type="image/svg+xml">${installLinks()}<link rel="stylesheet" href="/assets/site.css"></head><body>${header()}<main id="main">${contentHero("CUSTOMER SYSTEM", heading, message)}<section class="section"><div class="shell"><div class="empty-state"><strong>ยังไม่เปิดรับการเข้าสู่ระบบ</strong><span>กรุณาติดต่อทีมงานที่ 063-194-1191 หรือ 085-680-2082</span></div></div></section></main>${footer()}<script src="/assets/site.js" defer></script></body></html>`; }
 
-console.log(`PUBLIC_SITE_BUILD_PASS pages=${pages.length + 6} realPhotos=${galleryItems.length}`);
+console.log(`PUBLIC_SITE_BUILD_PASS pages=${pages.length + 6} realPhotos=${galleryItems.length} webmanifest=1 serviceWorker=0`);

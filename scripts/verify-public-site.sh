@@ -29,6 +29,11 @@ required_files=(
   assets/brand/nathee-logo-thumbnail.jpg
   assets/brand/nathee-logo-thumbnail.webp
   assets/contact/line-qr-owner-supplied.png
+  site.webmanifest
+  assets/brand/icon-192.png
+  assets/brand/icon-512.png
+  assets/brand/icon-maskable-512.png
+  assets/brand/apple-touch-icon-180.png
   services/index.html
   motorcycle-transport/index.html
   international/index.html
@@ -142,8 +147,57 @@ done
 
 grep -Fq -- 'private_route' "$SITE_DIR/.htaccess" || fail "private route X-Robots-Tag guard is missing"
 
+# Installable Web App contract. A manifest that is missing, mis-scoped or
+# backed by an absent or wrong-sized icon silently breaks installation, so
+# each part is checked rather than assumed.
+grep -Fq -- '"start_url": "/"' "$SITE_DIR/site.webmanifest" || fail "web app manifest start_url is wrong"
+grep -Fq -- '"scope": "/"' "$SITE_DIR/site.webmanifest" || fail "web app manifest scope is wrong"
+grep -Fq -- '"display": "standalone"' "$SITE_DIR/site.webmanifest" || fail "web app manifest is not installable"
+grep -Fq -- '"theme_color": "#0a1020"' "$SITE_DIR/site.webmanifest" || fail "web app manifest theme colour does not match the site"
+grep -Fq -- '"purpose": "maskable"' "$SITE_DIR/site.webmanifest" || fail "web app manifest has no maskable icon"
+grep -Fq -- '"short_name": "NATHEE 2025"' "$SITE_DIR/site.webmanifest" || fail "web app manifest short name is wrong"
+if grep -Eq -- '"(start_url|scope|src)": "https?://' "$SITE_DIR/site.webmanifest"; then
+  fail "web app manifest must use same-origin paths"
+fi
+
+# Every manifest icon must exist and be a real PNG of the declared size.
+verify_png() {
+  local relative_path="$1"
+  local expected_hex="$2"
+  local absolute="$SITE_DIR/$relative_path"
+  [[ -f "$absolute" ]] || fail "app icon is missing: $relative_path"
+  [[ "$(od -An -v -tx1 -N8 "$absolute" | tr -d ' \n')" == "89504e470d0a1a0a" ]] || fail "app icon is not a PNG: $relative_path"
+  [[ "$(od -An -v -tx1 -j16 -N8 "$absolute" | tr -d ' \n')" == "$expected_hex" ]] || fail "app icon has the wrong dimensions: $relative_path"
+}
+verify_png assets/brand/icon-192.png 000000c0000000c0
+verify_png assets/brand/icon-512.png 0000020000000200
+verify_png assets/brand/icon-maskable-512.png 0000020000000200
+verify_png assets/brand/apple-touch-icon-180.png 000000b4000000b4
+
+for manifest_icon in icon-192 icon-512 icon-maskable-512; do
+  grep -Fq -- "/assets/brand/$manifest_icon.png" "$SITE_DIR/site.webmanifest" || fail "web app manifest does not reference $manifest_icon.png"
+done
+
+# Installation must be offered from every public route and the login route.
+for install_route in "" services/ motorcycle-transport/ international/ storage/ container-loading/ dealer-fleet/ gallery/ about/ contact/ quotation/ login/; do
+  install_page="$SITE_DIR/${install_route}index.html"
+  grep -Fq -- '<link rel="manifest" href="/site.webmanifest">' "$install_page" || fail "manifest link is missing for /$install_route"
+  grep -Fq -- '<link rel="apple-touch-icon" sizes="180x180" href="/assets/brand/apple-touch-icon-180.png">' "$install_page" || fail "apple touch icon is missing for /$install_route"
+  grep -Fq -- '<meta name="theme-color" content="#0a1020">' "$install_page" || fail "theme colour is missing for /$install_route"
+done
+
+# Shared hosting will not serve the manifest correctly without the type.
+grep -Fq -- 'AddType application/manifest+json .webmanifest' "$SITE_DIR/.htaccess" || fail "webmanifest MIME type is not declared"
+
+# A cache-first Service Worker can keep serving a superseded release, so the
+# static site must not ship one until that is a reviewed decision.
+if find "$SITE_DIR" -maxdepth 2 -type f \( -name 'sw.js' -o -name 'service-worker.js' \) -print | grep -q .; then
+  fail "an unreviewed Service Worker is present in the release"
+fi
+
 printf 'PUBLIC_SITE_VERIFY_PASS files=%s publicRoutes=11\n' "$(find "$SITE_DIR" -type f | wc -l | tr -d ' ')"
 printf 'PUBLIC_SEO_VERIFY_PASS pages=11 jsonld=verified noindex=verified sitemap=public-only images=alt-checked\n'
 printf 'PUBLIC_GALLERY_VERIFY_PASS manifest=v1 categories=10 publishedItems=9\n'
 printf 'PUBLIC_OWNER_MEDIA_VERIFY_PASS logo=present lineQr=checksum-verified homePhotos=%s galleryPhotos=%s assetRefs=resolved\n' "$home_photo_count" "$gallery_photo_count"
 printf 'PUBLIC_MOBILE_PERFORMANCE_PASS criticalBytes=%s budget=102400 javascript=defer breakpoints=980,680\n' "$critical_bytes"
+printf 'PUBLIC_PWA_VERIFY_PASS manifest=same-origin display=standalone icons=4 maskable=1 installRoutes=12 serviceWorker=absent\n'

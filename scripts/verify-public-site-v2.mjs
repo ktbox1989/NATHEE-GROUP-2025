@@ -8,12 +8,12 @@ const root = resolve(process.argv[2] ?? join(repo, "public-site"));
 const routes = ["/", "/services/", "/motorcycle-transport/", "/international/", "/storage/", "/container-loading/", "/dealer-fleet/", "/gallery/", "/about/", "/contact/", "/quotation/"];
 const routeFile = route => route === "/" ? "index.html" : `${route.slice(1)}index.html`;
 const wrongDomain = ["natee", "group2025.com"].join("");
-const required = [".htaccess", "404.html", "favicon.svg", "robots.txt", "sitemap.xml", "assets/site.css", "assets/site.js", "assets/gallery.json", "assets/brand/nathee-logo-display.jpg", "assets/brand/nathee-logo-display.webp", "assets/brand/nathee-logo-thumbnail.jpg", "assets/brand/nathee-logo-thumbnail.webp", "assets/contact/line-qr-owner-supplied.png", "login/index.html", "login-status.html", ...routes.map(routeFile)];
+const required = [".htaccess", "404.html", "favicon.svg", "robots.txt", "sitemap.xml", "assets/site.css", "assets/site.js", "assets/gallery.json", "assets/brand/nathee-logo-display.jpg", "assets/brand/nathee-logo-display.webp", "assets/brand/nathee-logo-thumbnail.jpg", "assets/brand/nathee-logo-thumbnail.webp", "assets/contact/line-qr-owner-supplied.png", "site.webmanifest", "assets/brand/icon-192.png", "assets/brand/icon-512.png", "assets/brand/icon-maskable-512.png", "assets/brand/apple-touch-icon-180.png", "login/index.html", "login-status.html", ...routes.map(routeFile)];
 
 async function walk(directory) { const files = []; for (const entry of await readdir(directory, { withFileTypes: true })) { const path = join(directory, entry.name); if (entry.isSymbolicLink()) throw new Error(`Symbolic link forbidden: ${relative(root, path)}`); if (entry.isDirectory()) files.push(...await walk(path)); if (entry.isFile()) files.push(path); } return files; }
 for (const name of required) if (!(await lstat(join(root, name)).catch(() => null))?.isFile()) throw new Error(`Required file missing: ${name}`);
 const files = await walk(root), text = new Map();
-for (const file of files) if (["", ".html", ".css", ".js", ".json", ".txt", ".xml", ".svg"].includes(extname(file).toLowerCase())) text.set(relative(root, file).replaceAll("\\", "/"), await readFile(file, "utf8"));
+for (const file of files) if (["", ".html", ".css", ".js", ".json", ".webmanifest", ".txt", ".xml", ".svg"].includes(extname(file).toLowerCase())) text.set(relative(root, file).replaceAll("\\", "/"), await readFile(file, "utf8"));
 const forbidden = [["wrong canonical host", new RegExp(`https://${wrongDomain.replace(".", "\\.")}`, "i")], ["placeholder phone", /02-000-0000/i], ["unverified LINE", /@natheegroup/i], ["demo company", /ABC MOTOR/i], ["browser database", /nathee-quotes|window\.storage|localStorage/i], ["demo credentials", /abc123|owner123|staff123|nathee2025/i], ["unverified claims", /10\+\s*ปี|1,000\+|10,000\+/i]];
 for (const [label, pattern] of forbidden) for (const [name, value] of text) if (pattern.test(value)) throw new Error(`${label} found in ${name}`);
 
@@ -75,6 +75,45 @@ for (const path of ["/login/", "/login-status.html", "/auth/", "/app/", "/api/"]
 for (const token of ["DirectoryIndex index.html", "ErrorDocument 404 /404.html", "^www\\.natheegroup2025\\.com$", "Content-Security-Policy", "private_route"]) if (!htaccess.includes(token)) throw new Error(`.htaccess token missing: ${token}`);
 
 for (const [name, html] of text) if (extname(name) === ".html") for (const match of html.matchAll(/(?:href|src)=["']([^"']+)["']/g)) { const ref = match[1].split("#", 1)[0]; if (!ref || /^(?:https?:|tel:|mailto:|data:)/i.test(ref)) continue; let target = ref.startsWith("/") ? resolve(root, ref.slice(1)) : resolve(root, dirname(name), ref); let info = await lstat(target).catch(() => null); if (info?.isDirectory()) { target = join(target, "index.html"); info = await lstat(target).catch(() => null); } if ((!target.startsWith(`${root}${sep}`) && target !== root) || !info?.isFile()) throw new Error(`Broken reference in ${name}: ${ref}`); }
+// Installable Web App contract. Every icon is parsed from its real PNG
+// header, because a manifest that promises a size the file does not have
+// fails only at install time on a real device.
+const webmanifest = JSON.parse(text.get("site.webmanifest"));
+if (webmanifest.start_url !== "/" || webmanifest.scope !== "/") throw new Error("Web app manifest start_url/scope must be the site root.");
+if (webmanifest.display !== "standalone") throw new Error("Web app manifest is not installable.");
+if (webmanifest.theme_color !== "#0a1020" || webmanifest.background_color !== "#0a1020") throw new Error("Web app manifest colours do not match the site.");
+if (webmanifest.lang !== "th" || webmanifest.short_name !== "NATHEE 2025") throw new Error("Web app manifest identity is wrong.");
+if (!Array.isArray(webmanifest.icons) || webmanifest.icons.length < 3) throw new Error("Web app manifest needs the full icon set.");
+if (!webmanifest.icons.some(icon => icon.purpose === "maskable")) throw new Error("Web app manifest has no maskable icon.");
+
+async function pngSize(reference) {
+  if (!reference.startsWith("/")) throw new Error(`Web app manifest icon must be same-origin: ${reference}`);
+  const buffer = await readFile(join(root, reference.slice(1)));
+  if (buffer.length < 24 || buffer.readUInt32BE(0) !== 0x89504e47 || buffer.toString("latin1", 12, 16) !== "IHDR") throw new Error(`Not a PNG: ${reference}`);
+  return { width: buffer.readUInt32BE(16), height: buffer.readUInt32BE(20) };
+}
+
+for (const icon of [...webmanifest.icons, ...webmanifest.shortcuts.flatMap(shortcut => shortcut.icons ?? [])]) {
+  if (icon.type !== "image/png") throw new Error(`Web app manifest icon must be a PNG: ${icon.src}`);
+  const size = await pngSize(icon.src);
+  if (`${size.width}x${size.height}` !== icon.sizes) throw new Error(`Web app manifest icon ${icon.src} is ${size.width}x${size.height} but declares ${icon.sizes}.`);
+}
+const appleIcon = await pngSize("/assets/brand/apple-touch-icon-180.png");
+if (appleIcon.width !== 180 || appleIcon.height !== 180) throw new Error("Apple touch icon must be 180x180.");
+
+for (const shortcut of webmanifest.shortcuts) if (!routes.includes(shortcut.url)) throw new Error(`Web app manifest shortcut is not a public route: ${shortcut.url}`);
+
+for (const name of [...routes.map(routeFile), "login/index.html"]) {
+  const page = text.get(name);
+  if (!page.includes('<link rel="manifest" href="/site.webmanifest">')) throw new Error(`Manifest link missing: ${name}`);
+  if (!page.includes('<link rel="apple-touch-icon" sizes="180x180" href="/assets/brand/apple-touch-icon-180.png">')) throw new Error(`Apple touch icon missing: ${name}`);
+  if (!page.includes('<meta name="theme-color" content="#0a1020">')) throw new Error(`Theme colour missing: ${name}`);
+}
+
+if (!htaccess.includes("AddType application/manifest+json .webmanifest")) throw new Error(".htaccess does not declare the webmanifest media type.");
+// A cache-first Service Worker can keep serving a superseded release.
+for (const file of files) if (/(?:^|[\\/])(?:sw|service-worker)\.js$/i.test(file)) throw new Error(`Unreviewed Service Worker in release: ${relative(root, file)}`);
+
 const bytes = { home: Buffer.byteLength(home), css: Buffer.byteLength(text.get("assets/site.css")), js: Buffer.byteLength(text.get("assets/site.js")) }; const critical = bytes.home + bytes.css + bytes.js;
 if (bytes.home > 45 * 1024 || bytes.css > 40 * 1024 || bytes.js > 16 * 1024 || critical > 100 * 1024) throw new Error(`Mobile byte budget exceeded ${JSON.stringify(bytes)}`);
 const css = text.get("assets/site.css"); if (!css.includes("@media (max-width: 980px)") || !css.includes("@media (max-width: 680px)")) throw new Error("Responsive breakpoints missing.");
@@ -84,3 +123,4 @@ console.log(`PUBLIC_SITE_VERIFY_PASS files=${files.length} publicRoutes=${routes
 console.log(`PUBLIC_SEO_VERIFY_PASS pages=${routes.length} uniqueTitles=${titles.size} uniqueDescriptions=${descriptions.size} sitemap=public-only noindex=verified`);
 console.log(`PUBLIC_GALLERY_VERIFY_PASS version=1 categories=${gallery.categories.length} publishedItems=${gallery.items.length} privateFields=blocked`);
 console.log(`PUBLIC_MOBILE_PERFORMANCE_PASS criticalBytes=${critical} budget=${100 * 1024}`);
+console.log(`PUBLIC_PWA_VERIFY_PASS manifest=same-origin display=standalone icons=${webmanifest.icons.length} maskable=1 shortcuts=${webmanifest.shortcuts.length} installRoutes=${routes.length + 1} serviceWorker=absent`);

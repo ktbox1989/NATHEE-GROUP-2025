@@ -15,6 +15,7 @@
     "test:deployment": "node scripts/test-deployment-architecture.mjs",
     "test:unit": "node --test tests/authorization.test.ts tests/member-lifecycle.test.ts tests/notifications.test.ts tests/trips.test.ts tests/containers.test.ts tests/inspections.test.ts tests/status-transitions.test.ts tests/security-helpers.test.ts tests/image-validation.test.ts tests/gallery.test.ts tests/motorcycle-image-variants.test.ts tests/pod-signature.test.ts tests/site-cms.test.ts tests/runtime-readiness.test.ts tests/production-config.test.ts tests/auth-identity.test.ts tests/qr-token.test.ts tests/qr-svg.test.ts tests/yard.test.ts tests/directory-search.test.ts tests/print-center.test.ts tests/operational-report.test.ts tests/quotation.test.ts tests/motorcycle-import.test.ts",
     "test:db": "node --test tests/schema.test.mjs tests/notification-delivery.test.mjs tests/yard-movement.test.mjs tests/trip-assignments.test.mjs tests/container-assignments.test.mjs tests/inspection-pod.test.mjs tests/site-cms-migration.test.mjs tests/motorcycle-import-migration.test.mjs tests/operational-qr-migration.test.mjs tests/print-center-db.test.mjs tests/report-audit-migration.test.mjs tests/motorcycle-image-variants-migration.test.mjs tests/pod-signature-migration.test.mjs tests/object-storage-compensation.test.mjs",
+    "build:icons": "node scripts/generate-pwa-icons.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate"
   },

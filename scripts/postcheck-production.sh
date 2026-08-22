@@ -80,6 +80,11 @@ fetch /assets/gallery/motorcycle-container-loading-01-display.webp "$TMP_DIR/mot
 fetch /assets/gallery/motorcycle-container-loading-01-display.jpg "$TMP_DIR/motorcycle-container-loading-01-display.jpg"
 fetch /assets/gallery/motorcycle-truck-loading-01-thumbnail.webp "$TMP_DIR/motorcycle-truck-loading-01-thumbnail.webp"
 fetch /assets/brand/nathee-logo-display.jpg "$TMP_DIR/nathee-logo-display.jpg"
+fetch /site.webmanifest "$TMP_DIR/site.webmanifest"
+fetch /assets/brand/icon-192.png "$TMP_DIR/icon-192.png"
+fetch /assets/brand/icon-512.png "$TMP_DIR/icon-512.png"
+fetch /assets/brand/icon-maskable-512.png "$TMP_DIR/icon-maskable-512.png"
+fetch /assets/brand/apple-touch-icon-180.png "$TMP_DIR/apple-touch-icon-180.png"
 fetch /robots.txt "$TMP_DIR/robots.txt"
 fetch /sitemap.xml "$TMP_DIR/sitemap.xml"
 
@@ -137,6 +142,22 @@ critical_bytes=$((index_bytes + css_bytes + js_bytes))
 [[ $js_bytes -le 16384 ]] || fail "live site.js exceeds mobile byte budget"
 [[ $critical_bytes -le 102400 ]] || fail "live critical payload exceeds mobile byte budget"
 grep -Fq '<script src="/assets/site.js" defer></script>' "$TMP_DIR/index.html" || fail "live JavaScript is not deferred"
+grep -Fq '"start_url": "/"' "$TMP_DIR/site.webmanifest" || fail "live web app manifest start_url is wrong"
+grep -Fq '"display": "standalone"' "$TMP_DIR/site.webmanifest" || fail "live web app manifest is not installable"
+grep -Fq '"purpose": "maskable"' "$TMP_DIR/site.webmanifest" || fail "live web app manifest has no maskable icon"
+if grep -Eq '"(start_url|scope|src)": "https?://' "$TMP_DIR/site.webmanifest"; then
+  fail "live web app manifest is not same-origin"
+fi
+grep -Fq '<link rel="manifest" href="/site.webmanifest">' "$TMP_DIR/index.html" || fail "live homepage does not link the web app manifest"
+grep -Fq '<link rel="apple-touch-icon" sizes="180x180" href="/assets/brand/apple-touch-icon-180.png">' "$TMP_DIR/index.html" || fail "live homepage apple touch icon is missing"
+for live_icon in icon-192:000000c0000000c0 icon-512:0000020000000200 icon-maskable-512:0000020000000200 apple-touch-icon-180:000000b4000000b4; do
+  icon_file="$TMP_DIR/${live_icon%%:*}.png"
+  icon_dimensions="${live_icon##*:}"
+  [[ "$(od -An -v -tx1 -N8 "$icon_file" | tr -d ' \n')" == "89504e470d0a1a0a" ]] || fail "live app icon is not a PNG (${live_icon%%:*})"
+  [[ "$(od -An -v -tx1 -j16 -N8 "$icon_file" | tr -d ' \n')" == "$icon_dimensions" ]] || fail "live app icon has the wrong dimensions (${live_icon%%:*})"
+done
+printf 'PRODUCTION_PWA_CONTENT_PASS manifest=same-origin display=standalone icons=4 maskable=1\n'
+
 printf 'PRODUCTION_SEO_CONTENT_PASS pages=11 metadata=verified jsonld=verified sitemap=public-only\n'
 printf 'PRODUCTION_GALLERY_CONTENT_PASS manifest=v1 publishedItems=9 privacy=public-only\n'
 printf 'PRODUCTION_OWNER_MEDIA_PASS logo=live lineQr=checksum-verified galleryItems=9 homePhotos=%s galleryPhotos=%s variants=jpg+webp\n' "$live_home_photos" "$live_gallery_photos"
@@ -201,6 +222,13 @@ grep -Eiq '^x-frame-options:[[:space:]]*DENY$' "$TMP_DIR/https.headers" || fail 
 grep -Eiq '^referrer-policy:[[:space:]]*strict-origin-when-cross-origin$' "$TMP_DIR/https.headers" || fail "Referrer-Policy is missing"
 grep -Eiq '^content-security-policy:' "$TMP_DIR/https.headers" || fail "Content-Security-Policy is missing"
 grep -Eiq '^strict-transport-security:[[:space:]]*max-age=300$' "$TMP_DIR/https.headers" || fail "staged HSTS header is missing"
+
+capture_response "$BASE_URL/site.webmanifest" "$TMP_DIR/manifest.headers" "$TMP_DIR/manifest.body"
+manifest_status="$(response_status "$TMP_DIR/manifest.headers")"
+[[ "$manifest_status" == "200" ]] || fail "web app manifest is not 200 (status=$manifest_status)"
+grep -Eiq '^content-type:[[:space:]]*application/manifest\+json' "$TMP_DIR/manifest.headers" \
+  || fail "web app manifest is not served as application/manifest+json"
+printf 'PRODUCTION_PWA_HEADER_PASS contentType=application/manifest+json\n'
 
 capture_response "$BASE_URL/this-page-must-not-exist-nathee" "$TMP_DIR/404.headers" "$TMP_DIR/404-response.html"
 missing_status="$(response_status "$TMP_DIR/404.headers")"
