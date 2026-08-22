@@ -25,6 +25,9 @@ export const REQUIRED_DATABASE_OBJECTS = [
   { type: "table", name: "motorcycle_import_rows" },
   { type: "table", name: "motorcycle_image_variants" },
   { type: "table", name: "proof_of_delivery_signatures" },
+  // Without this table the Auth routes refuse every request, so a runtime
+  // missing migration 0022 is degraded rather than quietly unthrottled.
+  { type: "table", name: "auth_attempt_counters" },
   { type: "index", name: "idx_users_status_display_name_id" },
   { type: "index", name: "uq_quote_requests_request_key" },
   { type: "index", name: "uq_quote_request_attachments_storage_key" },
@@ -35,6 +38,7 @@ export const REQUIRED_DATABASE_OBJECTS = [
   { type: "index", name: "uq_yard_zones_public_id" },
   { type: "index", name: "idx_audit_logs_created_id" },
   { type: "index", name: "uq_motorcycle_images_request_key" },
+  { type: "index", name: "idx_auth_attempt_counters_updated" },
   { type: "trigger", name: "trg_user_roles_keep_last_active_owner_update" },
   { type: "trigger", name: "trg_trip_assignments_no_delete" },
   { type: "trigger", name: "trg_container_assignments_no_delete" },

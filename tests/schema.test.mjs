@@ -52,6 +52,7 @@ test("fresh migrations create every phase-one table", () => {
 
   assert.deepEqual(tables, [
     "audit_logs",
+    "auth_attempt_counters",
     "companies",
     "container_motorcycle_assignments",
     "container_status_events",

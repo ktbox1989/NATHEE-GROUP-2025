@@ -44,6 +44,12 @@ export const STAFF_PERMISSIONS = [
   "site:write",
   "site:publish",
 ] as const;
+export const AUTH_ATTEMPT_SCOPES = [
+  "login:identity",
+  "login:client",
+  "recovery:identity",
+  "recovery:client",
+] as const;
 export const RECORD_STATUSES = ["ACTIVE", "INACTIVE", "ARCHIVED"] as const;
 export const JOB_STATUSES = [
   "DRAFT",
@@ -1178,6 +1184,45 @@ export const auditLogs = sqliteTable(
     index("idx_audit_logs_created_id").on(table.createdAt, table.id),
     index("idx_audit_logs_entity_created").on(table.entityType, table.entityId, table.createdAt),
     index("idx_audit_logs_company_created").on(table.companyId, table.createdAt),
+  ],
+);
+
+// Authentication attempt counters. Unlike every other table here the timestamps
+// are epoch milliseconds rather than CURRENT_TIMESTAMP text, because the
+// throttle compares and adds durations inside SQL and must not depend on the
+// database's clock formatting. `scope_key` is a SHA-256 hex digest: the counter
+// only ever compares subjects, so it never needs to read an email address or a
+// client address back, and the table cannot become a log of either.
+export const authAttemptCounters = sqliteTable(
+  "auth_attempt_counters",
+  {
+    scope: text("scope", { enum: AUTH_ATTEMPT_SCOPES }).notNull(),
+    scopeKey: text("scope_key").notNull(),
+    failureCount: integer("failure_count").notNull().default(0),
+    windowStartedAt: integer("window_started_at").notNull(),
+    lockedUntil: integer("locked_until"),
+    lockoutCount: integer("lockout_count").notNull().default(0),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.scope, table.scopeKey] }),
+    index("idx_auth_attempt_counters_updated").on(table.updatedAt),
+    check(
+      "ck_auth_attempt_counters_scope",
+      sql`${table.scope} IN ('login:identity', 'login:client', 'recovery:identity', 'recovery:client')`,
+    ),
+    check(
+      "ck_auth_attempt_counters_scope_key",
+      sql`length(${table.scopeKey}) = 64 AND ${table.scopeKey} NOT GLOB '*[^0-9a-f]*'`,
+    ),
+    check(
+      "ck_auth_attempt_counters_counts",
+      sql`${table.failureCount} >= 0 AND ${table.lockoutCount} >= 0`,
+    ),
+    check(
+      "ck_auth_attempt_counters_clock",
+      sql`${table.windowStartedAt} > 0 AND ${table.updatedAt} > 0 AND (${table.lockedUntil} IS NULL OR ${table.lockedUntil} > 0)`,
+    ),
   ],
 );
 

@@ -102,7 +102,59 @@ email and does not rewrite identity mappings during a page read. A mistaken or
 replaced identity must be repaired by a reviewed, audited administrative
 procedure.
 
-## 5. Acceptance check
+## 5. Attempt budgets on the unauthenticated Auth routes
+
+`/api/auth/login` and `/api/auth/forgot-password` are the only two endpoints an
+anonymous caller can use to act on a real account. Supabase applies its own
+provider-side limits, but they are global to the project, invisible to this
+application, cannot lock a single targeted account, and cannot be proven to be
+in force from a Production runtime. The application therefore keeps its own
+budgets in D1 (`auth_attempt_counters`, migration `0022`).
+
+Every attempt spends two budgets at once, because either one alone leaves a real
+attack uncovered:
+
+| Scope | Budget | Window | Lockout ladder | Covers |
+| --- | --- | --- | --- | --- |
+| `login:identity` | 5 failures | 15 min | 15 / 30 / 60 min | guessing one account, including OWNER, from many clients |
+| `login:client` | 20 failures | 15 min | 15 / 30 / 60 min | spraying many accounts from one client |
+| `recovery:identity` | 3 requests | 60 min | 60 min | bombing one mailbox, exhausting the send quota |
+| `recovery:client` | 15 requests | 60 min | 60 min | bombing many mailboxes from one client |
+
+Operating rules the runtime enforces:
+
+- **The budget is spent before the provider is asked.** A request that times out
+  or dies inside the provider call has still spent its attempt.
+- **An unreachable counter refuses the request.** If D1 is unavailable the routes
+  return `error=unavailable` and never contact the provider. A missing
+  `auth_attempt_counters` table also makes `/api/health` report `degraded`, so a
+  runtime behind migration `0022` cannot claim readiness.
+- **A correct password clears only its own identity budget.** The shared client
+  budget is only ever given back the single attempt it lent, so an attacker who
+  controls one valid account cannot reset a client budget between guesses.
+- **Recovery never reports success.** The reply is identical whether or not the
+  address exists, so the counter is told the same thing and cannot become an
+  existence oracle. Lockouts are keyed on a digest of whatever address was
+  submitted, so an unknown address locks exactly like a known one.
+- **The client scope reads only `CF-Connecting-IP`,** which the edge overwrites
+  on every request. `X-Forwarded-For` is caller-controlled and would let one
+  client mint unlimited buckets. A request with no trusted address shares one
+  `unknown-client` bucket rather than escaping the scope.
+- **Counters store no subject.** `scope_key` is a SHA-256 digest; the table
+  compares subjects and never reads one back, so it cannot become a list of
+  email addresses typed at the login form. Rows that are neither locked nor
+  recently touched are reclaimed after 24 hours, at most 50 per attempt.
+- **The counters are the record.** Lockouts are not written to `audit_logs`,
+  because an anonymous caller would then control how many audit rows exist. The
+  counter row itself carries the failure count, the lockout count and the
+  current lock.
+
+There is no environment value, header or query parameter that disables any of
+this; `scripts/test-auth-security-gates.mjs` fails if one is introduced, and
+`scripts/test-auth-security-gate-negative.mjs` proves that gate rejects twelve
+specific ways the wiring can be broken.
+
+## 6. Acceptance check
 
 Before opening the system to users, verify:
 
@@ -112,3 +164,8 @@ Before opening the system to users, verify:
 4. Password recovery returns the same public message for existing and unknown emails.
 5. Status changes and image uploads create audit entries.
 6. No Supabase secret, password, sample credential, or fake KPI appears in the rendered HTML.
+7. Six wrong passwords on one account are refused with a wait, and the same
+   account is still refused after the 15-minute window has rolled but before the
+   lockout expires.
+8. A fourth recovery request for the same address inside an hour is refused, and
+   the refusal is identical for an address that has no account.

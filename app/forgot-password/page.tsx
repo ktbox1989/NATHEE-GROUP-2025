@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { retryAfterMinutes } from "@/lib/auth-throttle";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 
 export const metadata = {
@@ -9,10 +10,12 @@ const errorMessages: Record<string, string> = {
   config: "ระบบยืนยันตัวตนยังไม่ได้เชื่อมกับบัญชีผู้ให้บริการ",
   invalid_input: "กรุณากรอกอีเมล",
   expired: "ลิงก์หมดอายุหรือไม่ถูกต้อง กรุณาขอลิงก์ใหม่",
+  too_many_attempts: "ขอลิงก์ตั้งรหัสผ่านใหม่บ่อยเกินไป ระบบระงับการขอชั่วคราว",
+  unavailable: "ระบบยืนยันตัวตนไม่พร้อมใช้งานชั่วคราว กรุณาลองใหม่ภายหลัง",
 };
 
 type ForgotPasswordPageProps = {
-  searchParams: Promise<{ error?: string; sent?: string }>;
+  searchParams: Promise<{ error?: string; sent?: string; retryAfter?: string }>;
 };
 
 export default async function ForgotPasswordPage({
@@ -20,7 +23,13 @@ export default async function ForgotPasswordPage({
 }: ForgotPasswordPageProps) {
   const params = await searchParams;
   const configured = isSupabaseConfigured();
-  const error = params.error ? errorMessages[params.error] : null;
+  const baseError = params.error ? errorMessages[params.error] : null;
+  const waitMinutes =
+    params.error === "too_many_attempts" ? retryAfterMinutes(params.retryAfter) : null;
+  const error =
+    baseError && waitMinutes
+      ? `${baseError} กรุณาลองใหม่ในอีกประมาณ ${waitMinutes} นาที`
+      : baseError;
 
   return (
     <main className="login-page">
