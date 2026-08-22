@@ -5,7 +5,7 @@ Updated: 2026-08-23 (Asia/Bangkok)
 ## Source checkpoint
 
 - Branch: `main`
-- Full HEAD: `b4abdb8bbbdbb495b5eef4d96beeb09c8ea24731`
+- Full HEAD: `6d41848ab61922b3dcd110c650fc6346811d34d0`
 - Remote `origin/main` verified equal to local HEAD.
 - Latest verified implementation milestone: Customer isolation regression guard (`6b36aca`)
 - Public website Production: **CLOSED/PASS** at `7d24518e67a562c9df45d999d8f3144fccb86f6a`. Preserved; do not rework.
@@ -455,7 +455,7 @@ Run in the Z.com Terminal as `zptqqwps`:
 cd /home/zptqqwps/nathee-deploy && \
 GIT_SSH_COMMAND='ssh -i ~/.ssh/nathee_deploy -p 443' git fetch origin main && \
 GIT_SSH_COMMAND='ssh -i ~/.ssh/nathee_deploy -p 443' git pull --ff-only origin main && \
-git merge-base --is-ancestor b4abdb8bbbdbb495b5eef4d96beeb09c8ea24731 HEAD && \
+git merge-base --is-ancestor 6d41848ab61922b3dcd110c650fc6346811d34d0 HEAD && \
 git rev-parse HEAD && \
 bash scripts/probe-zcom-runtime.sh && \
 bash scripts/verify-public-site.sh && \
