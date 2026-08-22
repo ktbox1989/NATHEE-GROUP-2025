@@ -43,6 +43,42 @@ photographs. That was not true of the running site and has been corrected.
 
 ## Closed local milestones
 
+### Session refresh reaches every page that reads one, and the sign-in trail is usable (`0025`)
+
+- Fixed a regression introduced by this lane's own password-change milestone.
+  `/reset-password` began reading a session to decide whether to ask for the
+  current password, but it sat outside the request proxy's matcher. A Server
+  Component cannot write cookies, so when it refreshes an expired access token
+  the rotated refresh token is computed and discarded, leaving the browser
+  holding one the provider has already consumed. The concrete effect: a
+  signed-in user returning after an idle period could not change their password
+  — they were bounced to "link expired" instead. `/reset-password` is now in the
+  matcher.
+- `scripts/test-session-refresh-coverage.mjs` makes that structural. It walks
+  every server surface, finds the 80 that resolve a session, converts the proxy's
+  matcher entries into predicates and requires each surface to be covered. It
+  also fails on a matcher entry that covers nothing, on a matcher shape it cannot
+  verify, and if the proxy stops asking for the session or stops writing the
+  refreshed cookies onto the response. Nine proven rejections + 1 acceptance.
+- The Audit page now answers the two questions it is actually asked. `ทั้งหมด`
+  is unchanged, `การเข้าสู่ระบบ` shows the three authentication actions, and
+  `สิทธิ์ผู้ใช้` shows `INVITE` and `UPDATE_ACCESS`. An unrecognised view is a
+  wrong URL rather than a silent fall back to everything.
+- Authentication rows carry no free-text reason, so the detail column now reads
+  how the person proved who they were — password, emailed link, or current
+  password. A payload that is not a recognised method renders nothing rather than
+  raw JSON.
+- Additive migration `0025` adds `idx_audit_logs_action_created`, so a filtered
+  view is index-seekable instead of scanning the whole trail; proven by
+  EXPLAIN QUERY PLAN, and keyset pagination inside a filtered view is proven to
+  walk the same order without repeating a row across pages.
+- Verification: full tests 278/278 (149 unit + 129 integration), 12 of them new;
+  session refresh coverage 80/80 surfaces with 9 rejections + 1 acceptance;
+  TypeScript PASS; ESLint PASS; Vinext production build PASS; migrations through
+  `0025` packaged; all public and security guards PASS; `git diff --check` PASS.
+- No Production file, D1 row, Supabase value, R2 object, DNS record or credential
+  was changed. Migration `0025` is unapplied, like `0001`–`0024`.
+
 ### Production environment values are checkable before a deploy
 
 - Activation fails for boring reasons — a key pasted from the wrong dashboard
@@ -558,7 +594,7 @@ photographs. That was not true of the running site and has been corrected.
 - Added a single allowlisted application-origin contract. Production accepts only `https://natheegroup2025.com`; private `*.chatgpt.site` previews and localhost are explicit non-Production cases.
 - Password recovery, invitations and the Auth callback no longer derive sensitive redirect destinations from the request Host. Same-origin mutation checks now reject Host-spoofed requests and a Production runtime without `APP_ORIGIN` fails closed.
 - Supabase public/admin configuration rejects placeholders, malformed URLs, secret/public key confusion and values outside the approved `sb_publishable_...` / `sb_secret_...` contract.
-- `/api/health` now requires six independent checks: public Auth, admin Auth, canonical origin, required D1 tables/indexes/triggers through migration `0024`, a read-only R2 metadata probe and anti-abuse readiness. A bare database connection or binding name can no longer claim Production readiness.
+- `/api/health` now requires six independent checks: public Auth, admin Auth, canonical origin, required D1 tables/indexes/triggers through migration `0025`, a read-only R2 metadata probe and anti-abuse readiness. A bare database connection or binding name can no longer claim Production readiness.
 - This is source-only. No Supabase value, D1 migration, R2 object, Sites version, DNS record or Z.com Production file was changed.
 
 ### Exact confirmed Auth identity mapping
@@ -570,26 +606,27 @@ photographs. That was not true of the running site and has been corrected.
 
 ## Verified source gates
 
-- Full test suite: 266 passing
-- Authorization/unit/CMS/settings/search/config/readiness/identity/quotation/Turnstile/image/POD-signature/Auth-throttle/recovery-grant/timestamp tests: 142 passing
-- Render/schema/notification/yard/trip/container/inspection/POD/CMS/settings/query-plan/migration/Auth-throttle/recovery-grant/audit-ordering/auth-event/production-env tests: 124 passing
+- Full test suite: 278 passing
+- Authorization/unit/CMS/settings/search/config/readiness/identity/quotation/Turnstile/image/POD-signature/Auth-throttle/recovery-grant/timestamp/audit-view tests: 149 passing
+- Render/schema/notification/yard/trip/container/inspection/POD/CMS/settings/query-plan/migration/Auth-throttle/recovery-grant/audit-ordering/auth-event/production-env/audit-view tests: 129 passing
 - Production Vinext build: PASS
 - ESLint: PASS
 - Public SEO and deployment architecture guards: PASS
-- Migrations through `0024` packaged in `dist/.openai/drizzle/`: PASS
+- Migrations through `0025` packaged in `dist/.openai/drizzle/`: PASS
 - Release gate negative tests now cover installability: 9 rejections + 1 acceptance
 - Postcheck contract test (`test-production-postcheck-contract.sh`): 29 routes, content-only
 - Auth wiring gate (`test-auth-security-gates.mjs`): PASS, with 30 proven rejections + 1 acceptance
 - Authorization coverage gate (`test-authorization-coverage.mjs`): 84 surfaces, 78 authorized, 6 declared public, with 9 proven rejections + 1 acceptance
 - Response security header gate (`test-response-security-headers.mjs`): 6 headers, 4 CSP directives, 117 sources, with 13 proven rejections + 1 acceptance
 - Timestamp contract gate (`test-timestamp-contract.mjs`): 108 sources, with 8 proven rejections + 1 acceptance
+- Session refresh coverage gate (`test-session-refresh-coverage.mjs`): 80 session readers, all covered, with 9 proven rejections + 1 acceptance
 - TypeScript `tsc --noEmit`: PASS
 
 ## Open Owner gates
 
 - Approve application routing model: apex edge routes or an application subdomain.
 - Supply/configure Supabase Production values through a secure hosting channel.
-- Backup and apply migrations `0001`–`0024` to the protected D1 runtime.
+- Backup and apply migrations `0001`–`0025` to the protected D1 runtime.
 - Verify private R2 readiness.
 - Bootstrap the real OWNER identity and accept two-company customer isolation.
 - Supply/configure Turnstile Production keys through the secure hosting channel, approve untrusted-file/malware handling, and add verified location/map data when supplied.
@@ -601,7 +638,7 @@ photographs. That was not true of the running site and has been corrected.
    is refused and FTP/SFTP are disproved), so the Owner runs the exact block in
    "Pending Production deployment" below. Nothing else in the public-site scope
    is blocked on code.
-1. Close the Production activation gates: canonical app route, Supabase environment/callback, D1 backup+ledger+migrations `0001`–`0024`, R2 readiness, real OWNER mapping and approved quotation anti-abuse/untrusted-file controls.
+1. Close the Production activation gates: canonical app route, Supabase environment/callback, D1 backup+ledger+migrations `0001`–`0025`, R2 readiness, real OWNER mapping and approved quotation anti-abuse/untrusted-file controls.
 2. Run real browser acceptance for OWNER and two isolated customer companies before exposing `/app` publicly.
 3. Configure external LINE/email notification providers only after credentials, consent, retry and escalation policy are approved.
 4. Keep all new migrations unapplied until the Production backup/runtime gates are satisfied.

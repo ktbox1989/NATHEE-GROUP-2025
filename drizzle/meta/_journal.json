@@ -176,6 +176,13 @@
       "when": 1787420490273,
       "tag": "0024_audit_trail_immutability",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "6",
+      "when": 1787423602471,
+      "tag": "0025_audit_action_index",
+      "breakpoints": true
     }
   ]
 }

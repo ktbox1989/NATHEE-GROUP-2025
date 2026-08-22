@@ -1182,6 +1182,7 @@ export const auditLogs = sqliteTable(
   },
   (table) => [
     index("idx_audit_logs_created_id").on(table.createdAt, table.id),
+    index("idx_audit_logs_action_created").on(table.action, table.createdAt, table.id),
     index("idx_audit_logs_entity_created").on(table.entityType, table.entityId, table.createdAt),
     index("idx_audit_logs_company_created").on(table.companyId, table.createdAt),
   ],

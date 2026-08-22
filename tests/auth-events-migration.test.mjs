@@ -10,6 +10,7 @@ import {
   recordAuthEventParams,
   recordSignInParams,
 } from "../lib/auth-events-sql.ts";
+import { auditViewActions } from "../lib/audit-view.ts";
 import { recordTimestamp } from "../lib/timestamps.ts";
 
 // These rows are written on an unauthenticated request path, so what matters is
@@ -190,5 +191,131 @@ test("migration 0024 preserves the audit history that already exists", () => {
   // New entries are still accepted; only rewriting history is refused.
   signIn(db, "audit-after-migration", ACTIVE_AUTH_ID);
   assert.equal(db.prepare("SELECT count(*) total FROM audit_logs").get().total, 2);
+  db.close();
+});
+
+// --- filtered views -------------------------------------------------------
+
+function auditRow(db, id, action, entityType, at) {
+  db.prepare(
+    "INSERT INTO audit_logs (id, actor_user_id, action, entity_type, entity_id, created_at) VALUES (?, 'owner-a', ?, ?, 'owner-a', ?)",
+  ).run(id, action, entityType, at);
+}
+
+function seedMixedTrail(db) {
+  const at = (minute) => recordTimestamp(new Date(Date.UTC(2026, 7, 23, 10, minute, 0)));
+  auditRow(db, "e1-signin", "SIGN_IN", "session", at(1));
+  auditRow(db, "e2-create", "CREATE", "company", at(2));
+  auditRow(db, "e3-denied", "SIGN_IN_DENIED", "session", at(3));
+  auditRow(db, "e4-access", "UPDATE_ACCESS", "user", at(4));
+  auditRow(db, "e5-status", "STATUS_CHANGE", "motorcycle", at(5));
+  auditRow(db, "e6-password", "PASSWORD_CHANGED", "session", at(6));
+  auditRow(db, "e7-invite", "INVITE", "user", at(7));
+  return at;
+}
+
+// Exactly the shape app/app/audit/page.tsx issues for a filtered view.
+function filteredPage(db, actions, limit = 51, cursor = null) {
+  const placeholders = actions.map(() => "?").join(", ");
+  const cursorClause = cursor
+    ? " AND (created_at < ? OR (created_at = ? AND id < ?))"
+    : "";
+  const params = cursor
+    ? [...actions, cursor.createdAt, cursor.createdAt, cursor.id, limit]
+    : [...actions, limit];
+  return db
+    .prepare(
+      `SELECT id, created_at FROM audit_logs WHERE action IN (${placeholders})${cursorClause} ORDER BY created_at DESC, id DESC LIMIT ?`,
+    )
+    .all(...params);
+}
+
+test("the sign-in view returns only authentication events, newest first", () => {
+  const db = migrated();
+  seedMixedTrail(db);
+  const actions = [...(auditViewActions("auth") ?? [])];
+  assert.deepEqual(
+    filteredPage(db, actions).map((row) => row.id),
+    ["e6-password", "e3-denied", "e1-signin"],
+  );
+  db.close();
+});
+
+test("the access view returns only the actions that change who can do what", () => {
+  const db = migrated();
+  seedMixedTrail(db);
+  const actions = [...(auditViewActions("access") ?? [])];
+  assert.deepEqual(
+    filteredPage(db, actions).map((row) => row.id),
+    ["e7-invite", "e4-access"],
+  );
+  db.close();
+});
+
+test("a filtered view is served by its own index rather than scanning the trail", () => {
+  const db = migrated();
+  seedMixedTrail(db);
+  const actions = [...(auditViewActions("auth") ?? [])];
+  const placeholders = actions.map(() => "?").join(", ");
+  const plan = db
+    .prepare(
+      `EXPLAIN QUERY PLAN SELECT id FROM audit_logs WHERE action IN (${placeholders}) ORDER BY created_at DESC, id DESC LIMIT 51`,
+    )
+    .all(...actions)
+    .map((row) => String(row.detail))
+    .join(" ");
+  assert.match(plan, /idx_audit_logs_action_created/);
+  assert.doesNotMatch(plan, /SCAN audit_logs(?! USING)/);
+  db.close();
+});
+
+test("keyset pagination inside a filtered view walks the same order without repeating", () => {
+  const db = migrated();
+  const at = seedMixedTrail(db);
+  for (let extra = 0; extra < 3; extra += 1) {
+    auditRow(db, `e8-signin-${extra}`, "SIGN_IN", "session", at(10 + extra));
+  }
+  const actions = [...(auditViewActions("auth") ?? [])];
+
+  const first = filteredPage(db, actions, 3);
+  assert.deepEqual(first.map((row) => row.id), ["e8-signin-2", "e8-signin-1", "e8-signin-0"]);
+
+  const cursor = { createdAt: first.at(-1).created_at, id: first.at(-1).id };
+  const second = filteredPage(db, actions, 3, cursor);
+  assert.deepEqual(second.map((row) => row.id), ["e6-password", "e3-denied", "e1-signin"]);
+
+  const seen = new Set([...first, ...second].map((row) => row.id));
+  assert.equal(seen.size, 6, "no row appears on two pages");
+  db.close();
+});
+
+test("migration 0025 adds only its index and preserves the trail", () => {
+  const db = new DatabaseSync(":memory:");
+  db.exec("PRAGMA foreign_keys = ON");
+  const all = readdirSync(directory).filter((entry) => entry.endsWith(".sql")).sort();
+  for (const name of all.filter((entry) => entry < "0025_")) {
+    for (const statement of readFileSync(`${directory}/${name}`, "utf8").split("--> statement-breakpoint")) {
+      if (statement.trim()) db.exec(statement);
+    }
+  }
+  db.exec(`
+    INSERT INTO companies (id, code, legal_name, display_name)
+    VALUES ('company-a', 'CUS-A', 'บริษัท เอ จำกัด', 'บริษัท เอ');
+    INSERT INTO users (id, external_auth_id, email, display_name, role)
+    VALUES ('owner-a', '${ACTIVE_AUTH_ID}', 'owner@example.test', 'Owner', 'OWNER');
+  `);
+  auditRow(db, "before-index", "SIGN_IN", "session", recordTimestamp(new Date("2026-08-01T09:00:00.000Z")));
+
+  const migration = all.find((entry) => entry.startsWith("0025_"));
+  assert.ok(migration, "migration 0025 is required");
+  for (const statement of readFileSync(`${directory}/${migration}`, "utf8").split("--> statement-breakpoint")) {
+    if (statement.trim()) db.exec(statement);
+  }
+
+  assert.equal(db.prepare("SELECT count(*) total FROM audit_logs").get().total, 1);
+  assert.deepEqual(
+    filteredPage(db, [...(auditViewActions("auth") ?? [])]).map((row) => row.id),
+    ["before-index"],
+  );
   db.close();
 });
