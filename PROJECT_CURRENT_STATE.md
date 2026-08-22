@@ -5,7 +5,7 @@ Updated: 2026-08-23 (Asia/Bangkok)
 ## Source checkpoint
 
 - Branch: `main`
-- Full HEAD: `6b36aca92b4b5c3c6bdcc4f6f1162d1225f06be7`
+- Full HEAD: `b4abdb8bbbdbb495b5eef4d96beeb09c8ea24731`
 - Remote `origin/main` verified equal to local HEAD.
 - Latest verified implementation milestone: Customer isolation regression guard (`6b36aca`)
 - Public website Production: **CLOSED/PASS** at `7d24518e67a562c9df45d999d8f3144fccb86f6a`. Preserved; do not rework.
@@ -380,6 +380,8 @@ the guarded Z.com deployment of `7d24518e67a562c9df45d999d8f3144fccb86f6a`.
 - Application readiness decisions (`test-app-readiness.sh`): 16 cases, six health gates
 - OWNER bootstrap against all 22 migrations (`owner-bootstrap.test.mjs`): 7 cases
 - Customer isolation (`customer-isolation.test.ts`): 49 routes guarded, 0 unguarded
+- Login redirect regression (`test-login-redirect.sh`): 10 cases, committed state INACTIVE
+- Live public audit (`audit-live-public-site.mjs`): 11 routes, 36 references, 1 pending fix
 
 ## Open Owner gates
 
@@ -401,6 +403,115 @@ the guarded Z.com deployment of `7d24518e67a562c9df45d999d8f3144fccb86f6a`.
 2. Run real browser acceptance for OWNER and two isolated customer companies before exposing `/app` publicly.
 3. Configure external LINE/email notification providers only after credentials, consent, retry and escalation policy are approved.
 4. Keep all new migrations unapplied until the Production backup/runtime gates are satisfied.
+
+## Lane A — Public ↔ Application integration and release control
+
+Lane A owns the public website, the release scripts and the handoff to the
+application. Lane B owns Auth, Supabase, D1, R2, Owner/Admin and the
+application runtime. Neither lane redeploys the other's component.
+
+Full detail: `docs/PUBLIC_APP_HANDOFF.md`.
+
+### Public Production regression — PASS, no changes needed
+
+`node scripts/audit-live-public-site.mjs` inspects the deployed bytes, not the
+repository, and reports against the live domain:
+
+- 11 routes, 11 unique titles, 11 unique descriptions, correct canonical each,
+  exactly one `h1`, JSON-LD that parses;
+- every image has `alt` and intrinsic `width`/`height`; every gallery image has
+  `srcset` and `sizes`;
+- 36 internal references resolve; sitemap lists exactly the 11 public routes;
+- `robots.txt` excludes `/login/`, `/login-status.html`, `/auth/`, `/app/`,
+  `/api/`; `/login/` and unknown paths return a `noindex` `X-Robots-Tag`;
+- manifest valid and served as `application/manifest+json`, every icon resolves;
+- `www` redirects permanently to the apex;
+- accessibility: `lang`, skip link, `main`/`nav` landmarks, no positive
+  `tabindex`, every form control named, every link and button has an
+  accessible name.
+
+`bash scripts/postcheck-production.sh` also passes against the live site.
+
+### One pending public fix — not deployed
+
+`/services/` renders `h1` then five `h3` cards with no `h2`, which skips a
+level and breaks the documented semantic H1/H2 rule. Every other page is
+correct. Fixed in source with a visually hidden `h2` on the card section, so
+the accepted design is unchanged; only `public-site/services/index.html`
+differs in the rebuild.
+
+Until it is deployed, `audit-live-public-site.mjs` correctly reports
+`LIVE_AUDIT_FAIL problems=1`. Deploy with the existing guarded flow:
+
+```bash
+cd /home/zptqqwps/nathee-deploy && \
+GIT_SSH_COMMAND='ssh -i ~/.ssh/nathee_deploy -p 443' git pull --ff-only origin main && \
+git merge-base --is-ancestor b4abdb8bbbdbb495b5eef4d96beeb09c8ea24731 HEAD && \
+git rev-parse HEAD && \
+bash scripts/verify-public-site.sh && \
+bash scripts/test-public-site-gate.sh && \
+bash scripts/test-login-redirect.sh && \
+bash scripts/test-production-postcheck-contract.sh && \
+bash scripts/deploy-zcom.sh && \
+bash scripts/audit-production-components.sh
+```
+
+### /login handoff — built, tested, INACTIVE
+
+`https://natheegroup2025.com/login/` still serves its own `noindex` page. The
+handoff to `https://app.natheegroup2025.com/login` is committed as a managed
+block in `public-site/.htaccess`, shipped `INACTIVE`, and a test asserts the
+committed release is never accidentally active.
+
+Contract: 302 never 301 so activation stays reversible; `QSA` preserves
+`returnTo` and `error`; HTTPS-only absolute target; a `RewriteCond` pins the
+rule to the canonical apex so it cannot loop if the application host is pointed
+at this document root; `robots.txt` keeps `Disallow: /login/` and the local
+login page stays shipped so rollback needs no rebuild.
+
+`scripts/postcheck-production.sh` now reads the state from the release being
+deployed. It previously hard-required `/login/` to be 200 with a noindex meta,
+so activating the redirect would have made a correct deployment fail its own
+postcheck and roll itself back.
+
+### Integration gate — fail-closed, currently failing as expected
+
+`bash scripts/verify-app-integration.sh` must pass before activation. It
+requires `/api/health` 200 with all six checks true (an absent check fails
+too), application `/login` 200 with a body, `/auth/callback` present, no 5xx,
+the application `noindex` and not claiming the public canonical URL, the
+application host not serving the public site byte-for-byte, the eight public
+routes live, and the public release still passing its own verification.
+
+Run today it fails with `/api/health was unreachable`, because
+`app.natheegroup2025.com` does not exist yet. That is the correct state.
+
+Activation is refused without its evidence:
+
+```bash
+bash scripts/verify-app-integration.sh > app-integration-gate.txt
+node scripts/set-login-redirect.mjs --state active --evidence app-integration-gate.txt
+```
+
+`set-login-redirect.mjs` refuses to activate unless that file contains
+`APP_INTEGRATION_GATE_PASS`.
+
+### Waiting on Lane B
+
+Activation is blocked until Lane B supplies `APP_RUNTIME_PASS` evidence that
+`app.natheegroup2025.com` is live with Login/Auth passing. Lane A will not
+activate the redirect before then, and no Lane A change can make the
+application ready.
+
+### Lane A verified gates
+
+- Live public audit: 11 routes, 36 references, accessibility and PWA verified
+- Login redirect regression: 10 cases, both states deployable, rollback
+  byte-for-byte, activation refused without gate evidence
+- Release script portability: 15 scripts scanned code-only for rsync, flock,
+  `/dev/fd`, process substitution, herestrings, root and package managers
+- Source accessibility gate: heading order, single `h1`, skip link, landmark,
+  `lang`
 
 ## Public website Production — CLOSED
 

@@ -1,5 +1,17 @@
 # NATHEE GROUP 2025 — Work History
 
+## 2026-08-23 — Lane A: public/application integration and release control
+
+- Implementation commits: `eac3414`, `49196cd`, `b4abdb8`
+- Audited the live public release: 11 routes, unique titles and descriptions, 36 internal references resolving, sitemap exact, images with alt and intrinsic dimensions, valid manifest, www canonical. No regression, so nothing was changed to "fix" it.
+- Built the `/login` handoff to `app.natheegroup2025.com` and left it INACTIVE. 302 not 301 so it stays reversible, QSA preserves `returnTo` and `error`, and a host condition prevents a loop. Activation requires evidence from the integration gate, which fails closed today because the application host does not exist.
+- Fixed a latent rollback trap: `postcheck-production.sh` hard-required `/login/` to be 200, so activating the redirect would have made a correct deployment fail its own postcheck and roll itself back.
+- Widened the release portability guard from 6 to 15 scripts, scanning executable lines only, and added herestring and root/package-manager checks. It immediately found six herestrings, now explicit pipes.
+- Found and fixed one real accessibility defect: `/services/` skipped `h1 -> h3`. A visually hidden `h2` restores the outline with no visual change. Guarded in both the source verifier and the live audit.
+- Verification: full tests 188/188 (113 unit + 75 integration), TypeScript PASS, ESLint PASS, production build PASS, login redirect 10/10, public gate 9+1, postcheck contract 29 routes, app readiness 16/16, SEO 7 mutations, deploy tools PASS, live production postcheck PASS.
+- Deployment: source only. No redirect is active, no Production file changed, and the public release at `7d24518` is untouched. The `/services/` heading fix awaits the next public deploy.
+- Rollback: revert `b4abdb8` to drop the heading fix and its guards; revert `eac3414` to remove the handoff machinery. Neither affects the currently deployed site, which has no redirect active.
+
 ## 2026-08-23 — Application readiness: OWNER bootstrap and honest audit
 
 - Implementation commits: `0f3205b`, `a4a304a`
