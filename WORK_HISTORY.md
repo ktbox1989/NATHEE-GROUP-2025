@@ -1,5 +1,17 @@
 # NATHEE GROUP 2025 — Work History
 
+## 2026-08-22 — Repaired the Z.com release gates
+
+- Implementation commits: `3df9c43`, `f01f561`, `53ec689`
+- Measured Production directly and found it running a stale release: the homepage served 0 real work photographs, `/gallery/` served 0 `<img>` elements plus a client-side loading placeholder, and only 32 of 54 gallery variants resolved. The previous checkpoint claimed this Gallery was live; that claim has been corrected.
+- Root cause was that the deployment could not succeed. Both release gates still required the homepage to embed the brand artwork as an `<img>`, which the accepted homepage no longer does because the hero now leads with real work photography. `verify-public-site.sh` aborted the deploy before backup, and `postcheck-production.sh` would have rolled a correct release back after it was applied.
+- Both gates now verify the real contract: brand artwork via structured data and Open Graph, real server-rendered work photography on the homepage, nine server-rendered photographs on `/gallery/`, no server-rendered loading placeholder, and no reference to an `/assets/` file the release does not ship. The postcheck additionally requires the JPEG, WebP and thumbnail variants to resolve over HTTP.
+- Fixed a silent-failure defect: under `set -o pipefail` a zero-match `grep` made a count assignment return non-zero, so `set -e` killed the verifier with no output before `fail()` could report the reason.
+- Added `scripts/test-public-site-gate.sh` (4 negative cases + 1 positive) and `scripts/test-production-postcheck-contract.sh` (24 fetched routes, content only), both wired into CI and the Z.com runbook, and both using the shared `nathee_make_temp_dir` helper verified with `NATHEE_DISABLE_MKTEMP=1` and a home-directory parent.
+- Verification: gate negative tests 4/4 plus 1 positive, postcheck contract 24 routes PASS and FAIL when the stale assertion is restored, full tests 174/174 (106 unit + 68 integration), TypeScript PASS, ESLint PASS, Vinext Production build PASS, `verify-public-site.sh`, `test-public-seo-gates.sh` and `test-deploy-file-tools.sh` PASS, and `git diff --check` PASS.
+- Deployment: source only. No Z.com file, backup, Sites version, Supabase value, D1 migration/row, R2 object, DNS or Production runtime changed. The public release is unblocked but not yet deployed; it needs one Z.com Terminal run, which this runtime cannot reach because SSH port 22 is refused.
+- Rollback: revert `53ec689`, `f01f561` and `3df9c43` to restore the previous gates. Doing so re-blocks the public deployment, so prefer fixing forward. No schema or object rollback is involved.
+
 ## 2026-08-21 — Bounded multipart uploads before parsing
 
 - Implementation commit: `c9f20f7`

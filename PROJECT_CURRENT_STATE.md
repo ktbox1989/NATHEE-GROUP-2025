@@ -4,18 +4,35 @@ Updated: 2026-08-21 (Asia/Bangkok)
 
 ## Source checkpoint
 
-- Review branch: `codex/nathee-media-owner-2`
-- Integration baseline: `3cfd65a176cba858c6fd5d76cab61df5c78093f8`
-- Latest verified implementation milestone: Bounded multipart uploads before parsing (`c9f20f7edc75e998cce192931d4112411e1c87a2`)
+- Branch: `main`
+- Full HEAD: `53ec689dd41df3e5d88bb0307ad9fd0637c478fc`
+- Remote `origin/main` verified equal to local HEAD.
+- Latest verified implementation milestone: Repaired Z.com release gates so the pending public release can actually deploy (`3df9c43`, `f01f561`, `53ec689`)
 - Canonical repository: `ktbox1989/NATHEE-GROUP-2025`
 - Working rule: resolve the current checkpoint-document commit with `git rev-parse HEAD`; never infer Production deployment from source HEAD.
 
 ## Production evidence
 
+Measured directly against the live domain at `2026-08-22T16:23Z`. The previous
+revision of this document claimed the Production Gallery was live with nine
+photographs. That was not true of the running site and has been corrected.
+
 - Public static website: LIVE at `https://natheegroup2025.com/`
 - Z.com root: `/home/zptqqwps/public_html/natheegroup2025.com`
-- Public routes: 11, with mandatory SEO/noindex/mobile gates
-- Public Gallery Production: LIVE manifest v1 with nine Owner-supplied real photographs, responsive thumbnails, captions and Alt text
+- Public routes: 11, all HTTP 200, with SEO/noindex/mobile gates
+- **Production is running a stale release.** It predates `22a5454`
+  (responsive layouts and media delivery), so several accepted milestones are
+  built and committed but not serving.
+- Live homepage: 12,490 bytes and **0** real work photographs. The accepted
+  release is 23,212 bytes with 7.
+- Live `/gallery/`: 7,431 bytes, **0** `<img>` elements, and still renders the
+  client-side `loading` placeholder. The accepted release server-renders 9
+  photographs with 18 `<source>` variants.
+- Live gallery assets: **32 of 54** variants return 200. The 22 missing are
+  every AVIF variant plus the WebP display/thumbnail pair for
+  `motorcycle-storage-yard-01` and `motorcycle-truck-loading-01`.
+- `/assets/gallery.json`, the brand artwork and the Owner-supplied LINE QR are
+  live and return 200.
 - Canonical `/login/`: static noindex status page, not real Auth
 - Canonical `/app`: 404
 - Canonical `/api/health`: 404
@@ -25,6 +42,45 @@ Updated: 2026-08-21 (Asia/Bangkok)
 - Full application Production acceptance: NOT PASSED
 
 ## Closed local milestones
+
+### Repaired the Z.com release gates (`3df9c43`, `f01f561`, `53ec689`)
+
+- Found the reason Production is stale: **the deployment could not succeed.**
+  Both release gates still required the homepage to embed the brand artwork as
+  an `<img>`, which the accepted homepage no longer does because the hero now
+  leads with real company work photography.
+- `scripts/verify-public-site.sh` runs before any backup or mutation, so it
+  aborted the deploy outright. `scripts/postcheck-production.sh` runs *after*
+  the release is applied and `deploy-zcom.sh` restores the backup when it
+  fails, so a correct release would have been applied and then rolled straight
+  back. Both are fixed.
+- Both gates now verify the real contract: brand artwork through structured
+  data and Open Graph, a homepage that server-renders real work photography,
+  a `/gallery/` that server-renders the nine approved photographs, no
+  server-rendered loading placeholder, and no reference to an `/assets/` file
+  the release does not ship (covering `src`, `href` and every `srcset`
+  candidate). The postcheck additionally requires the JPEG, WebP and thumbnail
+  variants to resolve over HTTP, so a release that 404s its own images fails.
+- Fixed a silent-failure defect in the verifier: under `set -o pipefail` a
+  zero-match `grep` made a count assignment return non-zero, so `set -e` killed
+  the script with no output before `fail()` could report the reason.
+- `scripts/test-public-site-gate.sh` proves all four new guards by rejecting
+  deliberately broken copies of the real release, and confirms the unmodified
+  release still passes. `scripts/test-production-postcheck-contract.sh`
+  resolves every route the postcheck fetches against the real release and runs
+  the postcheck's own extracted assertions against those bytes, so the two
+  cannot drift; restoring the old assertion makes it fail, so it is not
+  vacuous. Both run in CI and in the documented Z.com runbook.
+- Both tests create scratch directories through the shared
+  `nathee_make_temp_dir` helper, verified with `NATHEE_DISABLE_MKTEMP=1` and a
+  home-directory parent to match Z.com shared hosting.
+- Verification: gate negative tests 4/4 plus 1 positive, postcheck contract 24
+  routes PASS, full tests 174/174 (106 unit + 68 integration), TypeScript PASS,
+  ESLint PASS, Vinext production build PASS, `verify-public-site.sh`,
+  `test-public-seo-gates.sh` and `test-deploy-file-tools.sh` PASS.
+- No Production file, backup, DNS record or credential was changed. The public
+  release is unblocked but **not yet deployed**; it needs one Z.com Terminal
+  run, which this runtime cannot reach.
 
 ### Bounded multipart uploads before parsing (`c9f20f7`)
 
@@ -279,6 +335,9 @@ Updated: 2026-08-21 (Asia/Bangkok)
 - ESLint: PASS
 - Public SEO and deployment architecture guards: PASS
 - Migrations through `0021` packaged in `dist/.openai/drizzle/`: PASS
+- Release gate negative tests (`test-public-site-gate.sh`): 4 rejections + 1 acceptance
+- Postcheck contract test (`test-production-postcheck-contract.sh`): 24 routes, content-only
+- TypeScript `tsc --noEmit`: PASS
 
 ## Open Owner gates
 
@@ -291,10 +350,54 @@ Updated: 2026-08-21 (Asia/Bangkok)
 
 ## Next autonomous work
 
+0. **Deploy the pending public release.** Source, gates and tests are green and
+   `main` is pushed. This runtime cannot reach the Z.com Terminal (SSH port 22
+   is refused and FTP/SFTP are disproved), so the Owner runs the exact block in
+   "Pending Production deployment" below. Nothing else in the public-site scope
+   is blocked on code.
 1. Close the Production activation gates: canonical app route, Supabase environment/callback, D1 backup+ledger+migrations `0001`–`0021`, R2 readiness, real OWNER mapping and approved quotation anti-abuse/untrusted-file controls.
 2. Run real browser acceptance for OWNER and two isolated customer companies before exposing `/app` publicly.
 3. Configure external LINE/email notification providers only after credentials, consent, retry and escalation policy are approved.
 4. Keep all new migrations unapplied until the Production backup/runtime gates are satisfied.
+
+## Pending Production deployment
+
+Run once in the Z.com Terminal as `zptqqwps`. It stops at the first failure,
+refuses to deploy a tree that does not contain the reviewed release, and
+`deploy-zcom.sh` restores its own timestamped backup if deploy or postcheck
+fails.
+
+Minimum required release commit:
+`53ec689dd41df3e5d88bb0307ad9fd0637c478fc`
+
+The block refuses to deploy unless that commit is an ancestor of the pulled
+`main`, so a newer documentation-only commit is accepted while an older or
+unrelated tree is rejected. It then prints the exact commit being deployed,
+and `deploy-zcom.sh` prints the same value as `DEPLOY_SOURCE_COMMIT=`.
+
+```bash
+cd /home/zptqqwps/nathee-deploy && \
+GIT_SSH_COMMAND='ssh -i ~/.ssh/nathee_deploy -p 443' git fetch origin main && \
+GIT_SSH_COMMAND='ssh -i ~/.ssh/nathee_deploy -p 443' git pull --ff-only origin main && \
+git merge-base --is-ancestor 53ec689dd41df3e5d88bb0307ad9fd0637c478fc HEAD && \
+git rev-parse HEAD && \
+bash scripts/probe-zcom-runtime.sh && \
+bash scripts/verify-public-site.sh && \
+bash scripts/test-public-site-gate.sh && \
+bash scripts/test-production-postcheck-contract.sh && \
+bash scripts/test-public-seo-gates.sh && \
+bash scripts/test-deploy-file-tools.sh && \
+bash scripts/deploy-zcom.sh && \
+bash scripts/audit-production-components.sh
+```
+
+Success is the line `PRODUCTION_POSTCHECK_PASS`. Record the `BACKUP_PATH=` line
+that `deploy-zcom.sh` prints; it is the exact rollback target for
+`bash scripts/rollback-zcom.sh <BACKUP_PATH>`.
+
+After it passes, the live site must show 7 real photographs on the homepage,
+9 server-rendered photographs on `/gallery/`, all 54 gallery variants
+resolving, and no `loading` placeholder.
 
 ## Prohibited claims
 
