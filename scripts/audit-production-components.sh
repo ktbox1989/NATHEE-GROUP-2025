@@ -3,6 +3,10 @@ set -Eeuo pipefail
 
 PUBLIC_BASE_URL="${NATHEE_PUBLIC_BASE_URL:-https://natheegroup2025.com}"
 APP_BASE_URL="${NATHEE_APP_BASE_URL:-}"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+
+# shellcheck source=scripts/lib/app-readiness.sh
+source "$SCRIPT_DIR/lib/app-readiness.sh"
 
 fail() {
   printf 'PRODUCTION_COMPONENT_AUDIT_FAIL: %s\n' "$1" >&2
@@ -52,13 +56,37 @@ health_file="${TMPDIR:-/tmp}/nathee-health-$$.json"
 trap 'rm -f "$health_file"' EXIT
 health_status="$(curl --silent --show-error --output "$health_file" --write-out '%{http_code}' "$APP_BASE_URL/api/health")"
 [[ "$health_status" == "200" ]] || fail "application health is not ready (status=$health_status)"
-grep -Eq '"authentication"[[:space:]]*:[[:space:]]*true' "$health_file" || fail "authentication readiness is false"
-grep -Eq '"adminAuthentication"[[:space:]]*:[[:space:]]*true' "$health_file" || fail "admin authentication readiness is false"
-grep -Eq '"canonicalOrigin"[[:space:]]*:[[:space:]]*true' "$health_file" || fail "canonical origin readiness is false"
-grep -Eq '"database"[[:space:]]*:[[:space:]]*true' "$health_file" || fail "database readiness is false"
-grep -Eq '"storage"[[:space:]]*:[[:space:]]*true' "$health_file" || fail "storage readiness is false"
 
-printf 'PRODUCTION_COMPONENT full-application=LIVE url=%s/app\n' "$APP_BASE_URL"
-printf 'PRODUCTION_COMPONENT backend-api=LIVE url=%s/api/health\n' "$APP_BASE_URL"
-printf 'PRODUCTION_COMPONENT database-migrations=RUNTIME_HEALTHY\n'
-printf 'PRODUCTION_COMPONENT_AUDIT_PASS public=LIVE fullApplication=HEALTHY\n'
+health_failures="$(nathee_health_failures "$health_file")"
+if [[ -n "$health_failures" ]]; then
+  printf 'PRODUCTION_HEALTH_FAILURE %s\n' $health_failures >&2
+  fail "application readiness is incomplete"
+fi
+
+# Health only proves configuration and schema. Prove separately that the
+# protected surface refuses an anonymous request, because a runtime that serves
+# /app to a signed-out visitor is a data breach, not a deployment.
+app_status="$(status_for "$APP_BASE_URL/app")"
+app_verdict="$(nathee_anonymous_gate_verdict "$app_status")"
+printf 'PRODUCTION_ANONYMOUS_GATE route=/app status=%s verdict=%s\n' "$app_status" "$app_verdict"
+nathee_anonymous_gate_ok "$app_status" || fail "/app is reachable without authentication (status=$app_status)"
+
+for protected_api in /api/companies /api/motorcycles /api/jobs; do
+  api_status="$(status_for "$APP_BASE_URL$protected_api")"
+  api_verdict="$(nathee_anonymous_gate_verdict "$api_status")"
+  printf 'PRODUCTION_ANONYMOUS_GATE route=%s status=%s verdict=%s\n' "$protected_api" "$api_status" "$api_verdict"
+  nathee_anonymous_gate_ok "$api_status" || fail "$protected_api is reachable without authentication (status=$api_status)"
+done
+
+printf 'PRODUCTION_COMPONENT backend-api=RUNTIME_HEALTHY url=%s/api/health checks=6\n' "$APP_BASE_URL"
+printf 'PRODUCTION_COMPONENT database-migrations=RUNTIME_HEALTHY scope=required-objects-through-0021\n'
+printf 'PRODUCTION_COMPONENT full-application=RUNTIME_HEALTHY_ANONYMOUS_GATED url=%s/app\n' "$APP_BASE_URL"
+
+# These require a real signed-in session and cannot be proven by an anonymous
+# probe. Naming them keeps a healthy runtime from being reported as a complete
+# Production acceptance.
+printf 'PRODUCTION_NOT_PROVEN real-login=REQUIRES_SIGNED_IN_ACCEPTANCE\n'
+printf 'PRODUCTION_NOT_PROVEN owner-mapping=REQUIRES_SIGNED_IN_ACCEPTANCE\n'
+printf 'PRODUCTION_NOT_PROVEN customer-isolation=REQUIRES_TWO_COMPANY_ACCEPTANCE\n'
+printf 'PRODUCTION_NOT_PROVEN qr-scan=REQUIRES_SIGNED_IN_ACCEPTANCE\n'
+printf 'PRODUCTION_COMPONENT_AUDIT_PASS public=LIVE fullApplication=RUNTIME_HEALTHY acceptance=NOT_CLAIMED\n'

@@ -36,11 +36,29 @@ Site URL: https://natheegroup2025.com
 Callback: https://natheegroup2025.com/auth/callback
 ```
 
-## 3. First owner
+## 3. Canonical OWNER
 
-Follow `AUTH_SETUP.md` to create the first Supabase user and the matching D1
-`users` row. Use the exact Supabase user UUID as `external_auth_id`. Do not
-create a demo owner and do not store an owner password in a script or document.
+Create and email-confirm the first Supabase user, then generate the bootstrap
+SQL rather than hand-writing an `INSERT`:
+
+```bash
+npm run owner:bootstrap -- \
+  --auth-id '<SUPABASE-USER-UUID>' \
+  --email '<CONFIRMED-EMAIL>' \
+  --display-name '<OWNER NAME>' \
+  > owner-bootstrap.sql
+```
+
+Review the two `PREFLIGHT` queries, apply the file to Production D1, then
+confirm the `VERIFY` query returns exactly one row with
+`effective_role = OWNER`, `status = ACTIVE` and `audit_entries = 1`. The
+generated SQL is idempotent, refuses to rebind an email or identity that
+already exists, writes the canonical `user_role_assignments` row and leaves an
+audit record. See `AUTH_SETUP.md`.
+
+Do not create a demo owner and do not store an owner password in a script or
+document. A generated `owner-bootstrap.sql` maps a privileged identity and is
+gitignored; delete it once applied.
 
 ## 4. Readiness check
 
@@ -67,6 +85,25 @@ Production origin. `database` verifies representative tables, indexes and
 invariant triggers through migration `0021`, not merely that D1 answers a
 query. `storage` performs a read-only R2 metadata probe. `antiAbuse` requires both validated Turnstile runtime keys. The endpoint never
 returns credentials or connection strings.
+
+Health proves configuration and schema only. Run the component audit, which
+additionally proves that the protected surface refuses an anonymous request:
+
+```bash
+NATHEE_APP_BASE_URL='https://OWNER_APPROVED_APP_HOST' bash scripts/audit-production-components.sh
+```
+
+It fails closed when any of the six checks is false **or absent**, and when
+`/app`, `/api/companies`, `/api/motorcycles` or `/api/jobs` answers an
+anonymous request with HTTP 200. A runtime that serves a protected page to a
+signed-out visitor is a data breach, not a deployment.
+
+The audit reports `full-application=RUNTIME_HEALTHY_ANONYMOUS_GATED`, never
+`LIVE`, and prints an explicit `PRODUCTION_NOT_PROVEN` line for real login,
+OWNER mapping, customer isolation and QR scanning. Those require the signed-in
+acceptance flow below and cannot be proven by an anonymous probe.
+
+`scripts/test-app-readiness.sh` proves these decisions against fixtures.
 
 ## 5. Acceptance flow
 

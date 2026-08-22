@@ -25,9 +25,33 @@ for (const forbidden of ["/dev/fd", "rsync", "<("]) {
 if (!probe.includes("ZCOM_FULL_APP_COMPATIBILITY=NOT_PROVEN")) throw new Error("Runtime probe must fail closed for application compatibility");
 
 const productionAudit = await read("scripts/audit-production-components.sh");
-for (const check of ["authentication", "adminAuthentication", "canonicalOrigin", "database", "storage"]) {
-  if (!productionAudit.includes(`"${check}"`)) throw new Error(`Application runtime audit is missing ${check}`);
+const appReadiness = await read("scripts/lib/app-readiness.sh");
+// Every gate /api/health reports must be enforced. antiAbuse was previously
+// absent from the audit, so a runtime with no anti-abuse configuration could be
+// reported as healthy.
+for (const check of ["authentication", "adminAuthentication", "canonicalOrigin", "database", "storage", "antiAbuse"]) {
+  if (!appReadiness.includes(check)) throw new Error(`Application runtime audit is missing ${check}`);
 }
+if (!productionAudit.includes("nathee_health_failures")) throw new Error("Application audit must evaluate every health gate");
+// Health alone must never be reported as a working application.
+if (productionAudit.includes("full-application=LIVE")) throw new Error("Application audit must not claim LIVE from a health probe");
+if (!productionAudit.includes("full-application=RUNTIME_HEALTHY_ANONYMOUS_GATED")) {
+  throw new Error("Application audit must report the anonymous-gated runtime state");
+}
+if (!productionAudit.includes("acceptance=NOT_CLAIMED")) throw new Error("Application audit must not claim acceptance");
+for (const unproven of ["real-login", "owner-mapping", "customer-isolation", "qr-scan"]) {
+  if (!productionAudit.includes(unproven)) throw new Error(`Application audit must name ${unproven} as unproven`);
+}
+// A protected route answering an anonymous request with 200 is a data breach.
+if (!appReadiness.includes("LEAKED")) throw new Error("Anonymous gate must reject an unauthenticated 200");
+for (const guarded of ["/app", "/api/companies", "/api/motorcycles", "/api/jobs"]) {
+  if (!productionAudit.includes(guarded)) throw new Error(`Application audit must probe ${guarded} anonymously`);
+}
+
+// The OWNER bootstrap must stay a generated, audited, idempotent procedure.
+const authSetup = await read("docs/AUTH_SETUP.md");
+if (!authSetup.includes("owner:bootstrap")) throw new Error("OWNER bootstrap must use the generator");
+if (/INSERT INTO users\s*$/m.test(authSetup)) throw new Error("OWNER bootstrap must not document a hand-written INSERT");
 
 const publicLogin = await read("public-site/login/index.html");
 if (!publicLogin.includes("ยังไม่เปิดรับการเข้าสู่ระบบ")) throw new Error("Static login route must remain an explicit placeholder");
