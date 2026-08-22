@@ -6,7 +6,7 @@ Prepared instead of merging. Nothing in this document has been merged, pushed to
 - Lane B branch: `lane-b/auth-runtime`
 - Lane B HEAD: see `git rev-parse HEAD` on `lane-b/auth-runtime` (this document is updated per milestone)
 - Merge base with `main`: `0f3205b432cd2aba2fb499b8b7d76fe3e6d25716`
-- Lane A `main` at analysis time: `1f3b9c4`
+- Lane A `main` at analysis time: `fcc97e9`
 
 ## Merge status, measured not assumed
 
@@ -27,9 +27,14 @@ for the reason given below.
 
 ## The merged tree was actually tested, not just diffed
 
-The merged tree was materialised into a scratch directory and every Lane B gate
-run against it. All seven pass. That check found one real defect — in Lane B's
-own gate, not in the merge:
+The merged tree is materialised into a scratch directory and every Lane B gate
+run against it. All seven pass, and so does the shared
+`scripts/test-canonical-domain.mjs` — which now reads both lanes' files and
+confirms Lane A's newer work does not reintroduce the apex as an application
+origin.
+
+An earlier run of this same check found a real defect — in Lane B's own gate,
+not in the merge:
 
 `scripts/test-response-security-headers.mjs` asserted a header using a literal
 newline, so it depended on how the tree was checked out. It passed on this
