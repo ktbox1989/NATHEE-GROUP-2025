@@ -438,23 +438,53 @@ repository, and reports against the live domain:
 level and breaks the documented semantic H1/H2 rule. Every other page is
 correct. Fixed in source with a visually hidden `h2` on the card section, so
 the accepted design is unchanged; only `public-site/services/index.html`
-differs in the rebuild.
+differs from the live site.
 
 Until it is deployed, `audit-live-public-site.mjs` correctly reports
-`LIVE_AUDIT_FAIL problems=1`. Deploy with the existing guarded flow:
+`LIVE_AUDIT_FAIL problems=1`.
+
+Z.com has **no node, npm or npx**, and none will be installed. The block below
+is portable bash only. The Node-driven suites run locally or in CI instead:
+`test-login-redirect.sh` before push, `audit-live-public-site.mjs` after
+deploy. `test-deploy-file-tools.sh` now fails if any Z.com-set script invokes
+a Node binary, so this cannot regress.
+
+Run in the Z.com Terminal as `zptqqwps`:
 
 ```bash
 cd /home/zptqqwps/nathee-deploy && \
+GIT_SSH_COMMAND='ssh -i ~/.ssh/nathee_deploy -p 443' git fetch origin main && \
 GIT_SSH_COMMAND='ssh -i ~/.ssh/nathee_deploy -p 443' git pull --ff-only origin main && \
 git merge-base --is-ancestor b4abdb8bbbdbb495b5eef4d96beeb09c8ea24731 HEAD && \
 git rev-parse HEAD && \
+bash scripts/probe-zcom-runtime.sh && \
 bash scripts/verify-public-site.sh && \
+bash scripts/verify-login-redirect-state.sh && \
 bash scripts/test-public-site-gate.sh && \
-bash scripts/test-login-redirect.sh && \
 bash scripts/test-production-postcheck-contract.sh && \
+bash scripts/test-public-seo-gates.sh && \
+bash scripts/test-app-readiness.sh && \
+bash scripts/test-deploy-file-tools.sh && \
 bash scripts/deploy-zcom.sh && \
 bash scripts/audit-production-components.sh
 ```
+
+`verify-login-redirect-state.sh` defaults to requiring the release to declare
+`INACTIVE`, so this deployment cannot switch the `/login/` handoff on. It
+rejects an `ACTIVE` release unless explicitly told to expect one **and** given
+evidence containing `APP_RUNTIME_PASS` from Lane B.
+
+Success is the line `PRODUCTION_POSTCHECK_PASS`. Record the `BACKUP_PATH=`
+line; it is the exact rollback target for
+`bash scripts/rollback-zcom.sh <BACKUP_PATH>`.
+
+Then, from a machine that has Node:
+
+```bash
+node scripts/audit-live-public-site.mjs https://natheegroup2025.com
+```
+
+It must report `LIVE_AUDIT_PASS ... problems=0`.
 
 ### /login handoff — built, tested, INACTIVE
 

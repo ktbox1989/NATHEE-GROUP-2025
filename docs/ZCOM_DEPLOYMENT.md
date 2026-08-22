@@ -27,20 +27,89 @@ cd /home/zptqqwps/nathee-deploy
 GIT_SSH_COMMAND='ssh -i ~/.ssh/nathee_deploy -p 443' git pull --ff-only origin main
 ```
 
-## Verify and deploy
+## Where each gate runs
+
+Z.com shared hosting has **no node, npm or npx**. `probe-zcom-runtime.sh`
+reports them as `MISSING`, and that is expected and permanent: do not install
+a runtime on the web host.
+
+Gates are therefore split by interpreter, not by importance.
+
+| Gate | Runs where | Why |
+| --- | --- | --- |
+| `verify-public-site.sh` | Z.com + CI | portable bash |
+| `verify-login-redirect-state.sh` | Z.com + CI | portable bash |
+| `test-public-site-gate.sh` | Z.com + CI | portable bash |
+| `test-production-postcheck-contract.sh` | Z.com + CI | portable bash |
+| `test-public-seo-gates.sh` | Z.com + CI | portable bash |
+| `test-app-readiness.sh` | Z.com + CI | portable bash |
+| `test-deploy-file-tools.sh` | Z.com + CI | portable bash |
+| `postcheck-production.sh` | Z.com | portable bash, run by the deploy |
+| `test-login-redirect.sh` | **local/CI only** | drives Node |
+| `audit-live-public-site.mjs` | **local/CI only** | Node, run after deploy |
+| `build-public-site.mjs`, `set-login-redirect.mjs` | **local/CI only** | Node |
+
+`test-deploy-file-tools.sh` enforces this split: it fails if any script in the
+Z.com set invokes `node`, `npm` or `npx`, so a Node dependency cannot reach a
+Production gate again. It matches command position only, so the optional
+capability list inside `probe-zcom-runtime.sh` is not mistaken for a
+dependency.
+
+## Before pushing (local or CI)
+
+The Node-driven regression suites are not weakened by being moved off the web
+host; they simply run earlier, where a Node runtime exists.
+
+```bash
+npm ci
+npm run lint
+npm test
+bash scripts/test-login-redirect.sh
+```
+
+## Verify and deploy (Z.com)
+
+Portable bash only.
 
 ```bash
 cd /home/zptqqwps/nathee-deploy
+bash scripts/probe-zcom-runtime.sh
 bash scripts/verify-public-site.sh
+bash scripts/verify-login-redirect-state.sh
 bash scripts/test-public-site-gate.sh
 bash scripts/test-production-postcheck-contract.sh
-bash scripts/test-deploy-file-tools.sh
 bash scripts/test-public-seo-gates.sh
-bash scripts/probe-zcom-runtime.sh
+bash scripts/test-app-readiness.sh
+bash scripts/test-deploy-file-tools.sh
 bash scripts/deploy-zcom.sh
-bash scripts/postcheck-production.sh
 bash scripts/audit-production-components.sh
 ```
+
+`verify-login-redirect-state.sh` defaults to requiring the release to declare
+`INACTIVE`, so a release that would hand `/login/` to the application is
+rejected on the deploying host. Expecting `ACTIVE` requires evidence:
+
+```bash
+NATHEE_EXPECT_LOGIN_REDIRECT=ACTIVE \
+  bash scripts/verify-login-redirect-state.sh --evidence app-runtime-pass.txt
+```
+
+The evidence file must contain `APP_RUNTIME_PASS` from Lane B. When the state
+is `ACTIVE` the gate also re-checks the rewrite contract with portable tools:
+302 and never 301, `QSA`, an HTTPS target, the apex host condition that
+prevents a loop, and the local login page still shipped for rollback.
+
+## After deploying (local or CI)
+
+`deploy-zcom.sh` already runs `postcheck-production.sh` and rolls back on
+failure. Run the deeper Node audit from a machine that has Node, pointed at the
+Production URL:
+
+```bash
+node scripts/audit-live-public-site.mjs https://natheegroup2025.com
+```
+
+It must report `LIVE_AUDIT_PASS ... problems=0`.
 
 The deploy script:
 

@@ -67,8 +67,8 @@ if nathee_restore_backup "$tampered_metadata" "$production_root" >/dev/null 2>&1
 fi
 grep -Fqx 'created externally' "$production_root/external-after-deploy.txt" || fail "metadata tamper deleted an unrelated file"
 
-# Every script the Z.com runbook executes must stay portable on shared hosting.
-# Listing them explicitly means a new release script cannot quietly opt out.
+# Scripts the Z.com runbook executes. The probe proves this host has no node,
+# npm or npx, so anything listed here must run on portable bash alone.
 zcom_scripts=(
   "$SCRIPT_DIR/lib/deploy-file-tools.sh"
   "$SCRIPT_DIR/lib/app-readiness.sh"
@@ -80,14 +80,31 @@ zcom_scripts=(
   "$SCRIPT_DIR/probe-zcom-runtime.sh"
   "$SCRIPT_DIR/audit-production-components.sh"
   "$SCRIPT_DIR/verify-app-integration.sh"
+  "$SCRIPT_DIR/verify-login-redirect-state.sh"
   "$SCRIPT_DIR/test-public-site-gate.sh"
   "$SCRIPT_DIR/test-production-postcheck-contract.sh"
   "$SCRIPT_DIR/test-app-readiness.sh"
-  "$SCRIPT_DIR/test-login-redirect.sh"
   "$SCRIPT_DIR/test-public-seo-gates.sh"
 )
+
+# Scripts that drive Node deliberately. They run locally and in CI before push
+# and must never become a Z.com gate, or a deployment stops on a missing
+# interpreter instead of on a real defect.
+local_only_scripts=(
+  "$SCRIPT_DIR/test-login-redirect.sh"
+)
+
+for release_script in "${zcom_scripts[@]}" "${local_only_scripts[@]}"; do
+  [[ -f "$release_script" ]] || fail "release script is missing: $release_script"
+done
+
+# The Z.com runtime state gate must exist and must not be the Node suite.
+[[ -f "$SCRIPT_DIR/verify-login-redirect-state.sh" ]] \
+  || fail "the portable login-redirect state gate is missing"
 for zcom_script in "${zcom_scripts[@]}"; do
-  [[ -f "$zcom_script" ]] || fail "release script is missing: $zcom_script"
+  case "$zcom_script" in
+    */test-login-redirect.sh) fail "the Node login-redirect suite must not be a Z.com gate" ;;
+  esac
 done
 
 # Scan executable lines only. These scripts document the tools they avoid, and
@@ -99,31 +116,45 @@ for zcom_script in "${zcom_scripts[@]}"; do
 done
 [[ -s "$zcom_code" ]] || fail "could not collect release script code"
 
-if grep -Eq '(^|[^[:alpha:]])rsync([^[:alpha:]]|$)' "$zcom_code"; then
+all_code="$test_root/all-release-code.txt"
+cp "$zcom_code" "$all_code"
+for local_script in "${local_only_scripts[@]}"; do
+  grep -v '^[[:space:]]*#' "$local_script" >> "$all_code" || true
+done
+
+# A Z.com gate that shells out to node stops the deployment on a missing
+# interpreter. Matching only command position keeps probe-zcom-runtime.sh,
+# which merely reports whether node exists, from being flagged.
+node_invocation='(^|[;&|]|\$\()[[:space:]]*(node|npm|npx)[[:space:]]'
+if grep -Eq "$node_invocation" "$zcom_code"; then
+  fail "a Z.com gate invokes node, npm or npx; this host has none"
+fi
+
+if grep -Eq '(^|[^[:alpha:]])rsync([^[:alpha:]]|$)' "$all_code"; then
   fail "deployment still depends on rsync"
 fi
 
-if grep -Eq '(^|[^[:alpha:]])flock([^[:alpha:]]|$)' "$zcom_code"; then
+if grep -Eq '(^|[^[:alpha:]])flock([^[:alpha:]]|$)' "$all_code"; then
   fail "deployment still depends on flock"
 fi
 
-if grep -Fq '/dev/fd' "$zcom_code"; then
+if grep -Fq '/dev/fd' "$all_code"; then
   fail "deployment still depends on /dev/fd"
 fi
 
 process_substitution_token='<''('
-if grep -Fq "$process_substitution_token" "$zcom_code"; then
+if grep -Fq "$process_substitution_token" "$all_code"; then
   fail "process substitution is still present"
 fi
 
 # Herestrings can be implemented through /dev/fd, which this host does not
 # provide. An explicit pipe is always available.
 herestring_token='<<''<'
-if grep -Fq "$herestring_token" "$zcom_code"; then
+if grep -Fq "$herestring_token" "$all_code"; then
   fail "a herestring is present; use a pipe instead"
 fi
 
-if grep -Eq '(^|[^[:alpha:]])(sudo|apt-get|yum|dnf)([^[:alpha:]]|$)' "$zcom_code"; then
+if grep -Eq '(^|[^[:alpha:]])(sudo|apt-get|yum|dnf)([^[:alpha:]]|$)' "$all_code"; then
   fail "a release script requires root or package installation"
 fi
 
@@ -146,4 +177,4 @@ printf '%s\n' "$$" > "$lock_dir/owner.pid"
 nathee_release_lock_dir "$lock_dir" || fail "portable lock release"
 [[ ! -e "$lock_dir" ]] || fail "portable lock directory remains"
 
-printf 'DEPLOY_FILE_TOOLS_TEST_PASS backup=verified nested_routes=verified unknown=preserved rollback=verified tar_tamper=rejected metadata_tamper=rejected rsync=absent flock=absent dev_fd=absent herestring=absent root=absent mktemp_fallback=verified lock=atomic_mkdir\n'
+printf 'DEPLOY_FILE_TOOLS_TEST_PASS backup=verified nested_routes=verified unknown=preserved rollback=verified tar_tamper=rejected metadata_tamper=rejected rsync=absent flock=absent dev_fd=absent herestring=absent root=absent nodeOnZcom=absent mktemp_fallback=verified lock=atomic_mkdir\n'

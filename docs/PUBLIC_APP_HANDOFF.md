@@ -68,6 +68,9 @@ recorded in `DEPLOYMENT_ARCHITECTURE.md`; it must be settled before activation.
 
 Activation is deliberately two steps, and the first cannot be skipped.
 
+Steps 1 to 3 run **locally or in CI**, where Node exists. Step 4 runs on
+Z.com, which has no Node.
+
 ```bash
 # 1. Prove the application is ready. Read-only; changes nothing.
 bash scripts/verify-app-integration.sh > app-integration-gate.txt
@@ -75,10 +78,16 @@ bash scripts/verify-app-integration.sh > app-integration-gate.txt
 # 2. Switch the release. Refused unless step 1 wrote APP_INTEGRATION_GATE_PASS.
 node scripts/set-login-redirect.mjs --state active --evidence app-integration-gate.txt
 
-# 3. Verify, then deploy through the existing guarded flow.
+# 3. Full regression, then commit and push.
 bash scripts/test-login-redirect.sh
 bash scripts/verify-public-site.sh
-# then the normal Z.com deployment, which backs up and postchecks
+npm test
+
+# 4. On Z.com, pull and deploy. The state gate must be told to expect ACTIVE,
+#    and only Lane B's APP_RUNTIME_PASS evidence permits that.
+NATHEE_EXPECT_LOGIN_REDIRECT=ACTIVE \
+  bash scripts/verify-login-redirect-state.sh --evidence app-runtime-pass.txt
+bash scripts/deploy-zcom.sh
 ```
 
 The integration gate fails closed unless **all** of the following hold:
@@ -100,9 +109,12 @@ Rollback is the same mechanism in reverse and needs no rebuild, because the
 local login page ships in every release:
 
 ```bash
+# locally or in CI
 node scripts/set-login-redirect.mjs --state inactive
 bash scripts/test-login-redirect.sh
-# redeploy through the guarded Z.com flow
+# then on Z.com, where INACTIVE is the default expectation
+bash scripts/verify-login-redirect-state.sh
+bash scripts/deploy-zcom.sh
 ```
 
 `scripts/test-login-redirect.sh` asserts that this restores the committed
@@ -119,6 +131,31 @@ bash scripts/rollback-zcom.sh /home/zptqqwps/backups/nathee/<timestamp>
 Because the handoff is a 302 and not a 301, browsers stop following it as soon
 as the inactive release is live. A 301 would have to expire from every visitor's
 cache first, which is why it is not used.
+
+## Where each gate can run
+
+Z.com shared hosting has no `node`, `npm` or `npx`, and none will be
+installed. Gates are split by interpreter:
+
+- **Portable bash — runs on Z.com and in CI:** `verify-public-site.sh`,
+  `verify-login-redirect-state.sh`, `test-public-site-gate.sh`,
+  `test-production-postcheck-contract.sh`, `test-public-seo-gates.sh`,
+  `test-app-readiness.sh`, `test-deploy-file-tools.sh`,
+  `postcheck-production.sh`, `verify-app-integration.sh`.
+- **Node — local and CI only, before push or after deploy:**
+  `test-login-redirect.sh`, `audit-live-public-site.mjs`,
+  `build-public-site.mjs`, `set-login-redirect.mjs`.
+
+Moving the Node suites off the web host does not weaken them; they run
+earlier, where an interpreter exists. `test-deploy-file-tools.sh` fails if any
+Z.com-set script invokes `node`, `npm` or `npx`, so a Node dependency cannot
+become a Production gate again.
+
+On Z.com the redirect state is proven by `verify-login-redirect-state.sh`,
+which defaults to requiring `INACTIVE`. When told to expect `ACTIVE` it also
+re-checks the rewrite contract in portable bash: 302 and never 301, `QSA`, an
+HTTPS target, the apex host condition that prevents a loop, and the local login
+page still shipped for rollback.
 
 ## Production verification procedure
 
