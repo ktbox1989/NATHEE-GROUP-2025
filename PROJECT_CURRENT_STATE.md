@@ -1131,6 +1131,83 @@ the guarded Z.com deployment of `7d24518e67a562c9df45d999d8f3144fccb86f6a`.
 3. Configure external LINE/email notification providers only after credentials, consent, retry and escalation policy are approved.
 4. Keep all new migrations unapplied until the Production backup/runtime gates are satisfied.
 
+## Integration run 2026-08-23 — Lane A merged Lane B into main
+
+Exact commits, resolved live rather than taken from an earlier report. Lane B
+moved twice during the run, so the merge was redone each time against the
+current head; no snapshot was merged stale.
+
+| | SHA |
+| --- | --- |
+| Lane A main before | `fcc97e9faca36e04f034151eee45867060c14d07` |
+| Lane B reviewed and merged | `1653b765b1422cfcbd44bfa764810b042c68dcd1` |
+| merge base | `0f3205b432cd2aba2fb499b8b7d76fe3e6d25716` |
+| integration branch | `0c092f1b2f9ea0befbf1cbd309e8595bf9db856c` |
+| main after | `0c092f1b2f9ea0befbf1cbd309e8595bf9db856c` |
+
+Lane B heads seen during the run: `930915ce` (reviewed previously, superseded),
+`4cdf55b5` (merged, superseded), `1653b765` (merged and pushed).
+
+### Conflicts and resolutions
+
+Two files conflicted on every merge, both resolved by union rather than by
+choosing a side:
+
+- **`package.json`** — every script from both lanes kept. Verified by diffing
+  the referenced test and script files, not by eye: nothing lost from `test`,
+  `test:unit`, `test:db`, `test:public`, `test:gate` or `test:security`. The
+  first union left two `node --test` invocations in `test`, running the
+  migration suite twice; collapsed into one run.
+- **`PROJECT_CURRENT_STATE.md`** — both lanes' milestones kept, 65 sections
+  with no duplicate heading, and the test-count summary replaced with measured
+  values rather than either lane's stale figure.
+
+`docs/PRODUCTION_GO_LIVE.md` auto-merged; inspected and correct, with one
+origin contract and no duplicate section.
+
+### Defects
+
+- **Defect A (apex regression guard, CRLF)** — fixed by Lane B in `80f0e59`,
+  independently and better than Lane A had proposed: line-agnostic, three apex
+  values instead of two, and skipping lines already carrying `https://app.` so
+  the application origin is never mistaken for the apex. Re-proven across six
+  combinations (APP_ORIGIN, Site URL, Callback × LF, CRLF) — all rejected,
+  baseline still passing.
+- **Defect B (mutation suites, CRLF)** — not fixed upstream and still biting.
+  Every mutation suite anchored replacements on a newline escape, so on a CRLF
+  checkout each case aborted with "mutation changed nothing". Normalised before
+  mutating; no assertion weakened. The suites went from unrunnable to 122
+  negative rejections.
+- **New guard** — `scripts/test-line-ending-independence.mjs` prevents the
+  class returning. Its first version was vacuous, which the non-vacuity test
+  exposed; rewritten and proven by two negative cases. It then immediately
+  caught both of Lane B's brand-new negative suites carrying the same defect.
+
+### Combined verification, measured on the merged tree
+
+- 471 tests: 279 unit + 192 integration, 0 failures
+- 18 gates PASS, 122 negative rejections
+- TypeScript PASS, ESLint PASS, Vinext production build PASS
+- Lane A gates PASS: login redirect 10/10, site gate 9+1, postcheck contract
+  29 routes, app readiness 16/16, SEO 7 mutations, deploy tools with
+  `nodeOnZcom=absent`
+- LF and CRLF both exercised for the canonical domain guard
+
+### CMS contract
+
+Lane B's `CmsPageContent` was reconciled field by field and mapped by
+`lib/public-cms/map-from-cms.ts`. Five differences are documented in
+`docs/PUBLIC_CMS_INTEGRATION.md`: heading rank derived by a fixed rule, NOINDEX
+not expressible, media resolved through an injected resolver, `publishedAt`
+supplied by the caller, and `/gallery/` being media rather than a managed page.
+No validator was widened; the mapper's output passes the same unchanged gate.
+
+### Production
+
+Untouched. Public site remains CLOSED/PASS, `/login/` redirect INACTIVE, and
+`APP_RUNTIME_PASS` is NOT PROVEN — it can only be established against a live
+`app.natheegroup2025.com`, never from local tests.
+
 ## Lane A — Public CMS integration prep (inactive)
 
 Prepared while Lane B builds the CMS backend. Nothing is wired into a rendered
