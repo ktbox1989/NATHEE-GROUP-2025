@@ -1,4 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { authIdentityId } from "@/lib/auth-identity";
+import { recordSignInEvent } from "@/lib/auth-events-store";
 import { authThrottleTargets, normalizeIdentitySubject } from "@/lib/auth-throttle";
 import {
   reserveAuthAttempt,
@@ -54,7 +56,7 @@ export async function POST(request: NextRequest) {
   }
 
   const { client, applyAuthCookies } = createSupabaseRouteClient(request);
-  const { error } = await client.auth.signInWithPassword({ email, password });
+  const { data, error } = await client.auth.signInWithPassword({ email, password });
   // The attempt is already recorded as spent; settling only escalates a spent
   // window into a lockout, or releases a proven identity. Neither may turn a
   // provider answer into a different one, so a settlement failure is swallowed.
@@ -67,6 +69,16 @@ export async function POST(request: NextRequest) {
         303,
       ),
     );
+  }
+
+  // Until now the Audit trail recorded what people changed but never that they
+  // got in, so a compromised account left no trace unless it also changed
+  // something. Best effort on purpose: the counter above already proved the
+  // database was reachable, and a lost trail entry must not cost a real user
+  // their login.
+  const externalAuthId = authIdentityId(data.user);
+  if (externalAuthId) {
+    await recordSignInEvent(externalAuthId, "password").catch(() => {});
   }
 
   return applyAuthCookies(

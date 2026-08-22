@@ -43,6 +43,42 @@ photographs. That was not true of the running site and has been corrected.
 
 ## Closed local milestones
 
+### An Audit trail that records getting in, and cannot be rewritten (`0024`)
+
+- The Audit trail recorded what people changed once they were inside and nothing
+  about how they got there, so a compromised account left no trace at all unless
+  it also changed something. `SIGN_IN`, `SIGN_IN_DENIED` and `PASSWORD_CHANGED`
+  now reach `audit_logs` and appear in `/app/audit` alongside every other change,
+  in the true chronological order the previous milestone restored.
+- Each row is written by one `INSERT ... SELECT` keyed on the provider identity,
+  so the actor, the company and the action all come from the authoritative
+  `users` row read in the same statement. The provider identity is matched, never
+  stored, and the action is decided by SQL from the account's own status — a
+  deactivated account whose provider credentials still work is recorded as
+  refused, not as a sign-in.
+- **A provider identity with no application user writes nothing.** That is what
+  keeps an unauthenticated path from growing the Owner's Audit table: someone who
+  creates an account at the identity provider cannot make rows appear.
+- Writing the entry is best effort and never costs a real user their login; by
+  the time it runs, the attempt counter has already proved D1 was reachable.
+- **The client address is deliberately not recorded.** It would help identify a
+  compromise, and it would also make the Audit table a permanent location log of
+  the Owner's own staff. That retention and consent decision belongs to the
+  Owner, not to a default taken quietly here.
+- Migration `0024` makes the whole trail tamper-evident: `audit_logs` now refuses
+  UPDATE and DELETE, matching how signed POD, quotation records and import
+  batches are already protected. Nothing in the application has ever updated or
+  deleted an audit row, so this only removes a way to rewrite history; existing
+  entries are preserved and new ones are still accepted. A runtime missing either
+  trigger reports `/api/health` as `degraded`.
+- Verification: full tests 256/256 (142 unit + 114 integration), 9 of them new
+  and all running the real statements against the real migrated schema; Auth
+  wiring gate 30 proven rejections + 1 acceptance; TypeScript PASS; ESLint PASS;
+  Vinext production build PASS; migrations through `0024` packaged; all public
+  and security guards PASS; `git diff --check` PASS.
+- No Production file, D1 row, Supabase value, R2 object, DNS record or credential
+  was changed. Migration `0024` is unapplied, like `0001`–`0023`.
+
 ### The Audit page was showing the day's events in the wrong order
 
 - Found and fixed a real, user-visible defect while preparing to add
@@ -496,7 +532,7 @@ photographs. That was not true of the running site and has been corrected.
 - Added a single allowlisted application-origin contract. Production accepts only `https://natheegroup2025.com`; private `*.chatgpt.site` previews and localhost are explicit non-Production cases.
 - Password recovery, invitations and the Auth callback no longer derive sensitive redirect destinations from the request Host. Same-origin mutation checks now reject Host-spoofed requests and a Production runtime without `APP_ORIGIN` fails closed.
 - Supabase public/admin configuration rejects placeholders, malformed URLs, secret/public key confusion and values outside the approved `sb_publishable_...` / `sb_secret_...` contract.
-- `/api/health` now requires six independent checks: public Auth, admin Auth, canonical origin, required D1 tables/indexes/triggers through migration `0023`, a read-only R2 metadata probe and anti-abuse readiness. A bare database connection or binding name can no longer claim Production readiness.
+- `/api/health` now requires six independent checks: public Auth, admin Auth, canonical origin, required D1 tables/indexes/triggers through migration `0024`, a read-only R2 metadata probe and anti-abuse readiness. A bare database connection or binding name can no longer claim Production readiness.
 - This is source-only. No Supabase value, D1 migration, R2 object, Sites version, DNS record or Z.com Production file was changed.
 
 ### Exact confirmed Auth identity mapping
@@ -508,16 +544,16 @@ photographs. That was not true of the running site and has been corrected.
 
 ## Verified source gates
 
-- Full test suite: 247 passing
+- Full test suite: 256 passing
 - Authorization/unit/CMS/settings/search/config/readiness/identity/quotation/Turnstile/image/POD-signature/Auth-throttle/recovery-grant/timestamp tests: 142 passing
-- Render/schema/notification/yard/trip/container/inspection/POD/CMS/settings/query-plan/migration/Auth-throttle/recovery-grant/audit-ordering tests: 105 passing
+- Render/schema/notification/yard/trip/container/inspection/POD/CMS/settings/query-plan/migration/Auth-throttle/recovery-grant/audit-ordering/auth-event tests: 114 passing
 - Production Vinext build: PASS
 - ESLint: PASS
 - Public SEO and deployment architecture guards: PASS
-- Migrations through `0023` packaged in `dist/.openai/drizzle/`: PASS
+- Migrations through `0024` packaged in `dist/.openai/drizzle/`: PASS
 - Release gate negative tests now cover installability: 9 rejections + 1 acceptance
 - Postcheck contract test (`test-production-postcheck-contract.sh`): 29 routes, content-only
-- Auth wiring gate (`test-auth-security-gates.mjs`): PASS, with 24 proven rejections + 1 acceptance
+- Auth wiring gate (`test-auth-security-gates.mjs`): PASS, with 30 proven rejections + 1 acceptance
 - Authorization coverage gate (`test-authorization-coverage.mjs`): 84 surfaces, 78 authorized, 6 declared public, with 9 proven rejections + 1 acceptance
 - Response security header gate (`test-response-security-headers.mjs`): 6 headers, 4 CSP directives, 117 sources, with 13 proven rejections + 1 acceptance
 - Timestamp contract gate (`test-timestamp-contract.mjs`): 108 sources, with 8 proven rejections + 1 acceptance
@@ -527,7 +563,7 @@ photographs. That was not true of the running site and has been corrected.
 
 - Approve application routing model: apex edge routes or an application subdomain.
 - Supply/configure Supabase Production values through a secure hosting channel.
-- Backup and apply migrations `0001`–`0023` to the protected D1 runtime.
+- Backup and apply migrations `0001`–`0024` to the protected D1 runtime.
 - Verify private R2 readiness.
 - Bootstrap the real OWNER identity and accept two-company customer isolation.
 - Supply/configure Turnstile Production keys through the secure hosting channel, approve untrusted-file/malware handling, and add verified location/map data when supplied.
@@ -539,7 +575,7 @@ photographs. That was not true of the running site and has been corrected.
    is refused and FTP/SFTP are disproved), so the Owner runs the exact block in
    "Pending Production deployment" below. Nothing else in the public-site scope
    is blocked on code.
-1. Close the Production activation gates: canonical app route, Supabase environment/callback, D1 backup+ledger+migrations `0001`–`0023`, R2 readiness, real OWNER mapping and approved quotation anti-abuse/untrusted-file controls.
+1. Close the Production activation gates: canonical app route, Supabase environment/callback, D1 backup+ledger+migrations `0001`–`0024`, R2 readiness, real OWNER mapping and approved quotation anti-abuse/untrusted-file controls.
 2. Run real browser acceptance for OWNER and two isolated customer companies before exposing `/app` publicly.
 3. Configure external LINE/email notification providers only after credentials, consent, retry and escalation policy are approved.
 4. Keep all new migrations unapplied until the Production backup/runtime gates are satisfied.

@@ -47,6 +47,8 @@ const throttledRoutes = [
   },
 ];
 
+const loginRoute = await read("app/api/auth/login/route.ts");
+
 for (const route of throttledRoutes) {
   const source = await read(route.path);
   orderedBefore(source, "reserveAuthAttempt(", route.providerCall, route.path);
@@ -102,6 +104,53 @@ require(
   updatePassword.includes("clearedRecoveryGrantCookieOptions(request.url)"),
   "app/api/auth/update-password/route.ts: the grant cookie must not survive the change",
 );
+
+// The Audit trail records what people changed; without these it still records
+// nothing about getting in, so a compromised account leaves no trace unless it
+// also changes something.
+require(
+  loginRoute.includes("recordSignInEvent("),
+  "app/api/auth/login/route.ts: a successful sign-in must reach the Audit trail",
+);
+orderedBefore(
+  loginRoute,
+  "signInWithPassword(",
+  "recordSignInEvent(",
+  "app/api/auth/login/route.ts",
+);
+require(
+  updatePassword.includes('recordAuthEvent(') && updatePassword.includes('"PASSWORD_CHANGED"'),
+  "app/api/auth/update-password/route.ts: a completed password change must reach the Audit trail",
+);
+orderedBefore(
+  updatePassword,
+  "client.auth.updateUser(",
+  "recordAuthEvent(",
+  "app/api/auth/update-password/route.ts",
+);
+
+const eventsSql = await read("lib/auth-events-sql.ts");
+require(
+  eventsSql.includes("FROM users u") && eventsSql.includes("u.external_auth_id = ?"),
+  "lib/auth-events-sql.ts: an event must be written from the authoritative users row",
+);
+require(
+  eventsSql.includes("CASE WHEN u.status = 'ACTIVE' THEN 'SIGN_IN' ELSE 'SIGN_IN_DENIED' END"),
+  "lib/auth-events-sql.ts: the recorded action must come from the account's own status",
+);
+require(
+  !/cf-connecting-ip|remoteIp|clientAddress/i.test(eventsSql) &&
+    !/cf-connecting-ip|remoteIp/i.test(await read("lib/auth-events.ts")),
+  "lib/auth-events.ts: recording a client address is an Owner decision, not a default",
+);
+
+const readinessTriggers = await read("lib/runtime-readiness.ts");
+for (const trigger of ["trg_audit_logs_no_update", "trg_audit_logs_no_delete"]) {
+  require(
+    readinessTriggers.includes(`name: "${trigger}"`),
+    `lib/runtime-readiness.ts: a runtime whose Audit trail can be rewritten must report degraded (${trigger})`,
+  );
+}
 
 const callback = await read("app/auth/callback/route.ts");
 orderedBefore(
@@ -228,5 +277,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  `AUTH_SECURITY_GATE_PASS throttledRoutes=${throttledRoutes.length} clientScope=cf-connecting-ip passwordChange=grant-or-current-password readiness=auth_attempt_counters,auth_recovery_grants`,
+  `AUTH_SECURITY_GATE_PASS throttledRoutes=${throttledRoutes.length} clientScope=cf-connecting-ip passwordChange=grant-or-current-password auditedEvents=sign-in,sign-in-denied,password-changed readiness=auth_attempt_counters,auth_recovery_grants`,
 );

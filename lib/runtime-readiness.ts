@@ -43,6 +43,9 @@ export const REQUIRED_DATABASE_OBJECTS = [
   { type: "index", name: "uq_motorcycle_images_request_key" },
   { type: "index", name: "idx_auth_attempt_counters_updated" },
   { type: "index", name: "idx_auth_recovery_grants_expires" },
+  // A trail that can be edited or erased is not evidence of anything.
+  { type: "trigger", name: "trg_audit_logs_no_update" },
+  { type: "trigger", name: "trg_audit_logs_no_delete" },
   { type: "trigger", name: "trg_user_roles_keep_last_active_owner_update" },
   { type: "trigger", name: "trg_trip_assignments_no_delete" },
   { type: "trigger", name: "trg_container_assignments_no_delete" },

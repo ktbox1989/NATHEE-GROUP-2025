@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { recordAuthEvent } from "@/lib/auth-events-store";
 import { authIdentityId } from "@/lib/auth-identity";
 import {
   clearedRecoveryGrantCookieOptions,
@@ -132,6 +133,12 @@ export async function POST(request: NextRequest) {
       ),
     );
   }
+
+  await recordAuthEvent(
+    externalAuthId,
+    "PASSWORD_CHANGED",
+    proof === "grant" ? "recovery_link" : "current_password",
+  ).catch(() => {});
 
   await client.auth.signOut();
   const response = applyAuthCookies(

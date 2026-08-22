@@ -21,6 +21,9 @@ const TRACKED = [
   "lib/auth-throttle.ts",
   "lib/auth-throttle-sql.ts",
   "lib/auth-throttle-store.ts",
+  "lib/auth-events.ts",
+  "lib/auth-events-sql.ts",
+  "lib/auth-events-store.ts",
   "lib/auth-recovery-grant.ts",
   "lib/auth-recovery-grant-sql.ts",
   "lib/auth-recovery-grant-store.ts",
@@ -164,6 +167,40 @@ const CASES = [
     name: "a runtime missing the grant table can still report healthy",
     file: "lib/runtime-readiness.ts",
     edit: (source) => source.replace('{ type: "table", name: "auth_recovery_grants" },', ""),
+  },
+  {
+    name: "a sign-in stops reaching the Audit trail",
+    file: "app/api/auth/login/route.ts",
+    edit: (source) => source.replace("recordSignInEvent(", "skipSignInEvent("),
+  },
+  {
+    name: "a completed password change stops reaching the Audit trail",
+    file: "app/api/auth/update-password/route.ts",
+    edit: (source) => source.replace("recordAuthEvent(", "skipAuthEvent("),
+  },
+  {
+    name: "the recorded action stops depending on the account's own status",
+    file: "lib/auth-events-sql.ts",
+    edit: (source) =>
+      source.replace(
+        "CASE WHEN u.status = 'ACTIVE' THEN 'SIGN_IN' ELSE 'SIGN_IN_DENIED' END",
+        "'SIGN_IN'",
+      ),
+  },
+  {
+    name: "an event is written from something other than the users row",
+    file: "lib/auth-events-sql.ts",
+    edit: (source) => source.replaceAll("u.external_auth_id = ?", "1 = 1"),
+  },
+  {
+    name: "the client address is quietly added to the Audit trail",
+    file: "lib/auth-events.ts",
+    edit: (source) => `${source}\nexport const CLIENT_ADDRESS_HEADER = "cf-connecting-ip";\n`,
+  },
+  {
+    name: "the Audit trail can be rewritten without the runtime noticing",
+    file: "lib/runtime-readiness.ts",
+    edit: (source) => source.replace('{ type: "trigger", name: "trg_audit_logs_no_delete" },', ""),
   },
 ];
 

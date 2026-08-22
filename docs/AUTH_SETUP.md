@@ -191,7 +191,48 @@ Consequence to expect in ordinary use: **a signed-in user who wants to change
 their password must type the current one.** That is the intended behaviour, not
 a defect. A user who cannot must use "ลืมรหัสผ่าน?" and follow the emailed link.
 
-## 7. Acceptance check
+## 7. What the Audit trail records about getting in
+
+The Audit trail recorded what people changed once they were inside, and nothing
+about how they got there. A compromised account therefore left no trace at all
+unless it also changed something.
+
+Three events now reach `audit_logs`, and the Owner sees them in `/app/audit`
+alongside every other change:
+
+| Action | When | `after_json` |
+| --- | --- | --- |
+| `SIGN_IN` | Correct password for an ACTIVE application user | `{"method":"password"}` |
+| `SIGN_IN_DENIED` | Correct provider credentials for a user who is not ACTIVE | `{"method":"password"}` |
+| `PASSWORD_CHANGED` | A completed password change | `{"method":"recovery_link"}` or `{"method":"current_password"}` |
+
+How they stay trustworthy and bounded:
+
+- The row is written by one `INSERT ... SELECT` keyed on the provider identity,
+  so every stored value — the actor, the company, the action — comes from the
+  authoritative `users` row read in the same statement. The identity is matched,
+  never stored.
+- The action is decided by SQL from the account's own status, so a deactivated
+  account whose provider credentials still work is recorded as refused, not as a
+  sign-in.
+- **A provider identity with no application user writes nothing.** This is what
+  keeps an unauthenticated path from growing the Owner's Audit table: someone who
+  creates an account at the identity provider cannot make rows appear here.
+- Writing the entry is best effort and never costs a real user their login. By
+  the time it runs, the attempt counter has already proved the database was
+  reachable.
+- **The client address is deliberately not recorded.** It would help identify a
+  compromise, but it would also make the Audit table a permanent location log of
+  the Owner's own staff. The retention and consent that implies is the Owner's
+  decision to make, not a default this code should take quietly.
+
+Migration `0024` makes the whole trail tamper-evident: `audit_logs` now refuses
+UPDATE and DELETE outright, matching how signed POD, quotation records and import
+batches are already protected. Nothing in the application ever updated or deleted
+an audit row, so this only removes a way to rewrite history. A runtime missing
+either trigger reports `/api/health` as `degraded`.
+
+## 8. Acceptance check
 
 Before opening the system to users, verify:
 
@@ -208,3 +249,5 @@ Before opening the system to users, verify:
    the refusal is identical for an address that has no account.
 9. A signed-in user cannot change the password without supplying the current one,
    and the same recovery link cannot be used twice.
+10. A sign-in and a password change both appear in `/app/audit`, in true
+    chronological order against the other events of that day.
