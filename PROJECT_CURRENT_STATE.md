@@ -43,6 +43,30 @@ photographs. That was not true of the running site and has been corrected.
 
 ## Closed local milestones
 
+### The Audit trail answers the third question an Owner asks
+
+- The trail could be filtered to "who got in" and "who changed what someone may
+  do". The third question an Owner actually asks — **what changed on the public
+  site** — had no view, even though every CMS and Gallery mutation was already
+  recorded.
+- Added the `เนื้อหาเว็บไซต์` view covering saving a revision, publishing,
+  hiding, archiving, featuring and unfeaturing, for both pages and photographs,
+  plus global settings revisions and publications.
+- Page and Gallery publishing deliberately share the view. From the Owner's point
+  of view "what changed on the public site" is one question, not two, and the
+  entity column already distinguishes a page from a photograph.
+- The view is asserted **not** to absorb the actions the other views exist for,
+  so adding a CMS action later cannot quietly swallow sign-ins or role changes.
+- Reviewed the rest of the CMS requirement against what exists rather than
+  assuming: revision history with author, note and content hash, a LIVE badge,
+  edit-from-revision, per-revision preview and revert-by-publishing are all
+  already in the admin page. Two items are honestly absent rather than
+  approximated — there is no media **replacement** action (an image is a new
+  upload, and the old one keeps its own audit history), and there is no
+  **scheduled** publish, which would need a runtime that wakes without a request.
+- Verification: full tests 376/376 (184 unit + 192 integration); TypeScript PASS;
+  ESLint PASS; Vinext production build PASS; all ten gates PASS.
+
 ### The database invariants that decide who can administer the platform are proven
 
 - Found that the readiness contract **required** the last-active-OWNER and
@@ -1024,8 +1048,8 @@ photographs. That was not true of the running site and has been corrected.
 
 ## Verified source gates
 
-- Full test suite: 375 passing
-- Authorization/unit/CMS/settings/search/config/readiness/identity/quotation/Turnstile/image/POD-signature/Auth-throttle/recovery-grant/timestamp/audit-view/CMS-publish/gallery-mutation/application-origin/privileged-action tests: 183 passing
+- Full test suite: 376 passing
+- Authorization/unit/CMS/settings/search/config/readiness/identity/quotation/Turnstile/image/POD-signature/Auth-throttle/recovery-grant/timestamp/audit-view/CMS-publish/gallery-mutation/application-origin/privileged-action/audit-content tests: 184 passing
 - Render/schema/notification/yard/trip/container/inspection/POD/CMS/settings/query-plan/migration/Auth-throttle/recovery-grant/audit-ordering/auth-event/production-env/audit-view/readiness-schema/CMS-publish/customer-isolation/gallery-public/application-origin/QR-print/production-env/owner-invariants tests: 192 passing
 - Production Vinext build: PASS
 - ESLint: PASS

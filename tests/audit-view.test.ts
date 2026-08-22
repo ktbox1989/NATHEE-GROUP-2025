@@ -17,13 +17,14 @@ test("an unknown view is a wrong URL, not a silent fallback to everything", () =
   assert.equal(parseAuditView("all"), "all");
   assert.equal(parseAuditView("auth"), "auth");
   assert.equal(parseAuditView("access"), "access");
+  assert.equal(parseAuditView("content"), "content");
   for (const invalid of ["everything", "AUTH", "all;drop", "__proto__", "constructor", "toString"]) {
     assert.equal(parseAuditView(invalid), null, invalid);
   }
 });
 
 test("view keys are the ones the page offers, and the default shows everything", () => {
-  assert.deepEqual([...auditViewKeys()], ["all", "auth", "access"]);
+  assert.deepEqual([...auditViewKeys()], ["all", "auth", "access", "content"]);
   assert.equal(DEFAULT_AUDIT_VIEW, "all");
   assert.equal(auditViewActions("all"), null);
   assert.ok(auditViewKeys().every((key) => AUDIT_VIEWS[key].label.length > 0));
@@ -32,6 +33,21 @@ test("view keys are the ones the page offers, and the default shows everything",
 test("the sign-in view covers exactly the authentication actions that are recorded", () => {
   assert.deepEqual([...(auditViewActions("auth") ?? [])], [...AUTH_EVENT_ACTIONS]);
   assert.deepEqual([...(auditViewActions("access") ?? [])], ["INVITE", "UPDATE_ACCESS"]);
+});
+
+test("the content view covers what an editor can change on the public site", () => {
+  const actions = auditViewActions("content") ?? [];
+  // Saving, publishing and withdrawing, for both pages and photographs.
+  for (const action of ["CREATE_REVISION", "PUBLISH", "HIDE", "ARCHIVE", "PUBLISH_SITE_SETTINGS"]) {
+    assert.ok(actions.includes(action), `the content view omits ${action}`);
+  }
+  // Publishing is shared with the Gallery on purpose: "what changed on the
+  // public site" is one question for the Owner.
+  assert.ok(actions.includes("FEATURE") && actions.includes("UNFEATURE"));
+  // And it must not quietly include the actions the other views exist for.
+  for (const action of ["SIGN_IN", "UPDATE_ACCESS", "INVITE"]) {
+    assert.ok(!actions.includes(action), `the content view must not absorb ${action}`);
+  }
 });
 
 test("prototype keys cannot be smuggled in as a view", () => {

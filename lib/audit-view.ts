@@ -5,14 +5,32 @@ import { AUTH_EVENT_ACTIONS, AUTH_EVENT_ENTITY_TYPE, isAuthEventMethod } from ".
  * what makes it useful for "was this account used at three in the morning" — and
  * also what makes it noisy when the question is "who changed this job".
  *
- * These are the two questions the trail is actually asked, plus the unfiltered
- * view. Anything wider belongs in a real query tool, not in a page that has to
- * stay index-backed and bounded.
+ * These are the three questions the trail is actually asked — who got in, who
+ * changed what someone may do, and what changed on the public site — plus the
+ * unfiltered view. Anything wider belongs in a real query tool, not in a page
+ * that has to stay index-backed and bounded.
  */
+/**
+ * What the website editor did. `PUBLISH` and `HIDE` are shared with the Gallery,
+ * which is deliberate: from the Owner's point of view "what changed on the
+ * public site" is one question, whether the change was a page or a photograph.
+ */
+const CMS_AUDIT_ACTIONS = [
+  "CREATE_REVISION",
+  "PUBLISH",
+  "HIDE",
+  "ARCHIVE",
+  "FEATURE",
+  "UNFEATURE",
+  "CREATE_SITE_SETTINGS_REVISION",
+  "PUBLISH_SITE_SETTINGS",
+] as const;
+
 export const AUDIT_VIEWS = {
   all: { label: "ทั้งหมด", actions: null },
   auth: { label: "การเข้าสู่ระบบ", actions: AUTH_EVENT_ACTIONS },
   access: { label: "สิทธิ์ผู้ใช้", actions: ["INVITE", "UPDATE_ACCESS"] },
+  content: { label: "เนื้อหาเว็บไซต์", actions: CMS_AUDIT_ACTIONS },
 } as const satisfies Record<string, { label: string; actions: readonly string[] | null }>;
 
 export type AuditViewKey = keyof typeof AUDIT_VIEWS;
