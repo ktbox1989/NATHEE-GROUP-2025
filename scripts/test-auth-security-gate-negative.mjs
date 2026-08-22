@@ -21,6 +21,9 @@ const TRACKED = [
   "lib/auth-throttle.ts",
   "lib/auth-throttle-sql.ts",
   "lib/auth-throttle-store.ts",
+  "lib/auth-recovery-grant.ts",
+  "lib/auth-recovery-grant-sql.ts",
+  "lib/auth-recovery-grant-store.ts",
   "lib/client-address.ts",
   "lib/runtime-readiness.ts",
 ];
@@ -97,6 +100,70 @@ const CASES = [
     name: "a built-in account is reintroduced",
     file: "app/api/auth/login/route.ts",
     edit: (source) => `${source}\n// fallback: demo@natheegroup2025.com\n`,
+  },
+  {
+    name: "a session cookie alone authorises a password change",
+    file: "app/api/auth/update-password/route.ts",
+    edit: (source) => source.replace("passwordChangeAccepted(proof)", "true"),
+  },
+  {
+    name: "the recovery grant is trusted without being consumed",
+    file: "app/api/auth/update-password/route.ts",
+    edit: (source) => source.replace("consumeRecoveryGrant(", "assumeRecoveryGrant("),
+  },
+  {
+    name: "an unproven change is refused silently",
+    file: "app/api/auth/update-password/route.ts",
+    edit: (source) => source.replace("error=reauthenticate", "status=password_updated"),
+  },
+  {
+    name: "the current-password check is not throttled",
+    file: "app/api/auth/update-password/route.ts",
+    edit: (source) => source.replaceAll("reserveAuthAttempt(", "skipReserve("),
+  },
+  {
+    name: "the grant cookie survives the password change",
+    file: "app/api/auth/update-password/route.ts",
+    edit: (source) =>
+      source.replace(
+        "clearedRecoveryGrantCookieOptions(request.url)",
+        "recoveryGrantCookieOptions(request.url)",
+      ),
+  },
+  {
+    name: "any callback destination mints a recovery grant",
+    file: "app/auth/callback/route.ts",
+    edit: (source) => source.replace("shouldIssueRecoveryGrant(next)", "true"),
+  },
+  {
+    name: "the grant cookie becomes readable by script",
+    file: "lib/auth-recovery-grant.ts",
+    edit: (source) => source.replaceAll("httpOnly: true", "httpOnly: false as true"),
+  },
+  {
+    name: "grant tokens stop being cryptographically random",
+    file: "lib/auth-recovery-grant.ts",
+    edit: (source) => source.replace("crypto.getRandomValues(bytes)", "bytes.fill(1)"),
+  },
+  {
+    name: "the raw token is stored instead of its digest",
+    file: "lib/auth-recovery-grant.ts",
+    edit: (source) => source.replace('crypto.subtle.digest("SHA-256"', 'Promise.resolve("SHA-256"'),
+  },
+  {
+    name: "a grant can be spent more than once",
+    file: "lib/auth-recovery-grant-sql.ts",
+    edit: (source) => source.replace("    AND consumed_at IS NULL", "    AND 1 = 1"),
+  },
+  {
+    name: "a grant works for an identity it was not minted for",
+    file: "lib/auth-recovery-grant-sql.ts",
+    edit: (source) => source.replaceAll("external_auth_id = ?", "1 = 1"),
+  },
+  {
+    name: "a runtime missing the grant table can still report healthy",
+    file: "lib/runtime-readiness.ts",
+    edit: (source) => source.replace('{ type: "table", name: "auth_recovery_grants" },', ""),
   },
 ];
 

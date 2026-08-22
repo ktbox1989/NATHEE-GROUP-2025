@@ -154,7 +154,44 @@ this; `scripts/test-auth-security-gates.mjs` fails if one is introduced, and
 `scripts/test-auth-security-gate-negative.mjs` proves that gate rejects twelve
 specific ways the wiring can be broken.
 
-## 6. Acceptance check
+## 6. What a password change has to prove
+
+Changing a password is how an account is taken over permanently. For the OWNER
+account that is the whole platform, so the route requires proof that the person
+asking is the account holder. There are exactly two accepted proofs, and holding
+a session cookie is not one of them:
+
+1. **The current password.** Anyone who still knows it can supply it. That check
+   is a password guess like any other, so it spends the same `login:*` budgets a
+   guess at `/api/auth/login` would.
+2. **A link from the account's mailbox.** A user recovering a forgotten password,
+   or an invited user who has never had one, cannot supply a current password.
+   They prove possession of the mailbox instead.
+
+`/auth/callback` is the only place in the application where a link from a mailbox
+becomes a session, so it is the only place that mints the second proof. It issues
+a **recovery grant**: a 256-bit random value handed to the browser in an
+`HttpOnly`, `SameSite=Lax` cookie, valid for 30 minutes.
+
+- The database (`auth_recovery_grants`, migration `0023`) stores only a SHA-256
+  digest of the value, so reading the table yields nothing that can be replayed.
+- The grant is **bound to one authentication identity**. A grant lifted from one
+  browser cannot authorise a change on another account.
+- It is **single use**, enforced by one conditional `UPDATE ... RETURNING`. Two
+  simultaneous requests cannot both spend it.
+- Requesting a new recovery link **invalidates the unused one before it**.
+- `/reset-password` checks the grant read-only, so rendering the page never
+  spends it, and shows a current-password field when there is no usable grant.
+- The cookie is cleared once the change succeeds.
+- If the grant cannot be recorded, `/auth/callback` says so rather than sending
+  the user to a form that would silently demand a password they do not have. A
+  runtime missing `auth_recovery_grants` reports `/api/health` as `degraded`.
+
+Consequence to expect in ordinary use: **a signed-in user who wants to change
+their password must type the current one.** That is the intended behaviour, not
+a defect. A user who cannot must use "ลืมรหัสผ่าน?" and follow the emailed link.
+
+## 7. Acceptance check
 
 Before opening the system to users, verify:
 
@@ -169,3 +206,5 @@ Before opening the system to users, verify:
    lockout expires.
 8. A fourth recovery request for the same address inside an hour is refused, and
    the refusal is identical for an address that has no account.
+9. A signed-in user cannot change the password without supplying the current one,
+   and the same recovery link cannot be used twice.

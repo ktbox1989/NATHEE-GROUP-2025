@@ -71,6 +71,108 @@ for (const route of throttledRoutes) {
   );
 }
 
+// A password change must be authorised by something other than possession of a
+// session cookie, or an unlocked browser is an account takeover.
+const updatePassword = await read("app/api/auth/update-password/route.ts");
+orderedBefore(
+  updatePassword,
+  "passwordChangeAccepted(proof)",
+  "client.auth.updateUser(",
+  "app/api/auth/update-password/route.ts",
+);
+require(
+  updatePassword.includes("consumeRecoveryGrant("),
+  "app/api/auth/update-password/route.ts: a recovery link must be the proof it claims to be",
+);
+require(
+  updatePassword.includes("error=reauthenticate"),
+  "app/api/auth/update-password/route.ts: an unproven change must be refused visibly",
+);
+require(
+  updatePassword.includes("reserveAuthAttempt("),
+  "app/api/auth/update-password/route.ts: verifying the current password is a guess and must spend budget",
+);
+orderedBefore(
+  updatePassword,
+  "reserveAuthAttempt(",
+  "client.auth.signInWithPassword(",
+  "app/api/auth/update-password/route.ts",
+);
+require(
+  updatePassword.includes("clearedRecoveryGrantCookieOptions(request.url)"),
+  "app/api/auth/update-password/route.ts: the grant cookie must not survive the change",
+);
+
+const callback = await read("app/auth/callback/route.ts");
+orderedBefore(
+  callback,
+  "client.auth.exchangeCodeForSession(",
+  "issueRecoveryGrant(",
+  "app/auth/callback/route.ts",
+);
+require(
+  callback.includes("shouldIssueRecoveryGrant(next)"),
+  "app/auth/callback/route.ts: only a recovery or invitation callback may mint a grant",
+);
+
+const grant = await read("lib/auth-recovery-grant.ts");
+require(
+  grant.includes("httpOnly: true") && grant.includes('sameSite: "lax"'),
+  "lib/auth-recovery-grant.ts: the grant cookie must be HttpOnly and same-site",
+);
+require(
+  grant.includes("crypto.getRandomValues(bytes)"),
+  "lib/auth-recovery-grant.ts: grant tokens must come from a cryptographic source",
+);
+require(
+  grant.includes('crypto.subtle.digest("SHA-256"'),
+  "lib/auth-recovery-grant.ts: only a digest of the token may be stored",
+);
+
+const grantSql = await read("lib/auth-recovery-grant-sql.ts");
+
+// Scoped to the consumption statement itself. A guard that survives only in the
+// read-only peek statement protects nothing.
+function statementBody(source, exportName, endMarker, message) {
+  const start = source.indexOf(`export const ${exportName}`);
+  const end = source.indexOf(endMarker, start);
+  if (start < 0 || end <= start) {
+    failures.push(`${message}: ${exportName} is absent or reordered`);
+    return "";
+  }
+  return source.slice(start, end);
+}
+
+const consumeStatement = statementBody(
+  grantSql,
+  "CONSUME_RECOVERY_GRANT_SQL",
+  "export function consumeRecoveryGrantParams",
+  "lib/auth-recovery-grant-sql.ts",
+);
+for (const guard of ["consumed_at IS NULL", "expires_at > ?", "external_auth_id = ?", "RETURNING"]) {
+  require(
+    consumeStatement.includes(guard),
+    `lib/auth-recovery-grant-sql.ts: consumption must be guarded by '${guard}'`,
+  );
+}
+
+const peekStatement = statementBody(
+  grantSql,
+  "PEEK_RECOVERY_GRANT_SQL",
+  "export function peekRecoveryGrantParams",
+  "lib/auth-recovery-grant-sql.ts",
+);
+require(
+  peekStatement.includes("SELECT") && !/\b(UPDATE|DELETE|INSERT)\b/.test(peekStatement),
+  "lib/auth-recovery-grant-sql.ts: the page-render check must never spend a grant",
+);
+for (const guard of ["consumed_at IS NULL", "expires_at > ?", "external_auth_id = ?"]) {
+  require(
+    peekStatement.includes(guard),
+    `lib/auth-recovery-grant-sql.ts: the render check must be guarded by '${guard}'`,
+  );
+}
+
 const clientAddress = await read("lib/client-address.ts");
 require(
   clientAddress.includes('headers.get("cf-connecting-ip")'),
@@ -85,6 +187,10 @@ const readiness = await read("lib/runtime-readiness.ts");
 require(
   readiness.includes('name: "auth_attempt_counters"'),
   "lib/runtime-readiness.ts: a runtime without the counter table must report degraded",
+);
+require(
+  readiness.includes('name: "auth_recovery_grants"'),
+  "lib/runtime-readiness.ts: a runtime without the grant table must report degraded",
 );
 
 const storeSource = await read("lib/auth-throttle-store.ts");
@@ -102,6 +208,9 @@ const authSources = await Promise.all(
     "app/api/auth/logout/route.ts",
     "app/api/auth/update-password/route.ts",
     "app/auth/callback/route.ts",
+    "lib/auth-recovery-grant.ts",
+    "lib/auth-recovery-grant-sql.ts",
+    "lib/auth-recovery-grant-store.ts",
     "lib/auth-throttle.ts",
     "lib/auth-throttle-sql.ts",
     "lib/auth-throttle-store.ts",
@@ -119,5 +228,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  `AUTH_SECURITY_GATE_PASS throttledRoutes=${throttledRoutes.length} clientScope=cf-connecting-ip readiness=auth_attempt_counters`,
+  `AUTH_SECURITY_GATE_PASS throttledRoutes=${throttledRoutes.length} clientScope=cf-connecting-ip passwordChange=grant-or-current-password readiness=auth_attempt_counters,auth_recovery_grants`,
 );

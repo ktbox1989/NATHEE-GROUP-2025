@@ -6,7 +6,7 @@ runtime.
 
 ## 1. Platform resources
 
-- D1 binding `DB` exists and migrations `drizzle/0000` through `0022` have
+- D1 binding `DB` exists and migrations `drizzle/0000` through `0023` have
   each been applied exactly once in order. Verify the migration ledger before
   applying any missing file; never rerun the full chain blindly.
 - R2 binding `FILES` exists and is private.
@@ -64,7 +64,7 @@ Production is ready only when it returns HTTP 200 and all six checks are
 format. `adminAuthentication` independently validates that a server-only
 secret is configured. `canonicalOrigin` requires the exact canonical
 Production origin. `database` verifies representative tables, indexes and
-invariant triggers through migration `0022`, not merely that D1 answers a
+invariant triggers through migration `0023`, not merely that D1 answers a
 query. `storage` performs a read-only R2 metadata probe. `antiAbuse` requires both validated Turnstile runtime keys. The endpoint never
 returns credentials or connection strings.
 

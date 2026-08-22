@@ -43,6 +43,47 @@ photographs. That was not true of the running site and has been corrected.
 
 ## Closed local milestones
 
+### Proof required before a password can be changed (`0023`)
+
+- Closed an account-takeover path: `/api/auth/update-password` accepted any live
+  session and changed the password without asking for the old one. Anyone
+  reaching an unlocked browser, or lifting a session cookie, could take an
+  account over permanently — for OWNER, that is control of every user, role and
+  permission on the platform.
+- The route now accepts exactly two proofs. The current password, which is
+  verified through the provider and spends the same `login:*` attempt budgets a
+  guess at `/api/auth/login` would. Or a **recovery grant**, which attests that
+  the session came from a link sent to the account's mailbox — the only proof
+  available to someone recovering a forgotten password or accepting an
+  invitation. Holding a session is not a proof.
+- `/auth/callback` is the only place a mailbox link becomes a session, so it is
+  the only place that mints a grant: a 256-bit random value in an `HttpOnly`,
+  `SameSite=Lax` cookie, valid 30 minutes. The database stores only its SHA-256
+  digest, so reading the table yields nothing replayable.
+- The grant is bound to one authentication identity and is single-use, both
+  enforced by one conditional `UPDATE ... RETURNING`, so two simultaneous
+  requests cannot spend it twice. Requesting a new link invalidates the unused
+  one before it. `/reset-password` checks it read-only and asks for the current
+  password when there is no usable grant.
+- Grant issuance binds on the provider's identifier rather than a confirmed
+  mailbox, because an invited user is completing confirmation at that exact
+  moment; requiring confirmation first would break the invitation the control is
+  meant to protect. Resolving an application role still requires a confirmed
+  identity, unchanged.
+- Expected behaviour change: a signed-in user who wants a new password must type
+  the current one, or use the emailed link.
+- Additive migration `0023_auth_recovery_grants` creates one table and two
+  indexes. It changes no existing table, row, trigger or constraint.
+- Verification: full tests 234/234 (135 unit + 99 integration), 20 of them new
+  and 10 running the exact runtime statements against the real migrated schema;
+  Auth wiring gate PASS with 24 proven rejections + 1 acceptance — two of which
+  were found by writing the rejection first and were real weaknesses in the gate,
+  now fixed; TypeScript PASS; ESLint PASS; Vinext production build PASS; public
+  SEO/Gallery/mobile/responsive/PWA/deployment guards PASS; `git diff --check`
+  PASS.
+- No Production file, D1 row, Supabase value, R2 object, DNS record or credential
+  was changed. Migration `0023` is unapplied, like `0001`–`0022`.
+
 ### Attempt budgets on the unauthenticated Auth routes (`0022`)
 
 - Closed a real gap rather than a theoretical one: `/api/auth/login` and
@@ -368,7 +409,7 @@ photographs. That was not true of the running site and has been corrected.
 - Added a single allowlisted application-origin contract. Production accepts only `https://natheegroup2025.com`; private `*.chatgpt.site` previews and localhost are explicit non-Production cases.
 - Password recovery, invitations and the Auth callback no longer derive sensitive redirect destinations from the request Host. Same-origin mutation checks now reject Host-spoofed requests and a Production runtime without `APP_ORIGIN` fails closed.
 - Supabase public/admin configuration rejects placeholders, malformed URLs, secret/public key confusion and values outside the approved `sb_publishable_...` / `sb_secret_...` contract.
-- `/api/health` now requires six independent checks: public Auth, admin Auth, canonical origin, required D1 tables/indexes/triggers through migration `0022`, a read-only R2 metadata probe and anti-abuse readiness. A bare database connection or binding name can no longer claim Production readiness.
+- `/api/health` now requires six independent checks: public Auth, admin Auth, canonical origin, required D1 tables/indexes/triggers through migration `0023`, a read-only R2 metadata probe and anti-abuse readiness. A bare database connection or binding name can no longer claim Production readiness.
 - This is source-only. No Supabase value, D1 migration, R2 object, Sites version, DNS record or Z.com Production file was changed.
 
 ### Exact confirmed Auth identity mapping
@@ -380,23 +421,23 @@ photographs. That was not true of the running site and has been corrected.
 
 ## Verified source gates
 
-- Full test suite: 214 passing
-- Authorization/unit/CMS/settings/search/config/readiness/identity/quotation/Turnstile/image/POD-signature/Auth-throttle tests: 125 passing
-- Render/schema/notification/yard/trip/container/inspection/POD/CMS/settings/query-plan/migration/Auth-throttle tests: 89 passing
+- Full test suite: 234 passing
+- Authorization/unit/CMS/settings/search/config/readiness/identity/quotation/Turnstile/image/POD-signature/Auth-throttle/recovery-grant tests: 135 passing
+- Render/schema/notification/yard/trip/container/inspection/POD/CMS/settings/query-plan/migration/Auth-throttle/recovery-grant tests: 99 passing
 - Production Vinext build: PASS
 - ESLint: PASS
 - Public SEO and deployment architecture guards: PASS
-- Migrations through `0022` packaged in `dist/.openai/drizzle/`: PASS
+- Migrations through `0023` packaged in `dist/.openai/drizzle/`: PASS
 - Release gate negative tests now cover installability: 9 rejections + 1 acceptance
 - Postcheck contract test (`test-production-postcheck-contract.sh`): 29 routes, content-only
-- Auth wiring gate (`test-auth-security-gates.mjs`): PASS, with 12 proven rejections + 1 acceptance
+- Auth wiring gate (`test-auth-security-gates.mjs`): PASS, with 24 proven rejections + 1 acceptance
 - TypeScript `tsc --noEmit`: PASS
 
 ## Open Owner gates
 
 - Approve application routing model: apex edge routes or an application subdomain.
 - Supply/configure Supabase Production values through a secure hosting channel.
-- Backup and apply migrations `0001`–`0022` to the protected D1 runtime.
+- Backup and apply migrations `0001`–`0023` to the protected D1 runtime.
 - Verify private R2 readiness.
 - Bootstrap the real OWNER identity and accept two-company customer isolation.
 - Supply/configure Turnstile Production keys through the secure hosting channel, approve untrusted-file/malware handling, and add verified location/map data when supplied.
@@ -408,7 +449,7 @@ photographs. That was not true of the running site and has been corrected.
    is refused and FTP/SFTP are disproved), so the Owner runs the exact block in
    "Pending Production deployment" below. Nothing else in the public-site scope
    is blocked on code.
-1. Close the Production activation gates: canonical app route, Supabase environment/callback, D1 backup+ledger+migrations `0001`–`0022`, R2 readiness, real OWNER mapping and approved quotation anti-abuse/untrusted-file controls.
+1. Close the Production activation gates: canonical app route, Supabase environment/callback, D1 backup+ledger+migrations `0001`–`0023`, R2 readiness, real OWNER mapping and approved quotation anti-abuse/untrusted-file controls.
 2. Run real browser acceptance for OWNER and two isolated customer companies before exposing `/app` publicly.
 3. Configure external LINE/email notification providers only after credentials, consent, retry and escalation policy are approved.
 4. Keep all new migrations unapplied until the Production backup/runtime gates are satisfied.

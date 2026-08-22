@@ -1226,6 +1226,38 @@ export const authAttemptCounters = sqliteTable(
   ],
 );
 
+// Proof that a password change was authorised by an emailed recovery or
+// invitation link rather than by merely holding a session cookie. Timestamps are
+// epoch milliseconds for the same reason the throttle uses them. `id` is a
+// SHA-256 digest of the value in the caller's cookie: a database read must not
+// yield anything that can be replayed as a grant.
+export const authRecoveryGrants = sqliteTable(
+  "auth_recovery_grants",
+  {
+    id: text("id").primaryKey(),
+    externalAuthId: text("external_auth_id").notNull(),
+    issuedAt: integer("issued_at").notNull(),
+    expiresAt: integer("expires_at").notNull(),
+    consumedAt: integer("consumed_at"),
+  },
+  (table) => [
+    index("idx_auth_recovery_grants_expires").on(table.expiresAt),
+    index("idx_auth_recovery_grants_identity").on(table.externalAuthId, table.expiresAt),
+    check(
+      "ck_auth_recovery_grants_id",
+      sql`length(${table.id}) = 64 AND ${table.id} NOT GLOB '*[^0-9a-f]*'`,
+    ),
+    check(
+      "ck_auth_recovery_grants_identity",
+      sql`length(${table.externalAuthId}) = 36 AND ${table.externalAuthId} GLOB '[0-9a-f]*-[0-9a-f]*-[0-9a-f]*-[0-9a-f]*-[0-9a-f]*'`,
+    ),
+    check(
+      "ck_auth_recovery_grants_clock",
+      sql`${table.issuedAt} > 0 AND ${table.expiresAt} > ${table.issuedAt} AND (${table.consumedAt} IS NULL OR ${table.consumedAt} >= ${table.issuedAt})`,
+    ),
+  ],
+);
+
 export type UserRole = (typeof USER_ROLES)[number];
 export type LegacyUserRole = (typeof LEGACY_USER_ROLES)[number];
 export type MotorcycleStatus = (typeof MOTORCYCLE_STATUSES)[number];
