@@ -4,7 +4,7 @@ Prepared instead of merging. Nothing in this document has been merged, pushed to
 `main`, or applied to Production.
 
 - Lane B branch: `lane-b/auth-runtime`
-- Lane B HEAD: see `git rev-parse HEAD` on `lane-b/auth-runtime` (this document is updated per milestone)
+- Lane B HEAD: `5ef0b34c6ec44665a2cf4ce2c7ded5a698cdaa22` (pushed to `origin/lane-b/auth-runtime`)
 - Merge base with `main`: `0f3205b432cd2aba2fb499b8b7d76fe3e6d25716`
 - Lane A `main` at analysis time: `fcc97e9`
 
@@ -28,7 +28,7 @@ for the reason given below.
 ## The merged tree was actually tested, not just diffed
 
 The merged tree is materialised into a scratch directory and every Lane B gate
-run against it. All seven pass, and so does the shared
+run against it. All **ten** pass, and so does the shared
 `scripts/test-canonical-domain.mjs` — which now reads both lanes' files and
 confirms Lane A's newer work does not reintroduce the apex as an application
 origin.
@@ -52,7 +52,7 @@ dropped.**
 Scripts only Lane A has — keep: `audit:live`, `login:redirect`, plus whatever
 `1f3b9c4` added for the public CMS contract.
 
-Scripts only Lane B has — add: `verify:env`, and `test:security` (fourteen gate
+Scripts only Lane B has — add: `verify:env`, and `test:security` (eighteen gate
 scripts).
 
 Both lanes changed:
@@ -73,7 +73,7 @@ One lane only — take that lane's version:
 Both lanes append to "Closed local milestones" and edit "Verified source gates".
 Keep **both** lanes' sections. Lane B's measured figures after this branch:
 
-- Full test suite: **344** passing — 177 unit + 167 integration
+- Full test suite: **375** passing — 183 unit + 192 integration
 - Migrations: through **`0025`**, all unapplied
 - Gates: seven, listed below
 
@@ -189,13 +189,41 @@ specific breakages rather than passing vacuously.
 
 | Gate | Proves | Rejections |
 | --- | --- | --- |
+| `test-migration-inventory.mjs` | gapless sequence, honest ledger, nothing destructive | 12 |
 | `test-readiness-contract.mjs` | readiness requires every migrated object | 10 |
 | `test-session-refresh-coverage.mjs` | every session reader is behind the proxy | 9 |
-| `test-auth-security-gates.mjs` | Auth wiring: budgets, proof, event trail | 30 |
+| `test-auth-security-gates.mjs` | Auth wiring: budgets, proof, event trail, privileged writes | 37 |
 | `test-authorization-coverage.mjs` | every protected surface authorizes | 9 |
 | `test-response-security-headers.mjs` | headers ship and the app stays compatible | 13 |
 | `test-timestamp-contract.mjs` | one timestamp representation per column kind | 8 |
 | `test-cms-delivery-contract.mjs` | publish takes effect; preview stays private | 12 |
+| `test-private-media-contract.mjs` | R2 is never read, written or cached undecided | 12 |
+
+
+## What changed on this branch since the last handoff
+
+Five milestones, none of which touches a Lane A file:
+
+- **Privileged writes need a password, not just a session.** Inviting a member or
+  changing a role required only a session that resolved to OWNER, so a stolen
+  OWNER session could invite a second OWNER and survive the real Owner changing
+  their password. Both writes now verify the actor's current password, spending
+  the same login budgets so it cannot be an unthrottled oracle.
+- **QR and print isolation proven.** A printed identity is proven to carry no
+  VIN, engine number or company id, and a refusal is indistinguishable from a
+  code that does not exist.
+- **Private storage contract.** Every R2 read and write must be preceded by an
+  authorization decision, and private bytes may never carry a shareable cache
+  header. Two declared exemptions — the readiness probe and the public quotation
+  intake — have their compensating guards asserted individually.
+- **Verifier covers bindings and browser-visible secrets.** `verify:env` now
+  refuses any `NEXT_PUBLIC_` value carrying a secret shape, which is the mistake
+  that cannot be walked back.
+- **Database invariants proven, and a runbook defect fixed.** The
+  last-active-OWNER and role/company triggers were required by the readiness
+  contract with nothing proving what they do. Writing those tests also surfaced
+  that `docs/PRODUCTION_GO_LIVE.md` required checking the migration ledger but
+  never said to take a backup first.
 
 ## Still Owner-gated — unchanged by this branch
 
