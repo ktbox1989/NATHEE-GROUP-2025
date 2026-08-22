@@ -48,6 +48,138 @@ the guarded Z.com deployment of `7d24518e67a562c9df45d999d8f3144fccb86f6a`.
 
 ## Closed local milestones
 
+### The Audit trail answers the third question an Owner asks
+
+- The trail could be filtered to "who got in" and "who changed what someone may
+  do". The third question an Owner actually asks — **what changed on the public
+  site** — had no view, even though every CMS and Gallery mutation was already
+  recorded.
+- Added the `เนื้อหาเว็บไซต์` view covering saving a revision, publishing,
+  hiding, archiving, featuring and unfeaturing, for both pages and photographs,
+  plus global settings revisions and publications.
+- Page and Gallery publishing deliberately share the view. From the Owner's point
+  of view "what changed on the public site" is one question, not two, and the
+  entity column already distinguishes a page from a photograph.
+- The view is asserted **not** to absorb the actions the other views exist for,
+  so adding a CMS action later cannot quietly swallow sign-ins or role changes.
+- Reviewed the rest of the CMS requirement against what exists rather than
+  assuming: revision history with author, note and content hash, a LIVE badge,
+  edit-from-revision, per-revision preview and revert-by-publishing are all
+  already in the admin page. Two items are honestly absent rather than
+  approximated — there is no media **replacement** action (an image is a new
+  upload, and the old one keeps its own audit history), and there is no
+  **scheduled** publish, which would need a runtime that wakes without a request.
+- Verification: full tests 376/376 (184 unit + 192 integration); TypeScript PASS;
+  ESLint PASS; Vinext production build PASS; all ten gates PASS.
+
+### The database invariants that decide who can administer the platform are proven
+
+- Found that the readiness contract **required** the last-active-OWNER and
+  role/company compatibility triggers to exist, and nothing anywhere proved what
+  they do. "Present" was the entire guarantee for the two invariants that decide
+  whether this platform can be administered at all.
+- Proven against the real migrated schema: the last active OWNER cannot be
+  deactivated, archived, demoted, or have their role assignment changed or
+  deleted; with a second OWNER present either may be stood down, and the
+  remaining one is protected again; and an **inactive** OWNER does not count
+  towards the guarantee, so two OWNER rows do not make one of them removable.
+- Writing those tests corrected two assumptions. Demoting the last OWNER through
+  the legacy role column is refused as an *incompatible pairing* rather than by
+  the last-owner rule — blocked either way, but by the earlier trigger. And a
+  company-less customer account cannot be created at all, so an unscoped customer
+  role has nothing to attach to: the guarantee holds one step earlier than the
+  role assignment. Both are now recorded as they actually behave.
+- Role and company always agree: a customer account cannot receive OWNER, ADMIN,
+  STAFF or WAREHOUSE; a staff account cannot receive a customer role; and an
+  existing assignment cannot be edited into an incompatible pairing, so a
+  customer cannot be promoted to OWNER by editing the assignment alone.
+- `scripts/test-migration-inventory.mjs` covers what is only visible across the
+  whole inventory: a gapless duplicate-free sequence, filenames in convention, a
+  ledger that agrees with the files in order and with timestamps that do not go
+  backwards, and **nothing destructive after the base migration**. The four
+  table rebuilds are recognised as legitimate only because they copy their rows
+  forward; a bare `DROP TABLE`, a `DROP COLUMN`, a `DELETE` or a `TRUNCATE` is
+  refused.
+- That gate found a real documentation defect: `docs/PRODUCTION_GO_LIVE.md`
+  required verifying the ledger but **never said to take a backup first** — for
+  an operation that is not reversible by re-running it, against a database of
+  real customer records. The backup requirement and the "restore, do not
+  continue from a failed apply" instruction are now in the runbook.
+- Twelve proven rejections + 1 acceptance for the inventory gate, including a
+  sequence gap, a duplicate index, a ledger that claims or misses a migration,
+  backwards ledger timestamps, each destructive statement kind, and the runbook
+  losing its backup or ordering instruction.
+- Verification: full tests 375/375 (183 unit + 192 integration), 10 of them new;
+  TypeScript PASS; ESLint PASS; Vinext production build PASS; all ten gates PASS.
+- No migration was added or applied. Migrations `0000`–`0025` remain unapplied to
+  Production.
+
+### The environment verifier now covers bindings and browser-visible secrets
+
+- Extended `npm run verify:env` to the two checks it was missing. It confirms the
+  artifact declares the D1 `DB` and private R2 `FILES` bindings — declared rather
+  than probed, because the verifier runs before anything is deployed and
+  `/api/health` is what answers whether the live bindings exist.
+- Added the check for the mistake that **cannot be walked back**: any
+  `NEXT_PUBLIC_` value carrying a secret shape — a Supabase secret, a JWT (which
+  for Supabase is a service-role token), a provider `sk-` key, or a PEM private
+  key. Those values are compiled into pages customers download, so once shipped
+  the value is public and must be rotated, not removed. The refusal names what
+  kind of secret it found and still never prints the value.
+- An ordinary public value such as a site name or an analytics id is not
+  mistaken for a secret.
+- Covered the carriage-return case explicitly. Copying a value from a Windows
+  file or terminal appends `
+`, and the verifier accepts it **because the
+  runtime accepts it** — both trim. A verifier that failed there would send the
+  Owner hunting a problem that does not exist, and the printed dashboard values
+  are asserted to carry no stray carriage return either.
+- Verification: full tests 365/365 (183 unit + 182 integration), 5 of them new;
+  TypeScript PASS; ESLint PASS; Vinext production build PASS; all nine gates
+  PASS.
+- No Production value was read. Whether the live D1 and R2 bindings exist stays
+  an Owner gate.
+
+### Private storage cannot be read, written or cached without a decision
+
+- R2 holds what a customer would least like published: inspection and damage
+  photographs, Proof of Delivery evidence, recipient signatures and quotation
+  attachments. The bucket is private, so the only path to a browser is a route in
+  this application — which makes those routes the entire contract.
+- Every one of the four read routes and four write routes was already correct.
+  What was missing was anything keeping them that way, and both failure modes are
+  quiet: an unauthorized read returns bytes and looks like a working feature, and
+  a shareable cache header publishes a customer's evidence to whoever asks the
+  CDN next while every log line stays green.
+- `scripts/test-private-media-contract.mjs` requires an authorization decision in
+  the same request as any object read or write, and requires a response carrying
+  object bytes to declare `private, no-store`. Where a shareable header is used
+  at all it must be **conditional on a proven public state**, and "public" must
+  mean PUBLISHED and PUBLIC decided from the stored row rather than asserted.
+- Two exemptions, both declared with their reason and both checked rather than
+  trusted. The readiness probe may `head` a key that is never written and must
+  return a boolean, never bytes — if it starts reading real objects the gate
+  fails. The public quotation intake is the one place an unauthenticated caller
+  may write, and its same-origin, Turnstile and bounded-request guards are each
+  asserted; it must also never read an attachment back.
+- A stale exemption fails too: if the probe stops touching storage, or the
+  declared public writer stops writing, the gate reports the exemption as stale
+  rather than leaving a hole nobody notices.
+- A storage key is internal layout and must not be returned to a client; the
+  binding must stay `FILES`; and the private-storage requirement must stay
+  documented in the deployment architecture.
+- Twelve proven rejections + 1 acceptance, including an unauthorized read of
+  private evidence, a signature read without a decision, a quotation attachment
+  that stops being Owner-only, private bytes marked shareable, `isPublic` forced
+  true, each public-intake guard removed individually, a probe that starts
+  reading real objects, a brand-new unauthenticated write route, and the bucket
+  binding renamed away.
+- **No Production R2 configuration was created or guessed.** Whether the live
+  bucket is private remains an Owner gate; this proves the application never
+  relies on it being public.
+- Verification: full tests 360/360 (183 unit + 177 integration); TypeScript PASS;
+  ESLint PASS; Vinext production build PASS; all nine gates PASS.
+
 ### Scanning a printed code proves nothing about who is holding it
 
 - A QR sticker is on the motorcycle. Anyone walking past can photograph it, so
@@ -946,9 +1078,14 @@ the guarded Z.com deployment of `7d24518e67a562c9df45d999d8f3144fccb86f6a`.
 
 ## Verified source gates
 
-- Full test suite: __MEASURED_TOTAL__ passing
-- Unit tests (both lanes): __MEASURED_UNIT__ passing
-- Integration and migration tests (both lanes): __MEASURED_INTEGRATION__ passing
+- Full test suite: 376 passing
+- Authorization/unit/CMS/settings/search/config/readiness/identity/quotation/Turnstile/image/POD-signature/Auth-throttle/recovery-grant/timestamp/audit-view/CMS-publish/gallery-mutation/application-origin/privileged-action/audit-content tests: 184 passing
+- Render/schema/notification/yard/trip/container/inspection/POD/CMS/settings/query-plan/migration/Auth-throttle/recovery-grant/audit-ordering/auth-event/production-env/audit-view/readiness-schema/CMS-publish/customer-isolation/gallery-public/application-origin/QR-print/production-env/owner-invariants tests: 192 passing
+
+- Full test suite: 471 passing
+- Unit tests (both lanes): 279 passing
+- Integration and migration tests (both lanes): 192 passing
+
 - Production Vinext build: PASS
 - ESLint: PASS
 - Public SEO and deployment architecture guards: PASS
@@ -962,6 +1099,8 @@ the guarded Z.com deployment of `7d24518e67a562c9df45d999d8f3144fccb86f6a`.
 - Session refresh coverage gate (`test-session-refresh-coverage.mjs`): 80 session readers, all covered, with 9 proven rejections + 1 acceptance
 - Readiness contract gate (`test-readiness-contract.mjs`): 37 tables, 81 triggers, 128 indexes derived from 26 migrations, with 10 proven rejections + 1 acceptance
 - CMS delivery contract gate (`test-cms-delivery-contract.mjs`): 10 managed public pages, per-request revalidation, non-indexable preview, with 12 proven rejections + 1 acceptance
+- Private media contract gate (`test-private-media-contract.mjs`): 4 read routes, 4 write routes, 1 declared public writer, with 12 proven rejections + 1 acceptance
+- Migration inventory gate (`test-migration-inventory.mjs`): 26 migrations, gapless 0000-0025, ledger agrees, 4 recognised rebuilds, 0 destructive statements, with 12 proven rejections + 1 acceptance
 - TypeScript `tsc --noEmit`: PASS
 - Application readiness decisions (`test-app-readiness.sh`): 16 cases, six health gates
 - OWNER bootstrap against all 22 migrations (`owner-bootstrap.test.mjs`): 7 cases

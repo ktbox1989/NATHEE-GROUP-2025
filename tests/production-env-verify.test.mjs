@@ -150,3 +150,54 @@ test("the verifier makes no claim about the provider accepting the credentials",
   assert.match(output, /providerNotContacted=true/);
   assert.ok(!/verified with supabase/i.test(output));
 });
+
+test("the artifact's runtime bindings are checked before anything is deployed", () => {
+  const { output } = run(VALID);
+  assert.match(output, /OK {3}RUNTIME_BINDINGS: artifact declares D1 'DB' and private R2 'FILES'/);
+});
+
+test("a secret shipped to browsers is the mistake that cannot be walked back", () => {
+  const exposures = [
+    ["NEXT_PUBLIC_SUPABASE_SERVICE_KEY", "eyJhbGciOiJIUzI1NiJ9.payload.signature", /service-role token/],
+    ["NEXT_PUBLIC_SUPABASE_ADMIN", `sb_secret_${"z".repeat(24)}`, /Supabase secret key/],
+    ["NEXT_PUBLIC_PROVIDER_KEY", "sk-abcdefghijklmnopqrstuvwx", /provider secret key/],
+    ["NEXT_PUBLIC_SIGNING_KEY", "-----BEGIN RSA PRIVATE KEY-----abc", /private key/],
+  ];
+  for (const [name, value, described] of exposures) {
+    const { status, output } = run({ ...VALID, [name]: value });
+    assert.equal(status, 1, name);
+    assert.match(output, /FAIL BROWSER_EXPOSED_SECRETS/, name);
+    assert.match(output, described, name);
+    assert.match(output, /cannot be recalled/, name);
+    // The value itself is still never printed.
+    assert.ok(!output.includes(value), `the verifier printed ${name}`);
+  }
+});
+
+test("an ordinary public value is not mistaken for a secret", () => {
+  const { status } = run({
+    ...VALID,
+    NEXT_PUBLIC_SITE_NAME: "NATHEE GROUP 2025",
+    NEXT_PUBLIC_ANALYTICS_ID: "G-ABC123",
+  });
+  assert.equal(status, 0);
+});
+
+test("a value pasted with a trailing carriage return is accepted, as the runtime accepts it", () => {
+  // Copying from a CRLF file or a Windows terminal appends \r. The verifier and
+  // the runtime both trim, so the verifier must not report a failure the runtime
+  // would not have — that would send the Owner hunting a problem that is not
+  // there.
+  const carriage = String.fromCharCode(13);
+  const withCr = Object.fromEntries(Object.entries(VALID).map(([name, value]) => [name, `${value}${carriage}`]));
+  const { status, output } = run(withCr);
+  assert.equal(status, 0, output);
+  assert.match(output, /PRODUCTION_ENV_VERIFY_PASS/);
+  // And the printed dashboard values carry no stray carriage return.
+  assert.match(output, /Redirect URL: {6}https:\/\/app\.natheegroup2025\.com\/auth\/callback$/m);
+});
+
+test("leading whitespace is trimmed too, and an internal space is still refused", () => {
+  assert.equal(run({ ...VALID, APP_ORIGIN: "  https://app.natheegroup2025.com  " }).status, 0);
+  assert.equal(run({ ...VALID, APP_ORIGIN: "https://app .natheegroup2025.com" }).status, 1);
+});
