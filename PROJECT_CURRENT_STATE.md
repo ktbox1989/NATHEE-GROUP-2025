@@ -5,9 +5,9 @@ Updated: 2026-08-23 (Asia/Bangkok)
 ## Source checkpoint
 
 - Branch: `main`
-- Full HEAD: `a4a304a638c5af550de5064f9c23af55879eb5b1`
+- Full HEAD: `6b36aca92b4b5c3c6bdcc4f6f1162d1225f06be7`
 - Remote `origin/main` verified equal to local HEAD.
-- Latest verified implementation milestone: Honest application readiness audit (`a4a304a`)
+- Latest verified implementation milestone: Customer isolation regression guard (`6b36aca`)
 - Public website Production: **CLOSED/PASS** at `7d24518e67a562c9df45d999d8f3144fccb86f6a`. Preserved; do not rework.
 - Canonical repository: `ktbox1989/NATHEE-GROUP-2025`
 - Working rule: resolve the current checkpoint-document commit with `git rev-parse HEAD`; never infer Production deployment from source HEAD.
@@ -47,6 +47,13 @@ the guarded Z.com deployment of `7d24518e67a562c9df45d999d8f3144fccb86f6a`.
   all unproven, and no report may claim otherwise.
 
 ## Closed local milestones
+
+### Customer isolation regression guard (`6b36aca`)
+
+- Audited every route for cross-tenant leakage: 49 files read company-owned tables and all 49 perform an authorization check. No leak was found, but nothing prevented the next edit from introducing one.
+- `tests/customer-isolation.test.ts` now proves both halves of the property. On `can()`: a customer role is denied every write capability even for its own company, denied everything for another company, denied when the target company is unknown, and denied when it has no company. That "unknown company" rule is what makes the common `can(actor, "jobs:read")` call a safe internal-only gate, which Trip, Truck, Yard and Print Center depend on.
+- On the route surface: every file under `app/api` and `app/app` reading a company-owned table must establish authority by one of six recognised mechanisms. The test asserts it inspected the whole route set, so a broken scan cannot pass by finding nothing, and a fixture proves the detection logic reports an unguarded route.
+- Verification: full tests 188/188 (113 unit + 75 integration), TypeScript PASS, ESLint PASS, production build PASS. No route behaviour changed.
 
 ### Honest application readiness audit (`a4a304a`)
 
@@ -360,7 +367,7 @@ the guarded Z.com deployment of `7d24518e67a562c9df45d999d8f3144fccb86f6a`.
 
 ## Verified source gates
 
-- Full test suite: 181 passing
+- Full test suite: 188 passing
 - Authorization/unit/CMS/settings/search/config/readiness/identity/quotation/Turnstile/image/POD-signature tests: 106 passing
 - Render/schema/notification/yard/trip/container/inspection/POD/CMS/settings/query-plan/migration tests: 68 passing
 - Production Vinext build: PASS
@@ -372,6 +379,7 @@ the guarded Z.com deployment of `7d24518e67a562c9df45d999d8f3144fccb86f6a`.
 - TypeScript `tsc --noEmit`: PASS
 - Application readiness decisions (`test-app-readiness.sh`): 16 cases, six health gates
 - OWNER bootstrap against all 22 migrations (`owner-bootstrap.test.mjs`): 7 cases
+- Customer isolation (`customer-isolation.test.ts`): 49 routes guarded, 0 unguarded
 
 ## Open Owner gates
 
