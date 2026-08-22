@@ -43,6 +43,45 @@ photographs. That was not true of the running site and has been corrected.
 
 ## Closed local milestones
 
+### "The schema is applied" now means every object the migrations create
+
+- Found a serious readiness gap. `REQUIRED_DATABASE_OBJECTS` was curated by hand
+  and had drifted badly: **48 of the 81 safety triggers were absent from it**,
+  along with 19 of 37 tables and 50 of 57 unique indexes. Among the missing were
+  `trg_users_keep_last_active_owner_status` and
+  `trg_user_roles_keep_last_active_owner_delete` — the protection that stops the
+  platform being left with no OWNER — and
+  `trg_user_role_assignments_compatible_insert/update`, which keeps a role and a
+  company scope compatible and is part of customer isolation.
+- A Production runtime missing any of them enforces none of them and still
+  answers `/api/health` as `healthy`, because nothing was looking. Triggers are
+  precisely the objects that fail silently: the application keeps working and the
+  invariant is simply gone.
+- The contract is now the complete set — 37 tables, 81 triggers, 128 indexes —
+  and `scripts/test-readiness-contract.mjs` derives the same three sets from the
+  migrations and fails the build on any difference in either direction: an
+  invariant that is not required, or a requirement no migration creates. It also
+  requires the lists to stay sorted and free of duplicates so a diff shows what
+  changed. Ten proven rejections + 1 acceptance.
+- The probe had to change with it. It bound one query parameter per required
+  object, which D1 caps far below 246; it now reads the schema catalogue in one
+  parameterless statement and compares in the application. The gate fails if it
+  goes back.
+- `missingDatabaseObjects()` names what is absent, for an operator who has to fix
+  it rather than a boolean that only says "no".
+- Proven end to end against the real migrated schema: a fully migrated database
+  satisfies the contract; dropping the last-OWNER trigger or the role/company
+  compatibility trigger makes it unready and names exactly that object; **every
+  one of the 81 triggers is individually proven to make the runtime unready if it
+  goes missing**; an unrelated extra table does not; and a base-only database,
+  which is what Production holds today, is refused.
+- Verification: full tests 286/286 (149 unit + 137 integration), 8 of them new;
+  readiness contract 10 proven rejections + 1 acceptance; TypeScript PASS; ESLint
+  PASS; Vinext production build PASS; all public and security guards PASS;
+  `git diff --check` PASS.
+- No migration was added. No Production file, D1 row, Supabase value, R2 object,
+  DNS record or credential was changed.
+
 ### Session refresh reaches every page that reads one, and the sign-in trail is usable (`0025`)
 
 - Fixed a regression introduced by this lane's own password-change milestone.
@@ -594,7 +633,7 @@ photographs. That was not true of the running site and has been corrected.
 - Added a single allowlisted application-origin contract. Production accepts only `https://natheegroup2025.com`; private `*.chatgpt.site` previews and localhost are explicit non-Production cases.
 - Password recovery, invitations and the Auth callback no longer derive sensitive redirect destinations from the request Host. Same-origin mutation checks now reject Host-spoofed requests and a Production runtime without `APP_ORIGIN` fails closed.
 - Supabase public/admin configuration rejects placeholders, malformed URLs, secret/public key confusion and values outside the approved `sb_publishable_...` / `sb_secret_...` contract.
-- `/api/health` now requires six independent checks: public Auth, admin Auth, canonical origin, required D1 tables/indexes/triggers through migration `0025`, a read-only R2 metadata probe and anti-abuse readiness. A bare database connection or binding name can no longer claim Production readiness.
+- `/api/health` now requires six independent checks: public Auth, admin Auth, canonical origin, every D1 table, index and trigger the migrations create through `0025`, a read-only R2 metadata probe and anti-abuse readiness. A bare database connection or binding name can no longer claim Production readiness.
 - This is source-only. No Supabase value, D1 migration, R2 object, Sites version, DNS record or Z.com Production file was changed.
 
 ### Exact confirmed Auth identity mapping
@@ -606,9 +645,9 @@ photographs. That was not true of the running site and has been corrected.
 
 ## Verified source gates
 
-- Full test suite: 278 passing
+- Full test suite: 286 passing
 - Authorization/unit/CMS/settings/search/config/readiness/identity/quotation/Turnstile/image/POD-signature/Auth-throttle/recovery-grant/timestamp/audit-view tests: 149 passing
-- Render/schema/notification/yard/trip/container/inspection/POD/CMS/settings/query-plan/migration/Auth-throttle/recovery-grant/audit-ordering/auth-event/production-env/audit-view tests: 129 passing
+- Render/schema/notification/yard/trip/container/inspection/POD/CMS/settings/query-plan/migration/Auth-throttle/recovery-grant/audit-ordering/auth-event/production-env/audit-view/readiness-schema tests: 137 passing
 - Production Vinext build: PASS
 - ESLint: PASS
 - Public SEO and deployment architecture guards: PASS
@@ -620,6 +659,7 @@ photographs. That was not true of the running site and has been corrected.
 - Response security header gate (`test-response-security-headers.mjs`): 6 headers, 4 CSP directives, 117 sources, with 13 proven rejections + 1 acceptance
 - Timestamp contract gate (`test-timestamp-contract.mjs`): 108 sources, with 8 proven rejections + 1 acceptance
 - Session refresh coverage gate (`test-session-refresh-coverage.mjs`): 80 session readers, all covered, with 9 proven rejections + 1 acceptance
+- Readiness contract gate (`test-readiness-contract.mjs`): 37 tables, 81 triggers, 128 indexes derived from 26 migrations, with 10 proven rejections + 1 acceptance
 - TypeScript `tsc --noEmit`: PASS
 
 ## Open Owner gates

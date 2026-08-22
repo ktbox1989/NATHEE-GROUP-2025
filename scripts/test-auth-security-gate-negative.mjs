@@ -10,6 +10,11 @@ import { fileURLToPath } from "node:url";
 // rejecting everything.
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+
+/** One entry of a generated requirement list, as the file writes it. */
+function entryLine(name) {
+  return `${String.fromCharCode(10)}  "${name}",${String.fromCharCode(10)}`;
+}
 const gate = join(root, "scripts/test-auth-security-gates.mjs");
 
 const TRACKED = [
@@ -83,7 +88,7 @@ const CASES = [
   {
     name: "a runtime missing the counter table can still report healthy",
     file: "lib/runtime-readiness.ts",
-    edit: (source) => source.replace('{ type: "table", name: "auth_attempt_counters" },', ""),
+    edit: (source) => source.replace(entryLine("auth_attempt_counters"), ""),
   },
   {
     name: "the store swallows its own failures",
@@ -166,7 +171,7 @@ const CASES = [
   {
     name: "a runtime missing the grant table can still report healthy",
     file: "lib/runtime-readiness.ts",
-    edit: (source) => source.replace('{ type: "table", name: "auth_recovery_grants" },', ""),
+    edit: (source) => source.replace(entryLine("auth_recovery_grants"), ""),
   },
   {
     name: "a sign-in stops reaching the Audit trail",
@@ -200,7 +205,7 @@ const CASES = [
   {
     name: "the Audit trail can be rewritten without the runtime noticing",
     file: "lib/runtime-readiness.ts",
-    edit: (source) => source.replace('{ type: "trigger", name: "trg_audit_logs_no_delete" },', ""),
+    edit: (source) => source.replace(entryLine("trg_audit_logs_no_delete"), ""),
   },
 ];
 

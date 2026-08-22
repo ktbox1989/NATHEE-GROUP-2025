@@ -144,10 +144,10 @@ require(
   "lib/auth-events.ts: recording a client address is an Owner decision, not a default",
 );
 
-const readinessTriggers = await read("lib/runtime-readiness.ts");
+const readinessTriggers = (await read("lib/runtime-readiness.ts")).split("\r\n").join("\n");
 for (const trigger of ["trg_audit_logs_no_update", "trg_audit_logs_no_delete"]) {
   require(
-    readinessTriggers.includes(`name: "${trigger}"`),
+    readinessTriggers.includes(`\n  "${trigger}",\n`),
     `lib/runtime-readiness.ts: a runtime whose Audit trail can be rewritten must report degraded (${trigger})`,
   );
 }
@@ -232,13 +232,23 @@ require(
   "lib/client-address.ts: forwarded headers must not be read",
 );
 
-const readiness = await read("lib/runtime-readiness.ts");
+// Line endings are normalised because the checkout may hold either, and the
+// entry shape below is what makes the check precise.
+const readiness = (await read("lib/runtime-readiness.ts")).split("\r\n").join("\n");
+
+// The requirement lists are generated from the migrations, so a name counts as
+// required only when it appears as its own quoted entry. A mention in prose is
+// not a requirement.
+function requires(name) {
+  return readiness.includes(`\n  "${name}",\n`);
+}
+
 require(
-  readiness.includes('name: "auth_attempt_counters"'),
+  requires("auth_attempt_counters"),
   "lib/runtime-readiness.ts: a runtime without the counter table must report degraded",
 );
 require(
-  readiness.includes('name: "auth_recovery_grants"'),
+  requires("auth_recovery_grants"),
   "lib/runtime-readiness.ts: a runtime without the grant table must report degraded",
 );
 
