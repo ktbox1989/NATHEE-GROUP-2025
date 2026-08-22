@@ -1,4 +1,5 @@
 import type { MotorcycleStatus, TripAssignmentState, TripStatus } from "../db/schema.ts";
+import { eventTimestamp } from "./timestamps.ts";
 
 export const TRIP_PAGE_SIZE = 50;
 
@@ -55,7 +56,9 @@ export function bangkokInputToUtc(value: string): string | null | undefined {
   const parsed = new Date(`${withSeconds}+07:00`);
   if (Number.isNaN(parsed.getTime())) return undefined;
   const roundTrip = new Date(parsed.getTime() + 7 * 60 * 60 * 1000).toISOString().slice(0, 19);
-  return roundTrip === withSeconds ? parsed.toISOString() : undefined;
+  // A planned departure is a real-world instant, CHECK-compared against the
+  // planned arrival as text, so it uses the event representation.
+  return roundTrip === withSeconds ? eventTimestamp(parsed) : undefined;
 }
 
 export function isPlannedTripOrderValid(departure: string | null, arrival: string | null): boolean {

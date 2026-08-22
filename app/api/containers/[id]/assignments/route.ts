@@ -13,6 +13,7 @@ import { can, isInternalRole } from "@/lib/authorization";
 import { getCurrentActor } from "@/lib/current-actor";
 import { isSameOrigin } from "@/lib/same-origin";
 import { isTripRequestKey } from "@/lib/trips";
+import { eventTimestamp } from "@/lib/timestamps";
 
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   if (!isSameOrigin(request)) return new NextResponse("Forbidden", { status: 403 });
@@ -65,7 +66,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   }
 
   const assignmentId = crypto.randomUUID();
-  const now = new Date().toISOString();
+  const assignedAt = eventTimestamp();
   try {
     await db.batch([
       db.insert(containerMotorcycleAssignments).values({
@@ -75,7 +76,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         motorcycleId,
         companyId: motorcycle.companyId,
         assignedBy: actor.userId,
-        assignedAt: now,
+        assignedAt,
       }),
       db.insert(auditLogs).values(makeAuditRecord({
         actor,

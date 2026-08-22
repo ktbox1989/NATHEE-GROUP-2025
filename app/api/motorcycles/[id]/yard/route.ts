@@ -7,6 +7,7 @@ import { getCurrentActor } from "@/lib/current-actor";
 import { isSameOrigin } from "@/lib/same-origin";
 import { isYardPlacementAllowed, isYardRequestKey, YARD_EXIT_VALUE } from "@/lib/yard";
 import { CLOSE_ACTIVE_YARD_PLACEMENT_FOR_MOVE_SQL, EXIT_ACTIVE_YARD_PLACEMENT_SQL, insertYardPlacementSql } from "@/lib/yard-sql";
+import { eventTimestamp, recordTimestamp } from "@/lib/timestamps";
 
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   if (!isSameOrigin(request)) return new NextResponse("Forbidden", { status: 403 });
@@ -42,14 +43,17 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     return redirectTo(id, "stale_yard", request.url);
   }
 
-  const now = new Date().toISOString();
+  // The placement instant is compared against other placement instants by a
+  // CHECK constraint; the audit column is ordered against CURRENT_TIMESTAMP rows.
+  const occurredAt = eventTimestamp();
+  const recordedAt = recordTimestamp();
   const d1 = getD1();
   if (destinationZoneId === YARD_EXIT_VALUE) {
     if (!current) return redirectTo(id, "invalid_yard", request.url);
     const auditId = crypto.randomUUID();
     try {
       const results = await d1.batch([
-        d1.prepare(EXIT_ACTIVE_YARD_PLACEMENT_SQL).bind(now, current.id, id),
+        d1.prepare(EXIT_ACTIVE_YARD_PLACEMENT_SQL).bind(occurredAt, current.id, id),
         d1.prepare(`
           INSERT INTO audit_logs
             (id, actor_user_id, company_id, action, entity_type, entity_id,
@@ -62,9 +66,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
           JSON.stringify({ yardZoneId: current.yardZoneId }),
           JSON.stringify({ yardZoneId: null }),
           note,
-          now,
+          recordedAt,
           current.id,
-          now,
+          occurredAt,
         ),
       ]);
       if ((results[0].meta.changes ?? 0) !== 1 || (results[1].meta.changes ?? 0) !== 1) {
@@ -94,19 +98,19 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   try {
     const statements = [];
     if (current) {
-      statements.push(d1.prepare(CLOSE_ACTIVE_YARD_PLACEMENT_FOR_MOVE_SQL).bind(now, current.id, id, destinationZoneId));
+      statements.push(d1.prepare(CLOSE_ACTIVE_YARD_PLACEMENT_FOR_MOVE_SQL).bind(occurredAt, current.id, id, destinationZoneId));
     }
     statements.push(d1.prepare(insertYardPlacementSql(Boolean(current))).bind(
       placementId,
       requestKey,
       id,
       motorcycle.companyId,
-      now,
+      occurredAt,
       actor.userId,
       note,
       destinationZoneId,
       id,
-      ...(current ? [current.id, now] : []),
+      ...(current ? [current.id, occurredAt] : []),
     ));
     statements.push(d1.prepare(`
       INSERT INTO audit_logs
@@ -114,7 +118,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
          before_json, after_json, reason, created_at)
       SELECT ?, ?, company_id, ?, 'motorcycle', motorcycle_id, ?, ?, ?, ?
       FROM yard_placements WHERE id = ?
-    `).bind(auditId, actor.userId, auditAction, beforeJson, afterJson, note, now, placementId));
+    `).bind(auditId, actor.userId, auditAction, beforeJson, afterJson, note, recordedAt, placementId));
 
     const results = await d1.batch(statements);
     const insertIndex = current ? 1 : 0;

@@ -7,6 +7,7 @@ import { can } from "@/lib/authorization";
 import { getCurrentActor } from "@/lib/current-actor";
 import { boundedText, normalizeGallerySlug, parseGallerySortOrder } from "@/lib/gallery";
 import { isSameOrigin } from "@/lib/same-origin";
+import { recordTimestamp } from "@/lib/timestamps";
 
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   if (!isSameOrigin(request)) return new NextResponse("Forbidden", { status: 403 });
@@ -24,7 +25,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   const sortOrder = parseGallerySortOrder(form.get("sortOrder"));
   const status = boundedText(form.get("status"), 20).toUpperCase();
   if (!slug || !name || sortOrder === undefined || !["ACTIVE", "HIDDEN"].includes(status)) return NextResponse.redirect(new URL("/app/gallery?error=invalid_category", request.url), 303);
-  const values = { slug, name, description, sortOrder, status: status as "ACTIVE" | "HIDDEN", updatedAt: new Date().toISOString() };
+  const values = { slug, name, description, sortOrder, status: status as "ACTIVE" | "HIDDEN", updatedAt: recordTimestamp() };
   try {
     await db.batch([
       db.update(galleryCategories).set(values).where(eq(galleryCategories.id, id)),

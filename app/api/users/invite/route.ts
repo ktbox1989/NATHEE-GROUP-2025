@@ -8,7 +8,10 @@ import { makeAuditRecord } from "@/lib/audit";
 import { isCustomerRole, legacyRoleFor, PERMISSIONS, usesExplicitPermissions } from "@/lib/authorization";
 import type { Permission } from "@/lib/authorization";
 import { getCurrentActor } from "@/lib/current-actor";
+import { privilegedProofAccepted } from "@/lib/privileged-action";
+import { requireCurrentPassword } from "@/lib/privileged-action-guard";
 import { isSameOrigin } from "@/lib/same-origin";
+import { createSupabaseRouteClient } from "@/lib/supabase/route";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export async function POST(request: NextRequest) {
@@ -18,23 +21,41 @@ export async function POST(request: NextRequest) {
   if (actor.role !== "OWNER") return NextResponse.redirect(new URL("/app", request.url), 303);
 
   const form = await request.formData();
+
+  // Inviting a member decides who may act at all, and a second OWNER survives
+  // the real Owner changing their password. Holding a session is not enough.
+  const { client, applyAuthCookies } = createSupabaseRouteClient(request);
+  const { data: session } = await client.auth.getUser();
+  const proof = await requireCurrentPassword({
+    client,
+    email: session.user?.email,
+    submitted: form.get("currentPassword"),
+    headers: request.headers,
+  });
+  if (!proof.ok || !privilegedProofAccepted(proof.proof)) {
+    const suffix = proof.ok ? "" : proof.error === "too_many_attempts" && proof.retryAfterSeconds ? `&retryAfter=${proof.retryAfterSeconds}` : "";
+    return applyAuthCookies(
+      NextResponse.redirect(new URL(`/app/users?error=${proof.ok ? "reauthenticate" : proof.error}${suffix}`, request.url), 303),
+    );
+  }
+
   const displayName = String(form.get("displayName") ?? "").trim();
   const email = String(form.get("email") ?? "").trim().toLowerCase();
   const rawRole = String(form.get("role") ?? "");
   const requestedCompanyId = String(form.get("companyId") ?? "") || null;
   if (!displayName || !email || !USER_ROLES.includes(rawRole as UserRole)) {
-    return NextResponse.redirect(new URL("/app/users?error=invalid", request.url), 303);
+    return applyAuthCookies(NextResponse.redirect(new URL("/app/users?error=invalid", request.url), 303));
   }
   const role = rawRole as UserRole;
   const companyId = isCustomerRole(role) ? requestedCompanyId : null;
   if (isCustomerRole(role) && !companyId) {
-    return NextResponse.redirect(new URL("/app/users?error=company", request.url), 303);
+    return applyAuthCookies(NextResponse.redirect(new URL("/app/users?error=company", request.url), 303));
   }
 
   const db = getDb();
   if (companyId) {
     const company = await db.select({ id: companies.id }).from(companies).where(and(eq(companies.id, companyId), eq(companies.status, "ACTIVE"))).get();
-    if (!company) return NextResponse.redirect(new URL("/app/users?error=company", request.url), 303);
+    if (!company) return applyAuthCookies(NextResponse.redirect(new URL("/app/users?error=company", request.url), 303));
   }
   const selectedPermissions = usesExplicitPermissions(role)
     ? form.getAll("permissions").map(String).filter((value): value is Permission => PERMISSIONS.includes(value as Permission))
@@ -53,7 +74,7 @@ export async function POST(request: NextRequest) {
     if (error || !data.user) throw error ?? new Error("Invite failed");
     authUserId = data.user.id;
   } catch {
-    return NextResponse.redirect(new URL("/app/users?error=invite", request.url), 303);
+    return applyAuthCookies(NextResponse.redirect(new URL("/app/users?error=invite", request.url), 303));
   }
 
   const id = crypto.randomUUID();
@@ -68,7 +89,7 @@ export async function POST(request: NextRequest) {
     if (admin) {
       await admin.auth.admin.deleteUser(authUserId).catch(() => undefined);
     }
-    return NextResponse.redirect(new URL("/app/users?error=save", request.url), 303);
+    return applyAuthCookies(NextResponse.redirect(new URL("/app/users?error=save", request.url), 303));
   }
-  return NextResponse.redirect(new URL("/app/users?status=invited", request.url), 303);
+  return applyAuthCookies(NextResponse.redirect(new URL("/app/users?status=invited", request.url), 303));
 }

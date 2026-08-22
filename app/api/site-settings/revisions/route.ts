@@ -8,6 +8,7 @@ import { getCurrentActor } from "@/lib/current-actor";
 import { sha256Hex } from "@/lib/image-validation";
 import { isSameOrigin } from "@/lib/same-origin";
 import { parseSiteSettingsJson, serializeSiteSettings } from "@/lib/site-settings";
+import { recordTimestamp } from "@/lib/timestamps";
 
 export async function POST(request: NextRequest) {
   if (!isSameOrigin(request)) return new NextResponse("Forbidden", { status: 403 });
@@ -26,7 +27,7 @@ export async function POST(request: NextRequest) {
   const existing = await db.select({ id: siteSettingsRevisions.id }).from(siteSettingsRevisions).where(eq(siteSettingsRevisions.requestKey, requestKey)).get();
   if (existing) return NextResponse.redirect(new URL(`/app/site-settings?status=already_saved&revision=${existing.id}`, request.url), 303);
   const revisionId = crypto.randomUUID();
-  const createdAt = new Date().toISOString();
+  const createdAt = recordTimestamp();
   try {
     await db.batch([
       db.insert(siteSettingsRevisions).values({ id: revisionId, requestKey, settingsJson, settingsHash, changeNote, createdBy: actor.userId, createdAt }),

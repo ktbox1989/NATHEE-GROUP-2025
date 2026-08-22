@@ -46,7 +46,7 @@ deployments are independent.
 
 ## 1. Platform resources
 
-- D1 binding `DB` exists and migrations `drizzle/0000` through `0021` have
+- D1 binding `DB` exists and migrations `drizzle/0000` through `0025` have
   each been applied exactly once in order. Verify the migration ledger before
   applying any missing file; never rerun the full chain blindly.
 - R2 binding `FILES` exists and is private.
@@ -58,7 +58,9 @@ deployments are independent.
 
 Configure these values in the hosting environment, never in source control:
 
-- `APP_ORIGIN=https://natheegroup2025.com`
+- `APP_ORIGIN=https://app.natheegroup2025.com` — the application origin.
+  The public marketing website stays on the apex `https://natheegroup2025.com`
+  and is refused as an application origin.
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
 - `SUPABASE_SECRET_KEY` as a server-only secret
@@ -72,8 +74,8 @@ database password, JWT signing secret, or private key must never be exposed as a
 Configure the final production domain in Supabase Auth and allow:
 
 ```text
-Site URL: https://natheegroup2025.com
-Callback: https://natheegroup2025.com/auth/callback
+Site URL: https://app.natheegroup2025.com
+Callback: https://app.natheegroup2025.com/auth/callback
 ```
 
 ## 3. Canonical OWNER
@@ -105,7 +107,7 @@ gitignored; delete it once applied.
 After deployment, request:
 
 ```text
-GET /api/health
+GET https://app.natheegroup2025.com/api/health
 ```
 
 Production is ready only when it returns HTTP 200 and all six checks are
@@ -121,9 +123,11 @@ Production is ready only when it returns HTTP 200 and all six checks are
 `authentication` validates the Supabase HTTPS URL and current publishable-key
 format. `adminAuthentication` independently validates that a server-only
 secret is configured. `canonicalOrigin` requires the exact canonical
-Production origin. `database` verifies representative tables, indexes and
-invariant triggers through migration `0021`, not merely that D1 answers a
-query. `storage` performs a read-only R2 metadata probe. `antiAbuse` requires both validated Turnstile runtime keys. The endpoint never
+Production origin. `database` verifies **every** table, index and invariant
+trigger the migrations create through `0025` — 37 tables, 81 triggers and 128
+indexes — not a representative sample and not merely that D1 answers a query.
+A runtime missing any one of them reports `degraded`, and
+`missingDatabaseObjects()` names which. `storage` performs a read-only R2 metadata probe. `antiAbuse` requires both validated Turnstile runtime keys. The endpoint never
 returns credentials or connection strings.
 
 Health proves configuration and schema only. Run the component audit, which

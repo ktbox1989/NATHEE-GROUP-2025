@@ -16,6 +16,7 @@ import {
 } from "@/lib/containers";
 import { getCurrentActor } from "@/lib/current-actor";
 import { isSameOrigin } from "@/lib/same-origin";
+import { eventTimestamp, recordTimestamp } from "@/lib/timestamps";
 
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   if (!isSameOrigin(request)) return new NextResponse("Forbidden", { status: 403 });
@@ -60,7 +61,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     return redirect(request, id, "error", "container_not_ready");
   }
 
-  const now = new Date().toISOString();
+  // Real-world instants stay ISO-8601 because CHECK constraints compare them
+  // as text; record columns match what CURRENT_TIMESTAMP writes.
+  const occurredAt = eventTimestamp();
+  const recordedAt = recordTimestamp();
   const eventId = crypto.randomUUID();
   const auditId = crypto.randomUUID();
   const setSeal = newStatus === "SEALED" ? 1 : 0;
@@ -75,7 +79,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
           (id, container_id, previous_status, new_status, note, created_by, created_at)
         SELECT ?, id, status, ?, ?, ?, ? FROM shipping_containers
         WHERE id = ? AND status = ?
-      `).bind(eventId, newStatus, note, actor.userId, now, id, container.status),
+      `).bind(eventId, newStatus, note, actor.userId, recordedAt, id, container.status),
       d1.prepare(`
         UPDATE shipping_containers
         SET status = ?,
@@ -83,7 +87,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
             updated_at = ?
         WHERE id = ? AND status = ?
           AND EXISTS (SELECT 1 FROM container_status_events WHERE id = ?)
-      `).bind(newStatus, setSeal, submittedSeal, now, id, container.status, eventId),
+      `).bind(newStatus, setSeal, submittedSeal, recordedAt, id, container.status, eventId),
       d1.prepare(`
         INSERT INTO audit_logs
           (id, actor_user_id, action, entity_type, entity_id, before_json, after_json, reason, created_at)
@@ -96,7 +100,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         JSON.stringify({ status: container.status, seal: container.sealNumber ? "PRESENT" : "MISSING" }),
         JSON.stringify({ status: newStatus, seal: submittedSeal ? "PRESENT" : "MISSING" }),
         note,
-        now,
+        recordedAt,
         eventId,
       ),
       d1.prepare(`
@@ -111,7 +115,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         JSON.stringify({ state: releaseFrom }),
         JSON.stringify({ state: "RELEASED" }),
         releaseReason,
-        now,
+        recordedAt,
         id,
         releaseFrom,
       ),
@@ -119,7 +123,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         UPDATE container_motorcycle_assignments
         SET state = 'RELEASED', released_at = ?, release_reason = ?, updated_at = ?
         WHERE container_id = ? AND released_at IS NULL AND state = ?
-      `).bind(now, releaseReason, now, id, releaseFrom),
+      `).bind(occurredAt, releaseReason, recordedAt, id, releaseFrom),
     ]);
     if (
       (results[0].meta.changes ?? 0) !== 1

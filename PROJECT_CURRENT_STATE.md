@@ -48,6 +48,584 @@ the guarded Z.com deployment of `7d24518e67a562c9df45d999d8f3144fccb86f6a`.
 
 ## Closed local milestones
 
+### Scanning a printed code proves nothing about who is holding it
+
+- A QR sticker is on the motorcycle. Anyone walking past can photograph it, so
+  two properties matter: the code carries no customer data, and resolving it
+  reveals nothing to someone not entitled to that record. Both were true; neither
+  was covered by a test.
+- Proven against the real migrated schema: a printed identity is `mc_` plus 32
+  hex from a random UUID and contains **no** VIN, engine number, company id or
+  internal row id — asserted against the actual seeded secrets rather than by
+  eye. Two hundred freshly minted identities never repeat, and an identity of one
+  entity type never validates as another.
+- An unauthenticated scan of a vehicle, job, yard or truck code resolves to
+  `unauthorized` in every case.
+- A customer resolves their own company's vehicle and job codes and is refused
+  another company's. **The refusal is indistinguishable from a code that does not
+  exist** — both answer "not found" — so a scanner cannot enumerate which
+  identities are real by watching for a different refusal.
+- Yard, truck and trip codes are internal operational assets and stay
+  unresolvable for a customer even when that customer's own vehicles are in the
+  yard. Staff resolve them only with the matching capability: `yard:read` opens a
+  yard code, `jobs:read` alone does not.
+- A malformed, truncated, over-long, SQL-shaped or cross-type identifier is
+  refused before any lookup happens.
+- Print surfaces demand a **write** capability rather than the ability to look: a
+  customer may read their own motorcycle and still cannot print its operational
+  label, which is an internal artefact.
+- The six routes these cases mirror are asserted to still scope the way the cases
+  assume, including that the shared QR helper keeps its 401 and its internal-only
+  branch.
+- Verification: full tests 360/360 (183 unit + 177 integration), 10 of them new;
+  TypeScript PASS; ESLint PASS; Vinext production build PASS; every gate PASS.
+- No migration was added. No Production file, D1 row, Supabase value, R2 object,
+  DNS record or credential was changed.
+
+### A session is no longer enough to change who may act
+
+- Closed the last case where possession of a session was full authority.
+  Inviting a member and changing a role, permission set or account status
+  required only a session that resolved to OWNER. A stolen OWNER session could
+  therefore **invite a second OWNER and keep that access after the real Owner
+  changed their password** — persistence, not merely impersonation.
+- Both writes now require the actor's current password, verified through the
+  identity provider on the same request that performs the write. The OWNER-only
+  check is unchanged and additional, not replaced.
+- There is deliberately **no "sudo window"**. A time-boxed grant would be more
+  state to store, another lifetime to get wrong and another cookie worth
+  stealing. These actions are rare and consequential, so each carries its own
+  proof.
+- Verifying the password is a password guess, so it reserves from the same
+  `login:*` budgets a guess at `/api/auth/login` would, **before** the provider
+  is asked anything. A counter the guard cannot reach refuses the write rather
+  than waving it through.
+- An absent password and a wrong one are refused identically, because reporting
+  them differently tells an attacker which half to work on.
+- Re-authenticating rotates the session, so all nine exits from the role-change
+  route and all six from the invitation route now carry the refreshed cookies —
+  otherwise a successful change would sign the Owner out of their own success.
+- The admin page asks for the password on both forms and explains why. A control
+  that is only reachable by hand-crafting a request is not a control.
+- Verification: full tests 350/350 (183 unit + 167 integration), 6 of them new;
+  Auth wiring gate now 37 proven rejections + 1 acceptance, including an
+  invitation that stops requiring the password, a proof that is obtained but
+  never checked, an unreachable counter that lets the write through, and an
+  admin page that stops asking; TypeScript PASS; ESLint PASS; Vinext production
+  build PASS; every other gate PASS.
+- No migration was added. No Production file, D1 row, Supabase value, R2 object,
+  DNS record or credential was changed.
+
+### The application moved to its own origin (Owner correction)
+
+- The Owner corrected the application origin to `https://app.natheegroup2025.com`.
+  The public marketing website stays on the apex `https://natheegroup2025.com`.
+  The apex is now **refused** as an application origin rather than merely
+  discouraged, because it is the single most plausible wrong value to type.
+- The reason is a security boundary, not a preference. The public site is a
+  static document root that a deploy script overwrites by file copy; the
+  application holds authenticated sessions, customer records and private media.
+  Sharing an origin would put every Auth cookie and every redirect target inside
+  that document root's scope.
+- `lib/app-origin.ts` now exports both origins and `isPublicWebsiteOrigin()`, so
+  the environment verifier can name the specific mistake instead of reporting a
+  generic rejection: *"set to the public website … The application has its own
+  origin: https://app.natheegroup2025.com"*.
+- Proven: the app origin is accepted and the apex, `www`, `http://`, a port, a
+  path, and five lookalike hosts (`…com.attacker.invalid`,
+  `app-natheegroup2025.com`, `evil.app.…`) are all refused; configuring the apex
+  as `APP_ORIGIN` makes **every** same-origin mutation check deny rather than
+  fall back to the request's own host; and the Supabase dashboard values the
+  verifier prints are derived from the configured origin.
+- Corrected the Auth callback, Site URL, `APP_ORIGIN` and the `/api/health`
+  address across `.env.example`, `docs/AUTH_SETUP.md`,
+  `docs/PRODUCTION_GO_LIVE.md` and `docs/DEPLOYMENT_ARCHITECTURE.md`, and
+  recorded the routing model as decided.
+- **`scripts/test-canonical-domain.mjs` is a Lane A gate that hard-coded the apex
+  Auth callback in three files**, so the correction could not be applied without
+  it failing. Rather than retarget it, it now encodes the two-origin reality: the
+  public-site contracts still require the apex, the application contracts require
+  the app origin, and a new check refuses a regression that puts `APP_ORIGIN` or
+  the Supabase Site URL back on the apex. **This is a Lane A file and is flagged
+  in the integration handoff.**
+- Untouched: everything under `public-site/`, the Z.com deploy and verify
+  scripts, and the public SEO canonicals — `lib/cms-public-route.ts`,
+  `lib/site-structured-data.ts` and the public page metadata still point at the
+  apex, which is correct because the public site remains the canonical copy.
+- Verification: full tests 344/344 (177 unit + 167 integration), 5 of them new;
+  TypeScript PASS; ESLint PASS; Vinext production build PASS; canonical domain,
+  deployment architecture, readiness contract and all seven security gates PASS;
+  `git diff --check` PASS.
+- No migration was added or applied. No Production file, D1 row, Supabase value,
+  R2 object, DNS record or credential was changed.
+
+### The CMS delivery contract is enforced rather than habitual
+
+- Checked the two properties that make Publish mean anything, and found both
+  already true — but held by habit, with nothing keeping them true.
+- **Revalidation.** All ten public pages that render managed content declare
+  `force-dynamic`, so a publish is visible on the next request and there is no
+  cache to invalidate. The failure this prevents is silent: a cached public page
+  would let an editor publish, be told it succeeded, and leave the live site
+  serving the previous revision with nothing reporting anything wrong.
+- **Preview privacy.** The protected tree declares `index:false, follow:false`
+  and resolves per request; preview requires an authenticated actor and
+  `site:read`, renders through the same component as the live site with a
+  "ยังไม่เผยแพร่" banner, and scopes the revision to its own page so one page
+  cannot preview another's draft.
+- **No draft has a path to an anonymous reader.** Nothing outside the protected
+  tree reads `site_page_revisions` or `site_settings_revisions`; public pages
+  resolve only through the published-state helpers, and the live revision is the
+  one named by the most recent publication event, with a HIDE winning when it is
+  most recent.
+- `scripts/test-cms-delivery-contract.mjs` enforces all of it, with a negative
+  test proving twelve specific breakages are rejected — a public page that stops
+  being per-request, one that starts reading revisions, a helper that stops
+  requiring a published state, a hide event that stops winning, an indexable
+  protected tree, and a preview that loses its actor check, its capability
+  check, its page scoping or its draft banner.
+- Documented the delivery contract in `docs/SITE_CONTENT_CMS.md`, including what
+  is **not** supported: there is no scheduled or expiring publish. That would
+  need a runtime that wakes without a request, which this deployment does not
+  have, so it is stated as absent rather than approximated.
+- Rollback needed no new code and is now described accurately: revisions are
+  immutable and publication events cannot be deleted, so restoring an earlier
+  version is publishing that revision again, and the history records the
+  rollback as its own event.
+- Verification: full tests 339/339 (174 unit + 165 integration); TypeScript PASS;
+  ESLint PASS; Vinext production build PASS; readiness contract and all seven
+  security gates PASS; `git diff --check` PASS.
+- No migration was added. No Production file, D1 row, Supabase value, R2 object,
+  DNS record or credential was changed.
+
+### Gallery mutation policy is testable, and draft media is proven not to leak
+
+- The rules deciding what may be done to a photograph lived inline in
+  `app/api/gallery/[id]/route.ts`, where no test could reach them: the route
+  needs a Cloudflare binding to run at all. The policy is the part worth
+  proving, so it moved to `lib/gallery-mutation.ts` and the route consults it.
+  Behaviour is unchanged — the extraction is what makes it checkable.
+- Proven about the mutation policy: editing a draft needs `gallery:write`, while
+  publishing, hiding, featuring, unfeaturing **and any edit at all to an
+  already-published item** additionally need `gallery:publish`; a PUBLIC
+  photograph may not carry a company or job, and a CUSTOMER_JOB photograph may
+  not lack either — that pairing is what stops a customer's job leaking onto the
+  marketing site; an unknown visibility is refused rather than defaulted, while
+  case and whitespace are normalised as the form posts them; publishing requires
+  an active category, a rendered display variant, real alt text and a
+  non-internal visibility; only a live public photograph can be featured; and
+  hiding, archiving or unfeaturing clears the featured flag, so nothing stays
+  promoted while invisible.
+- `tests/gallery-public-contract.test.mjs` proves the public side against the
+  real migrated schema, with a row in every state: of DRAFT, HIDDEN, ARCHIVED,
+  INTERNAL, CUSTOMER_JOB, published-in-a-hidden-category and published-public,
+  **only the last reaches an anonymous reader**. Hiding a live photograph removes
+  it immediately and clears its featured flag; archiving removes it and
+  re-publishing brings it back; hiding a category removes everything in it
+  without touching a single row; and reordering changes only the order, proven
+  against the opposite of the default tie-break so the assertion cannot pass by
+  accident.
+- All twenty-four combinations of status, visibility and category status are
+  enumerated and the database query is required to agree with the shared policy
+  on every one. Exactly one combination is public.
+- These cases mirror route logic, which goes stale silently, so the filters they
+  assume are asserted to still exist in `app/gallery/page.tsx` and
+  `components/cms-public-page.tsx`.
+- Verification: full tests 339/339 (174 unit + 165 integration), 18 of them new;
+  TypeScript PASS; ESLint PASS; Vinext production build PASS; readiness contract
+  and all six security gates PASS; `git diff --check` PASS.
+- No migration was added. No Production file, D1 row, Supabase value, R2 object,
+  DNS record or credential was changed.
+
+### Cross-tenant isolation proven against real rows, not just the shape of the code
+
+- Lane A's `tests/customer-isolation.test.ts` proves two things about the code's
+  shape: `can()` denies customers across companies, and every route touching
+  company-owned data calls *some* authorization check. Neither proves the check
+  is handed the company that **owns the row being returned**.
+- That distinction is the leak. `can(actor, "documents:read", actor.companyId)`
+  always succeeds and satisfies a static "calls can() with a company" scan; the
+  correct call is `can(actor, "documents:read", row.companyId)`. The new tests
+  make that difference explicit and assert the wrong form would pass while the
+  right form denies.
+- `tests/customer-isolation-data.test.mjs` is behavioural: two companies with
+  complete operational records in a real migrated database — jobs, motorcycles,
+  status events, private evidence images, yard placements, gallery items,
+  notifications and a **signed** Proof of Delivery with its signature object —
+  walked through the real `can()` one surface at a time.
+- Covered: every company-scoped list returns only the requester's company and
+  the Owner still sees both; opening another company's record by id is refused
+  rather than served, across jobs, motorcycles, evidence images, status events
+  and yard placements; private media and documents are bound to the storing
+  company, not the requester; the POD signature object is separately bound;
+  operational report counts are company-filtered for customers and unfiltered
+  for the Owner; notifications are recipient-bound, so even a company-mate is
+  not a reader; and a customer holds no write capability over any company,
+  including its own.
+- The fixtures satisfy the real invariants rather than working around them: a
+  POD is only accepted for an `ARRIVED` motorcycle with matching same-company
+  `DELIVERY` evidence, and migration `0021` requires every new POD to declare
+  signed evidence. Writing the fixture surfaced both rules.
+- Behavioural tests that mirror route logic go stale silently, so eight
+  constructs the cases assume — the list scopes, the row-company checks in the
+  motorcycle detail, documents, images and POD signature surfaces, the report
+  filter and the notification recipient filter — are asserted to still be
+  present in those routes, and the two API surfaces are additionally asserted
+  *not* to authorize on the requester's own company.
+- Verification: full tests 321/321 (164 unit + 157 integration), 10 of them new;
+  TypeScript PASS; ESLint PASS; Vinext production build PASS; readiness contract
+  and all six security gates PASS; `git diff --check` PASS.
+- No migration was added. No Production file, D1 row, Supabase value, R2 object,
+  DNS record or credential was changed.
+
+### Publishing now verifies the media it is about to show
+
+- Reviewed the existing CMS backend against the Lane B scope rather than
+  rebuilding it. Content schema, Draft→Preview→Publish, revisions, permissions
+  (`site:write` / `site:publish`), idempotency by request key, append-only
+  publication history and audit entries were already in place and correct, and
+  `safeHref` already refuses anything but same-origin paths, fragments, `tel:`
+  and one allowlisted map URL — so there is no script-URL hole in editor content.
+- Closed the gap that was there: **publish did not check that the media a
+  revision points at can actually be shown.** The public renderer serves a
+  gallery item only when it is PUBLISHED and PUBLIC, falling back to the
+  Owner-supplied static manifest, and renders nothing otherwise. So an editor
+  could pick an image, save, publish, and get a live page with a missing hero,
+  with no error anywhere — every individual step had succeeded.
+- Publishing a page now collects the images and gallery categories its **enabled**
+  sections reference, resolves them exactly the way the public renderer does, and
+  refuses the publish naming the first reference a reader would not be served.
+  Publishing global settings does the same for the brand logo, which appears on
+  every public page and would otherwise blank site-wide.
+- The editor previously printed raw codes (`ไม่สำเร็จ: publish_failed`). Outcomes
+  are now stated in Thai, and the refusal names the failing reference. The
+  identifier is sanitised on the way out and validated again on the way in, so a
+  hand-edited query string cannot put anything into the page.
+- Proven against the real migrated schema: a saved revision is not public until
+  published; a newer draft does not replace the live one on save; hiding takes
+  effect and re-publishing restores exactly the chosen revision; publication
+  history cannot be deleted and revisions cannot be edited; a draft, internal or
+  missing image is refused while a published public one passes; a hidden gallery
+  category is refused; archiving an image a live page depends on does not rewrite
+  the published revision; and the home page cannot be hidden at all, so the public
+  site always has an entry point.
+- One of those tests is load-bearing for an earlier milestone: **which
+  publication event wins is decided by ordering `created_at`**, so the mixed
+  timestamp representations fixed earlier could have silently un-hidden a page.
+  That ordering is now covered directly.
+- Verification: full tests 311/311 (164 unit + 147 integration), 25 of them new;
+  TypeScript PASS; ESLint PASS; Vinext production build PASS; all public and
+  security guards PASS; `git diff --check` PASS.
+- No migration was added. No Production file, D1 row, Supabase value, R2 object,
+  DNS record or credential was changed.
+
+### "The schema is applied" now means every object the migrations create
+
+- Found a serious readiness gap. `REQUIRED_DATABASE_OBJECTS` was curated by hand
+  and had drifted badly: **48 of the 81 safety triggers were absent from it**,
+  along with 19 of 37 tables and 50 of 57 unique indexes. Among the missing were
+  `trg_users_keep_last_active_owner_status` and
+  `trg_user_roles_keep_last_active_owner_delete` — the protection that stops the
+  platform being left with no OWNER — and
+  `trg_user_role_assignments_compatible_insert/update`, which keeps a role and a
+  company scope compatible and is part of customer isolation.
+- A Production runtime missing any of them enforces none of them and still
+  answers `/api/health` as `healthy`, because nothing was looking. Triggers are
+  precisely the objects that fail silently: the application keeps working and the
+  invariant is simply gone.
+- The contract is now the complete set — 37 tables, 81 triggers, 128 indexes —
+  and `scripts/test-readiness-contract.mjs` derives the same three sets from the
+  migrations and fails the build on any difference in either direction: an
+  invariant that is not required, or a requirement no migration creates. It also
+  requires the lists to stay sorted and free of duplicates so a diff shows what
+  changed. Ten proven rejections + 1 acceptance.
+- The probe had to change with it. It bound one query parameter per required
+  object, which D1 caps far below 246; it now reads the schema catalogue in one
+  parameterless statement and compares in the application. The gate fails if it
+  goes back.
+- `missingDatabaseObjects()` names what is absent, for an operator who has to fix
+  it rather than a boolean that only says "no".
+- Proven end to end against the real migrated schema: a fully migrated database
+  satisfies the contract; dropping the last-OWNER trigger or the role/company
+  compatibility trigger makes it unready and names exactly that object; **every
+  one of the 81 triggers is individually proven to make the runtime unready if it
+  goes missing**; an unrelated extra table does not; and a base-only database,
+  which is what Production holds today, is refused.
+- Verification: full tests 286/286 (149 unit + 137 integration), 8 of them new;
+  readiness contract 10 proven rejections + 1 acceptance; TypeScript PASS; ESLint
+  PASS; Vinext production build PASS; all public and security guards PASS;
+  `git diff --check` PASS.
+- No migration was added. No Production file, D1 row, Supabase value, R2 object,
+  DNS record or credential was changed.
+
+### Session refresh reaches every page that reads one, and the sign-in trail is usable (`0025`)
+
+- Fixed a regression introduced by this lane's own password-change milestone.
+  `/reset-password` began reading a session to decide whether to ask for the
+  current password, but it sat outside the request proxy's matcher. A Server
+  Component cannot write cookies, so when it refreshes an expired access token
+  the rotated refresh token is computed and discarded, leaving the browser
+  holding one the provider has already consumed. The concrete effect: a
+  signed-in user returning after an idle period could not change their password
+  — they were bounced to "link expired" instead. `/reset-password` is now in the
+  matcher.
+- `scripts/test-session-refresh-coverage.mjs` makes that structural. It walks
+  every server surface, finds the 80 that resolve a session, converts the proxy's
+  matcher entries into predicates and requires each surface to be covered. It
+  also fails on a matcher entry that covers nothing, on a matcher shape it cannot
+  verify, and if the proxy stops asking for the session or stops writing the
+  refreshed cookies onto the response. Nine proven rejections + 1 acceptance.
+- The Audit page now answers the two questions it is actually asked. `ทั้งหมด`
+  is unchanged, `การเข้าสู่ระบบ` shows the three authentication actions, and
+  `สิทธิ์ผู้ใช้` shows `INVITE` and `UPDATE_ACCESS`. An unrecognised view is a
+  wrong URL rather than a silent fall back to everything.
+- Authentication rows carry no free-text reason, so the detail column now reads
+  how the person proved who they were — password, emailed link, or current
+  password. A payload that is not a recognised method renders nothing rather than
+  raw JSON.
+- Additive migration `0025` adds `idx_audit_logs_action_created`, so a filtered
+  view is index-seekable instead of scanning the whole trail; proven by
+  EXPLAIN QUERY PLAN, and keyset pagination inside a filtered view is proven to
+  walk the same order without repeating a row across pages.
+- Verification: full tests 278/278 (149 unit + 129 integration), 12 of them new;
+  session refresh coverage 80/80 surfaces with 9 rejections + 1 acceptance;
+  TypeScript PASS; ESLint PASS; Vinext production build PASS; migrations through
+  `0025` packaged; all public and security guards PASS; `git diff --check` PASS.
+- No Production file, D1 row, Supabase value, R2 object, DNS record or credential
+  was changed. Migration `0025` is unapplied, like `0001`–`0024`.
+
+### Production environment values are checkable before a deploy
+
+- Activation fails for boring reasons — a key pasted from the wrong dashboard
+  field, the publishable and secret values swapped, a project URL with a path on
+  it, an `APP_ORIGIN` that is not canonical. Every one of those produces a
+  runtime that starts, refuses every login, and can only report
+  `authentication: false`. `npm run verify:env` names the mistake instead.
+- It applies the same validators the runtime applies rather than restating them,
+  so the check cannot drift from the behaviour it predicts. Where the runtime
+  validator takes two values together, each is checked against a well-formed
+  stand-in for the other, so a wrong key is never reported as a wrong URL.
+- When the origin is valid it prints the exact Supabase Auth Site URL and
+  Redirect URL to enter, derived from the configured value rather than retyped.
+- **It never prints a value it was given**, proven across every failure path
+  including the one that reports a secret key sitting in the browser-visible
+  slot. **It contacts no provider**: it proves the values are well formed and
+  mutually consistent, not that Supabase accepts them, and it says so in its own
+  output (`shapeOnly=true providerNotContacted=true`). Proving acceptance needs
+  the real credentials against the live project, which stays the Owner's step.
+- Verification: full tests 266/266 (142 unit + 124 integration), 10 of them new
+  and all driving the real script in a child process with fixture values;
+  TypeScript PASS; ESLint PASS; Vinext production build PASS; all public and
+  security guards PASS; `git diff --check` PASS.
+- No migration was added. No Production file, D1 row, Supabase value, R2 object,
+  DNS record or credential was changed, and no Production secret was read.
+
+### An Audit trail that records getting in, and cannot be rewritten (`0024`)
+
+- The Audit trail recorded what people changed once they were inside and nothing
+  about how they got there, so a compromised account left no trace at all unless
+  it also changed something. `SIGN_IN`, `SIGN_IN_DENIED` and `PASSWORD_CHANGED`
+  now reach `audit_logs` and appear in `/app/audit` alongside every other change,
+  in the true chronological order the previous milestone restored.
+- Each row is written by one `INSERT ... SELECT` keyed on the provider identity,
+  so the actor, the company and the action all come from the authoritative
+  `users` row read in the same statement. The provider identity is matched, never
+  stored, and the action is decided by SQL from the account's own status — a
+  deactivated account whose provider credentials still work is recorded as
+  refused, not as a sign-in.
+- **A provider identity with no application user writes nothing.** That is what
+  keeps an unauthenticated path from growing the Owner's Audit table: someone who
+  creates an account at the identity provider cannot make rows appear.
+- Writing the entry is best effort and never costs a real user their login; by
+  the time it runs, the attempt counter has already proved D1 was reachable.
+- **The client address is deliberately not recorded.** It would help identify a
+  compromise, and it would also make the Audit table a permanent location log of
+  the Owner's own staff. That retention and consent decision belongs to the
+  Owner, not to a default taken quietly here.
+- Migration `0024` makes the whole trail tamper-evident: `audit_logs` now refuses
+  UPDATE and DELETE, matching how signed POD, quotation records and import
+  batches are already protected. Nothing in the application has ever updated or
+  deleted an audit row, so this only removes a way to rewrite history; existing
+  entries are preserved and new ones are still accepted. A runtime missing either
+  trigger reports `/api/health` as `degraded`.
+- Verification: full tests 256/256 (142 unit + 114 integration), 9 of them new
+  and all running the real statements against the real migrated schema; Auth
+  wiring gate 30 proven rejections + 1 acceptance; TypeScript PASS; ESLint PASS;
+  Vinext production build PASS; migrations through `0024` packaged; all public
+  and security guards PASS; `git diff --check` PASS.
+- No Production file, D1 row, Supabase value, R2 object, DNS record or credential
+  was changed. Migration `0024` is unapplied, like `0001`–`0023`.
+
+### The Audit page was showing the day's events in the wrong order
+
+- Found and fixed a real, user-visible defect while preparing to add
+  authentication events to the Audit trail. `audit_logs.created_at` was written
+  two different ways: routes using the Drizzle helper let the column default to
+  SQLite's `CURRENT_TIMESTAMP` (`2026-08-23 23:59:00`), while routes using raw
+  SQL bound an ISO-8601 string (`2026-08-23T00:00:01.000Z`). Text comparison puts
+  `T` above a space, so **within any single day every raw-SQL event sorted above
+  every Drizzle event regardless of the actual time** — a role change at one
+  minute past midnight displayed above a company created at one minute to
+  midnight. The Owner's record of who changed what was out of order, and the
+  keyset pagination added by migration `0019` walked that same wrong order.
+- The confusion was not limited to Audit. Twenty-four call sites wrote
+  `new Date().toISOString()` into `created_at` and `updated_at` across
+  motorcycles, trips, containers, yard zones, gallery, site content, settings,
+  quotations, bulk imports and user management.
+- `lib/timestamps.ts` now states the contract in one place. `recordTimestamp()`
+  produces exactly what `CURRENT_TIMESTAMP` writes, for `created_at` and
+  `updated_at` — the only two columns in the schema with a database default.
+  `eventTimestamp()` produces ISO-8601 for every other `*_at` column, which
+  records when something happened in the real world.
+- The two are deliberately **not** interchangeable, and the reason is verified
+  rather than asserted: `ck_yard_placements_time_order`, `ck_trip_assignments_
+  time_order` and their siblings compare those columns against each other as
+  text, so a record-form exit written against an ISO-form entry is rejected. A
+  test proves that rejection, which is also why no migration rewrites existing
+  rows — the representation switch is safe only because Production holds no
+  application rows at all.
+- Every call site now names which kind it means, so the choice is reviewable
+  where it is made rather than inferred from the column later.
+- `scripts/test-timestamp-contract.mjs` keeps it: no server source may use the
+  `new Date().toISOString()` idiom that caused this, only `created_at` and
+  `updated_at` may carry a `CURRENT_TIMESTAMP` default in the schema or in any
+  migration, and a file writing one kind of column must be able to produce that
+  kind of value. Eight proven rejections + 1 acceptance.
+- Verification: full tests 247/247 (142 unit + 105 integration), 19 of them new;
+  the ordering defect and its fix are both proven against the real migrated
+  schema, including that keyset pagination stays index-backed on
+  `idx_audit_logs_created_id`; timestamp contract 8 rejections + 1 acceptance;
+  TypeScript PASS; ESLint PASS; Vinext production build PASS; all public and
+  security guards PASS; `git diff --check` PASS.
+- No migration was added and no stored row was rewritten. No Production file, D1
+  row, Supabase value, R2 object, DNS record or credential was changed.
+
+### Authorization coverage and response headers became build gates
+
+- Server-side authorization held on all 84 protected surfaces, but it held
+  because someone had checked each one by hand. `scripts/test-authorization-
+  coverage.mjs` turns that into a build failure: every `route.ts` under
+  `app/api` and every page or layout under `app/app` and `app/portal` must
+  resolve the actor **and** decide with it. Resolving alone is identification,
+  not authorization; it is what would let a signed-in customer read another
+  company's records.
+- Being public is still allowed, but only as one of six declared entries with a
+  stated reason, so a missing check cannot be mistaken for an intended one. A
+  declared entry that outlives its file also fails, because a stale exception is
+  how a surface loses its check years later. Four QR routes satisfy the gate
+  through a declared delegate, and the delegate is itself verified — delegating
+  is not an escape.
+- Every mutating handler must check same-origin, public or not: a session cookie
+  travels with a cross-site form post.
+- Fixed a real gap in `worker/index.ts`: the image-optimization path returned
+  before `applySecurityHeaders`, so an optimized image was the one response
+  served without any of them. `fetch` now has a single exit, and the gate
+  requires it to stay that way by counting exits rather than inspecting branches.
+- Added `Content-Security-Policy: base-uri 'none'; object-src 'none'; form-action
+  'self'; frame-ancestors 'none'` and `Cross-Origin-Resource-Policy: same-origin`.
+  These directives cannot change how the application loads its own scripts,
+  styles or images, so they cannot break a render, but they close the ways an
+  injected fragment becomes an account compromise — chiefly a form that posts a
+  password off-site and a `<base>` tag that silently retargets every relative URL
+  on the page. A `script-src`/`style-src` policy is deliberately **not** claimed:
+  the RSC runtime inlines its own payload, so a correct one needs nonce
+  propagation through the framework and real browser acceptance.
+- The header gate asserts the policy **and** that the application contains no
+  markup the policy forbids, across 117 sources. Asserting a policy without
+  asserting compatibility is how a header gets quietly removed later.
+- Verification: full tests 234/234 (135 unit + 99 integration); authorization
+  coverage 84 surfaces, 78 authorized, 6 declared public, with 9 proven
+  rejections + 1 acceptance; response headers 6 headers and 4 CSP directives,
+  with 13 proven rejections + 1 acceptance; Auth wiring gate 24 rejections + 1
+  acceptance; TypeScript PASS; ESLint PASS; Vinext production build PASS; public
+  SEO/Gallery/mobile/responsive/PWA/deployment guards PASS; `git diff --check`
+  PASS.
+- No migration was added. No Production file, D1 row, Supabase value, R2 object,
+  DNS record or credential was changed.
+
+### Proof required before a password can be changed (`0023`)
+
+- Closed an account-takeover path: `/api/auth/update-password` accepted any live
+  session and changed the password without asking for the old one. Anyone
+  reaching an unlocked browser, or lifting a session cookie, could take an
+  account over permanently — for OWNER, that is control of every user, role and
+  permission on the platform.
+- The route now accepts exactly two proofs. The current password, which is
+  verified through the provider and spends the same `login:*` attempt budgets a
+  guess at `/api/auth/login` would. Or a **recovery grant**, which attests that
+  the session came from a link sent to the account's mailbox — the only proof
+  available to someone recovering a forgotten password or accepting an
+  invitation. Holding a session is not a proof.
+- `/auth/callback` is the only place a mailbox link becomes a session, so it is
+  the only place that mints a grant: a 256-bit random value in an `HttpOnly`,
+  `SameSite=Lax` cookie, valid 30 minutes. The database stores only its SHA-256
+  digest, so reading the table yields nothing replayable.
+- The grant is bound to one authentication identity and is single-use, both
+  enforced by one conditional `UPDATE ... RETURNING`, so two simultaneous
+  requests cannot spend it twice. Requesting a new link invalidates the unused
+  one before it. `/reset-password` checks it read-only and asks for the current
+  password when there is no usable grant.
+- Grant issuance binds on the provider's identifier rather than a confirmed
+  mailbox, because an invited user is completing confirmation at that exact
+  moment; requiring confirmation first would break the invitation the control is
+  meant to protect. Resolving an application role still requires a confirmed
+  identity, unchanged.
+- Expected behaviour change: a signed-in user who wants a new password must type
+  the current one, or use the emailed link.
+- Additive migration `0023_auth_recovery_grants` creates one table and two
+  indexes. It changes no existing table, row, trigger or constraint.
+- Verification: full tests 234/234 (135 unit + 99 integration), 20 of them new
+  and 10 running the exact runtime statements against the real migrated schema;
+  Auth wiring gate PASS with 24 proven rejections + 1 acceptance — two of which
+  were found by writing the rejection first and were real weaknesses in the gate,
+  now fixed; TypeScript PASS; ESLint PASS; Vinext production build PASS; public
+  SEO/Gallery/mobile/responsive/PWA/deployment guards PASS; `git diff --check`
+  PASS.
+- No Production file, D1 row, Supabase value, R2 object, DNS record or credential
+  was changed. Migration `0023` is unapplied, like `0001`–`0022`.
+
+### Attempt budgets on the unauthenticated Auth routes (`0022`)
+
+- Closed a real gap rather than a theoretical one: `/api/auth/login` and
+  `/api/auth/forgot-password` accepted an unlimited number of attempts. Nothing
+  in this application slowed a password guess against the OWNER account, and
+  nothing bounded recovery mail to a mailbox the caller had merely guessed.
+  Supabase's own limits are global to the project, cannot lock one targeted
+  account, and cannot be proven in force from a Production runtime.
+- Every attempt now spends two budgets before the provider is asked anything:
+  one keyed on the submitted identity (5 login failures / 15 min, 3 recovery
+  requests / hour) and one keyed on the client address (20 / 15 min, 15 / hour).
+  Exhausting a budget escalates along a 15/30/60-minute ladder that decays after
+  24 hours.
+- Reserving before the provider call is what makes it fail closed: a request that
+  times out or dies inside the provider has still spent its attempt. A D1 the
+  route cannot reach refuses the request instead of falling through, and a
+  runtime without `auth_attempt_counters` reports `/api/health` as `degraded`.
+- Every decision is made by SQL, never by read-then-write application code, so
+  simultaneous requests cannot lose an increment. If the settlement write is lost
+  entirely the spent window alone still refuses the next attempt.
+- A correct password clears only its own identity budget; the shared client
+  budget is given back exactly the one attempt it lent, so an attacker holding
+  one valid account cannot reset it between guesses. Recovery never reports
+  success, because the reply is identical for a known and an unknown address, so
+  the counter cannot become an existence oracle.
+- The client scope reads only `CF-Connecting-IP`, which the edge overwrites;
+  `X-Forwarded-For` would let one caller mint unlimited buckets. `scope_key` is a
+  SHA-256 digest, so the table compares subjects without ever becoming a list of
+  addresses typed at the login form, and unlocked rows untouched for 24 hours are
+  reclaimed at most 50 per attempt.
+- Additive migration `0022_auth_attempt_throttle` creates one new table and one
+  index. It changes no existing table, row, trigger or constraint.
+- Verification: full tests 214/214 (125 unit + 89 integration), of which 33 are
+  new and 14 run the exact runtime statements against the real migrated schema;
+  Auth wiring gate PASS with 12 proven rejections + 1 acceptance; TypeScript
+  PASS; ESLint PASS; Vinext production build PASS; public SEO/Gallery/mobile/
+  responsive/PWA/deployment guards PASS; release gate 9 rejections + 1
+  acceptance; postcheck contract PASS; deploy file tools PASS; `git diff --check`
+  PASS.
+- No Production file, D1 row, Supabase value, R2 object, DNS record or credential
+  was changed. Migration `0022` is unapplied, like `0001`–`0021`.
+
 ### Customer isolation regression guard (`6b36aca`)
 
 - Audited every route for cross-tenant leakage: 49 files read company-owned tables and all 49 perform an authorization check. No leak was found, but nothing prevented the next edit from introducing one.
@@ -71,6 +649,7 @@ the guarded Z.com deployment of `7d24518e67a562c9df45d999d8f3144fccb86f6a`.
 - It takes no secret, so it lives in the repository; a generated file maps a privileged identity and is gitignored.
 - `tests/owner-bootstrap.test.mjs` proves it against the real schema with all 22 migrations applied: the identity resolves as OWNER through the same query `lib/current-actor.ts` uses, re-running changes nothing, a conflicting email or already-mapped identity is refused without altering the existing row, a deliberate second owner still works, and a display name of `O'Brien'); DROP TABLE users; --` is stored literally.
 - No Supabase identity, D1 row or Production runtime changed.
+
 
 ### Installable public website (`9e75d5c`)
 
@@ -352,10 +931,10 @@ the guarded Z.com deployment of `7d24518e67a562c9df45d999d8f3144fccb86f6a`.
 
 ### Trusted Production Auth origin and runtime readiness
 
-- Added a single allowlisted application-origin contract. Production accepts only `https://natheegroup2025.com`; private `*.chatgpt.site` previews and localhost are explicit non-Production cases.
+- Added a single allowlisted application-origin contract. Production accepts only `https://app.natheegroup2025.com`; private `*.chatgpt.site` previews and localhost are explicit non-Production cases, and the public apex is refused outright.
 - Password recovery, invitations and the Auth callback no longer derive sensitive redirect destinations from the request Host. Same-origin mutation checks now reject Host-spoofed requests and a Production runtime without `APP_ORIGIN` fails closed.
 - Supabase public/admin configuration rejects placeholders, malformed URLs, secret/public key confusion and values outside the approved `sb_publishable_...` / `sb_secret_...` contract.
-- `/api/health` now requires six independent checks: public Auth, admin Auth, canonical origin, required D1 tables/indexes/triggers through migration `0021`, a read-only R2 metadata probe and anti-abuse readiness. A bare database connection or binding name can no longer claim Production readiness.
+- `/api/health` now requires six independent checks: public Auth, admin Auth, canonical origin, every D1 table, index and trigger the migrations create through `0025`, a read-only R2 metadata probe and anti-abuse readiness. A bare database connection or binding name can no longer claim Production readiness.
 - This is source-only. No Supabase value, D1 migration, R2 object, Sites version, DNS record or Z.com Production file was changed.
 
 ### Exact confirmed Auth identity mapping
@@ -367,15 +946,22 @@ the guarded Z.com deployment of `7d24518e67a562c9df45d999d8f3144fccb86f6a`.
 
 ## Verified source gates
 
-- Full test suite: 188 passing
-- Authorization/unit/CMS/settings/search/config/readiness/identity/quotation/Turnstile/image/POD-signature tests: 106 passing
-- Render/schema/notification/yard/trip/container/inspection/POD/CMS/settings/query-plan/migration tests: 68 passing
+- Full test suite: __MEASURED_TOTAL__ passing
+- Unit tests (both lanes): __MEASURED_UNIT__ passing
+- Integration and migration tests (both lanes): __MEASURED_INTEGRATION__ passing
 - Production Vinext build: PASS
 - ESLint: PASS
 - Public SEO and deployment architecture guards: PASS
-- Migrations through `0021` packaged in `dist/.openai/drizzle/`: PASS
+- Migrations through `0025` packaged in `dist/.openai/drizzle/`: PASS
 - Release gate negative tests now cover installability: 9 rejections + 1 acceptance
 - Postcheck contract test (`test-production-postcheck-contract.sh`): 29 routes, content-only
+- Auth wiring gate (`test-auth-security-gates.mjs`): PASS, with 37 proven rejections + 1 acceptance
+- Authorization coverage gate (`test-authorization-coverage.mjs`): 84 surfaces, 78 authorized, 6 declared public, with 9 proven rejections + 1 acceptance
+- Response security header gate (`test-response-security-headers.mjs`): 6 headers, 4 CSP directives, 117 sources, with 13 proven rejections + 1 acceptance
+- Timestamp contract gate (`test-timestamp-contract.mjs`): 108 sources, with 8 proven rejections + 1 acceptance
+- Session refresh coverage gate (`test-session-refresh-coverage.mjs`): 80 session readers, all covered, with 9 proven rejections + 1 acceptance
+- Readiness contract gate (`test-readiness-contract.mjs`): 37 tables, 81 triggers, 128 indexes derived from 26 migrations, with 10 proven rejections + 1 acceptance
+- CMS delivery contract gate (`test-cms-delivery-contract.mjs`): 10 managed public pages, per-request revalidation, non-indexable preview, with 12 proven rejections + 1 acceptance
 - TypeScript `tsc --noEmit`: PASS
 - Application readiness decisions (`test-app-readiness.sh`): 16 cases, six health gates
 - OWNER bootstrap against all 22 migrations (`owner-bootstrap.test.mjs`): 7 cases
@@ -387,9 +973,9 @@ the guarded Z.com deployment of `7d24518e67a562c9df45d999d8f3144fccb86f6a`.
 
 ## Open Owner gates
 
-- Approve application routing model: apex edge routes or an application subdomain.
+- ~~Approve application routing model~~ — **decided by the Owner: the application is served from `https://app.natheegroup2025.com`.** The public marketing website stays on the apex `https://natheegroup2025.com`, and the apex is refused as an application origin. Provisioning that hostname and pointing it at the runtime remains an Owner action.
 - Supply/configure Supabase Production values through a secure hosting channel.
-- Backup and apply migrations `0001`–`0021` to the protected D1 runtime.
+- Backup and apply migrations `0001`–`0025` to the protected D1 runtime.
 - Verify private R2 readiness.
 - Bootstrap the real OWNER identity and accept two-company customer isolation.
 - Supply/configure Turnstile Production keys through the secure hosting channel, approve untrusted-file/malware handling, and add verified location/map data when supplied.
@@ -401,7 +987,7 @@ the guarded Z.com deployment of `7d24518e67a562c9df45d999d8f3144fccb86f6a`.
    is refused and FTP/SFTP are disproved), so the Owner runs the exact block in
    "Pending Production deployment" below. Nothing else in the public-site scope
    is blocked on code.
-1. Close the Production activation gates: canonical app route, Supabase environment/callback, D1 backup+ledger+migrations `0001`–`0021`, R2 readiness, real OWNER mapping and approved quotation anti-abuse/untrusted-file controls.
+1. Close the Production activation gates: canonical app route, Supabase environment/callback, D1 backup+ledger+migrations `0001`–`0025`, R2 readiness, real OWNER mapping and approved quotation anti-abuse/untrusted-file controls.
 2. Run real browser acceptance for OWNER and two isolated customer companies before exposing `/app` publicly.
 3. Configure external LINE/email notification providers only after credentials, consent, retry and escalation policy are approved.
 4. Keep all new migrations unapplied until the Production backup/runtime gates are satisfied.

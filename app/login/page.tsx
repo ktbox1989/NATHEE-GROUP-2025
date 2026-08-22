@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { retryAfterMinutes } from "@/lib/auth-throttle";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 
 export const metadata = {
@@ -11,6 +12,8 @@ const errorMessages: Record<string, string> = {
   invalid_input: "กรุณากรอกอีเมลและรหัสผ่านให้ครบ",
   invalid_credentials: "อีเมลหรือรหัสผ่านไม่ถูกต้อง",
   not_authorized: "บัญชีนี้ยังไม่ได้รับสิทธิ์เข้าใช้งานระบบ NATHEE",
+  too_many_attempts: "พยายามเข้าสู่ระบบบ่อยเกินไป ระบบระงับการลองชั่วคราวเพื่อความปลอดภัย",
+  unavailable: "ระบบยืนยันตัวตนไม่พร้อมใช้งานชั่วคราว กรุณาลองใหม่ภายหลัง",
 };
 
 const statusMessages: Record<string, string> = {
@@ -19,13 +22,24 @@ const statusMessages: Record<string, string> = {
 };
 
 type LoginPageProps = {
-  searchParams: Promise<{ error?: string; status?: string; returnTo?: string }>;
+  searchParams: Promise<{
+    error?: string;
+    status?: string;
+    returnTo?: string;
+    retryAfter?: string;
+  }>;
 };
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const params = await searchParams;
   const configured = isSupabaseConfigured();
-  const error = params.error ? errorMessages[params.error] : null;
+  const baseError = params.error ? errorMessages[params.error] : null;
+  const waitMinutes =
+    params.error === "too_many_attempts" ? retryAfterMinutes(params.retryAfter) : null;
+  const error =
+    baseError && waitMinutes
+      ? `${baseError} กรุณาลองใหม่ในอีกประมาณ ${waitMinutes} นาที`
+      : baseError;
   const status = params.status ? statusMessages[params.status] : null;
   const returnTo =
     params.returnTo?.startsWith("/") && !params.returnTo.startsWith("//")

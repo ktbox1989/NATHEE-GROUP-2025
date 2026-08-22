@@ -6,6 +6,7 @@ import { effectiveRoleFromLegacy, PERMISSIONS } from "@/lib/authorization";
 import { requireActor } from "@/lib/current-actor";
 import { roleLabels } from "@/lib/labels";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/admin";
+import { PRIVILEGED_ACTION_MESSAGES } from "@/lib/privileged-action";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +26,7 @@ const errorMessages: Record<string, string> = {
   self_lockout: "Owner ไม่สามารถลดสิทธิ์หรือปิดบัญชีของตนเองได้",
   last_owner: "ต้องมี Owner ที่ใช้งานอยู่อย่างน้อยหนึ่งบัญชี",
   not_found: "ไม่พบบัญชีหรือบัญชีถูก Archive แล้ว",
+  ...PRIVILEGED_ACTION_MESSAGES,
 };
 
 export default async function UsersPage({ searchParams }: UsersPageProps) {
@@ -102,6 +104,7 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
           <div className="field"><label htmlFor="role">Role *</label><select id="role" name="role" required>{USER_ROLES.map((role) => <option value={role} key={role}>{roleLabels[role]}</option>)}</select></div>
           <div className="field"><label htmlFor="companyId">บริษัท (จำเป็นสำหรับ Customer roles)</label><select id="companyId" name="companyId"><option value="">ไม่ผูกบริษัท</option>{companyRows.map((company) => <option key={company.id} value={company.id}>{company.code} · {company.name}</option>)}</select></div>
           <fieldset className="permission-fieldset full"><legend>สิทธิ์สำหรับบทบาทภายใน (ยกเว้น OWNER)</legend><div className="permission-grid">{PERMISSIONS.map((permission) => <label key={permission}><input type="checkbox" name="permissions" value={permission} /> {permission}</label>)}</div></fieldset>
+          <label className="field full">รหัสผ่านปัจจุบันของคุณ<input name="currentPassword" type="password" autoComplete="current-password" required placeholder="ยืนยันตัวตนก่อนเปลี่ยนสิทธิ์" /><small>ระบบขอรหัสผ่านทุกครั้งที่เชิญสมาชิกหรือเปลี่ยนสิทธิ์ เพราะการถือ Session อย่างเดียวไม่พอสำหรับการเปลี่ยนว่าใครทำอะไรได้</small></label>
           <div className="full"><button className="button button-gradient" type="submit">ส่งคำเชิญเข้าใช้งาน</button></div>
         </form>
       )}
@@ -125,7 +128,7 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
             <div className="field"><label htmlFor={`status-${user.id}`}>สถานะบัญชี</label><select id={`status-${user.id}`} name="status" defaultValue={user.status}><option value="ACTIVE">ใช้งาน</option><option value="INACTIVE">ปิดใช้งาน (ไม่ลบประวัติ)</option></select></div>
             <div className="field"><label htmlFor={`reason-${user.id}`}>เหตุผลการเปลี่ยนแปลง *</label><input id={`reason-${user.id}`} name="reason" minLength={3} maxLength={500} required placeholder="บันทึกใน Audit Log" /></div>
             <fieldset className="permission-fieldset full"><legend>สิทธิ์ explicit สำหรับบทบาทภายใน (OWNER/Customer จะไม่ใช้รายการนี้)</legend><div className="permission-grid">{PERMISSIONS.map((permission) => <label key={permission}><input type="checkbox" name="permissions" value={permission} defaultChecked={selectedPermissions.has(permission)} /> {permission}</label>)}</div></fieldset>
-            <div className="member-form-footer full"><p>การปิดบัญชีมีผลกับแอปทันทีเมื่อมีคำขอใหม่ แต่ไม่ลบ Auth identity หรือประวัติธุรกิจ</p><button className="button button-gradient button-small" type="submit">บันทึกสิทธิ์และสถานะ</button></div>
+            <div className="member-form-footer full"><p>การปิดบัญชีมีผลกับแอปทันทีเมื่อมีคำขอใหม่ แต่ไม่ลบ Auth identity หรือประวัติธุรกิจ</p><label className="field full">รหัสผ่านปัจจุบันของคุณ<input name="currentPassword" type="password" autoComplete="current-password" required placeholder="ยืนยันตัวตนก่อนเปลี่ยนสิทธิ์" /><small>ระบบขอรหัสผ่านทุกครั้งที่เชิญสมาชิกหรือเปลี่ยนสิทธิ์ เพราะการถือ Session อย่างเดียวไม่พอสำหรับการเปลี่ยนว่าใครทำอะไรได้</small></label><button className="button button-gradient button-small" type="submit">บันทึกสิทธิ์และสถานะ</button></div>
           </form>
         </details>;
       })}</div> : <div className="data-card"><div className="app-empty"><div>👥</div><h2>ยังไม่มีสมาชิก</h2><p>บัญชีเจ้าของเริ่มต้นต้องตั้งค่าในขั้นเปิดระบบครั้งแรก</p></div></div>}

@@ -22,7 +22,11 @@ import {
   type ManagedUserState,
   type ManagedUserStatus,
 } from "@/lib/member-lifecycle";
+import { privilegedProofAccepted } from "@/lib/privileged-action";
+import { requireCurrentPassword } from "@/lib/privileged-action-guard";
 import { isSameOrigin } from "@/lib/same-origin";
+import { createSupabaseRouteClient } from "@/lib/supabase/route";
+import { recordTimestamp } from "@/lib/timestamps";
 
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   if (!isSameOrigin(request)) return new NextResponse("Forbidden", { status: 403 });
@@ -61,6 +65,29 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   };
 
   const form = await request.formData();
+
+  // Changing a role, a permission set or an account's status decides who may
+  // act. Holding a session is not enough to do it.
+  const { client, applyAuthCookies } = createSupabaseRouteClient(request);
+  const { data: session } = await client.auth.getUser();
+  const proof = await requireCurrentPassword({
+    client,
+    email: session.user?.email,
+    submitted: form.get("currentPassword"),
+    headers: request.headers,
+  });
+  if (!proof.ok || !privilegedProofAccepted(proof.proof)) {
+    const code = proof.ok ? "reauthenticate" : proof.error;
+    const suffix = !proof.ok && proof.error === "too_many_attempts" && proof.retryAfterSeconds ? `&retryAfter=${proof.retryAfterSeconds}` : "";
+    return applyAuthCookies(
+      NextResponse.redirect(new URL(`/app/users?error=${code}${suffix}`, request.url), 303),
+    );
+  }
+
+  // Re-authenticating rotated the session, so every exit from here must carry
+  // the refreshed cookies or a successful change signs the Owner out.
+  const done = (key: string, value: string) => applyAuthCookies(redirect(request, key, value));
+
   const rawRole = String(form.get("role") ?? "");
   const rawStatus = String(form.get("status") ?? "");
   const reason = String(form.get("reason") ?? "").trim();
@@ -69,14 +96,14 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     !MANAGED_USER_STATUSES.includes(rawStatus as ManagedUserStatus) ||
     reason.length < 3 ||
     reason.length > 500
-  ) return redirect(request, "error", "invalid");
+  ) return done("error", "invalid");
 
   const role = rawRole as UserRole;
   let companyId: string | null;
   try {
     companyId = normalizeManagedCompany(role, String(form.get("companyId") ?? "") || null);
   } catch {
-    return redirect(request, "error", "company");
+    return done("error", "company");
   }
   if (companyId) {
     const company = await db
@@ -84,7 +111,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       .from(companies)
       .where(and(eq(companies.id, companyId), eq(companies.status, "ACTIVE")))
       .get();
-    if (!company) return redirect(request, "error", "company");
+    if (!company) return done("error", "company");
   }
 
   const after: ManagedUserState = {
@@ -94,7 +121,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     status: rawStatus as ManagedUserStatus,
     permissions: normalizeManagedPermissions(role, form.getAll("permissions").map(String)),
   };
-  if (!hasManagedUserChange(before, after)) return redirect(request, "status", "no_change");
+  if (!hasManagedUserChange(before, after)) return done("status", "no_change");
 
   const d1 = getD1();
   const ownerCount = await d1.prepare(`
@@ -115,12 +142,12 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       activeOwnerCount: Number(ownerCount?.total ?? 0),
     });
   } catch (error) {
-    if (error instanceof MemberLifecycleError) return redirect(request, "error", error.code.toLowerCase());
-    return redirect(request, "error", "invalid");
+    if (error instanceof MemberLifecycleError) return done("error", error.code.toLowerCase());
+    return done("error", "invalid");
   }
 
   const requestId = crypto.randomUUID();
-  const now = new Date().toISOString();
+  const recordedAt = recordTimestamp();
   const legacyBefore = legacyRoleFor(before.role);
   const legacyAfter = legacyRoleFor(after.role);
   const legacyGroupChanges = legacyBefore !== legacyAfter;
@@ -132,7 +159,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     WHERE id = ? AND management_revision = ?
       AND status = ? AND role = ?
       AND ((company_id IS NULL AND ? IS NULL) OR company_id = ?)
-  `).bind(requestId, now, id, target.managementRevision, target.status, target.legacyRole, target.companyId, target.companyId)];
+  `).bind(requestId, recordedAt, id, target.managementRevision, target.status, target.legacyRole, target.companyId, target.companyId)];
 
   if (legacyGroupChanges) {
     operations.push(d1.prepare(`
@@ -145,7 +172,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   operations.push(d1.prepare(`
     UPDATE users SET role = ?, company_id = ?, status = ?, updated_at = ?
     WHERE id = ? AND last_management_request_id = ?
-  `).bind(legacyAfter, after.companyId, after.status, now, id, requestId));
+  `).bind(legacyAfter, after.companyId, after.status, recordedAt, id, requestId));
 
   if (roleChanges || !target.assignedRole) {
     operations.push(d1.prepare(`
@@ -154,7 +181,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       WHERE id = ? AND last_management_request_id = ?
       ON CONFLICT(user_id) DO UPDATE SET
         role = excluded.role, assigned_by = excluded.assigned_by, updated_at = excluded.updated_at
-    `).bind(after.role, actor.userId, now, now, id, requestId));
+    `).bind(after.role, actor.userId, recordedAt, recordedAt, id, requestId));
   }
 
   operations.push(d1.prepare(`
@@ -167,7 +194,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       INSERT INTO user_permissions (user_id, permission, granted_by, created_at)
       SELECT id, ?, ?, ? FROM users
       WHERE id = ? AND last_management_request_id = ?
-    `).bind(permission, actor.userId, now, id, requestId));
+    `).bind(permission, actor.userId, recordedAt, id, requestId));
   }
 
   const audit = makeAuditRecord({
@@ -188,21 +215,22 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     FROM users WHERE id = ? AND last_management_request_id = ?
   `).bind(
     audit.id, audit.actorUserId, audit.companyId, audit.action, audit.entityType,
-    audit.entityId, audit.beforeJson, audit.afterJson, audit.reason, now, id, requestId,
+    audit.entityId, audit.beforeJson, audit.afterJson, audit.reason, recordedAt, id, requestId,
   ));
 
   try {
     const results = await d1.batch(operations);
     if ((results[0].meta.changes ?? 0) !== 1 || (results.at(-1)?.meta.changes ?? 0) !== 1) {
-      return redirect(request, "error", "stale");
+      return done("error", "stale");
     }
   } catch {
-    return redirect(request, "error", "save");
+    return done("error", "save");
   }
 
-  return NextResponse.redirect(new URL(`/app/users?status=updated#${id}`, request.url), 303);
+  return applyAuthCookies(NextResponse.redirect(new URL(`/app/users?status=updated#${id}`, request.url), 303));
 }
 
 function redirect(request: NextRequest, key: string, value: string) {
   return NextResponse.redirect(new URL(`/app/users?${key}=${encodeURIComponent(value)}`, request.url), 303);
 }
+

@@ -11,6 +11,7 @@ import { getCurrentActor } from "@/lib/current-actor";
 import { boundedText, GALLERY_MAX_ORIGINAL_BYTES, GALLERY_MAX_VARIANT_BYTES, galleryVisibilities, isGalleryUploadRequestKey, parseGallerySortOrder, parsePositiveDimension } from "@/lib/gallery";
 import { hasExpectedImageSignature, imageDimensionsMatchClaim, readImageDimensions, sha256Hex, SUPPORTED_IMAGE_TYPES } from "@/lib/image-validation";
 import { isSameOrigin } from "@/lib/same-origin";
+import { recordTimestamp } from "@/lib/timestamps";
 
 type PreparedVariant = { id: string; role: GalleryVariantRole; file: File; bytes: Uint8Array; checksum: string; width: number | null; height: number | null; storageKey: string };
 const MAX_REQUEST_BYTES = 42 * 1024 * 1024;
@@ -72,9 +73,9 @@ export async function POST(request: NextRequest) {
       storedKeys.push(variant.storageKey);
       await env.FILES.put(variant.storageKey, variant.bytes, { httpMetadata: { contentType: variant.file.type }, customMetadata: { galleryItemId: itemId, role: variant.role, uploadedBy: actor.userId, checksum: variant.checksum } });
     }
-    const now = new Date().toISOString();
+    const recordedAt = recordTimestamp();
     await db.batch([
-      db.insert(galleryItems).values({ id: itemId, requestKey, categoryId, companyId, jobId, title, caption, altText, takenAt, location, publicJobReference, status: "DRAFT", visibility, sortOrder, uploadedBy: actor.userId, updatedAt: now }),
+      db.insert(galleryItems).values({ id: itemId, requestKey, categoryId, companyId, jobId, title, caption, altText, takenAt, location, publicJobReference, status: "DRAFT", visibility, sortOrder, uploadedBy: actor.userId, updatedAt: recordedAt }),
       ...variants.map((variant) => db.insert(galleryImageVariants).values({ id: variant.id, galleryItemId: itemId, role: variant.role, storageKey: variant.storageKey, contentType: variant.file.type, width: variant.width, height: variant.height, byteSize: variant.file.size, checksum: variant.checksum })),
       db.insert(auditLogs).values(makeAuditRecord({ actor, action: "CREATE", entityType: "gallery_item", entityId: itemId, companyId, after: { categoryId, title, visibility, takenAt, location, publicJobReference, status: "DRAFT", variants: variants.map(({ role, file, checksum }) => ({ role, contentType: file.type, byteSize: file.size, checksum })) } })),
     ]);

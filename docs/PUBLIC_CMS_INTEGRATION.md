@@ -159,6 +159,84 @@ Current inventory, all 11 routes mapping cleanly:
 The machine-readable form is `docs/public-content-inventory.json`, regenerated
 with `--write`.
 
+## Reconciliation against Lane B's schema
+
+Lane B's published payload (`CmsPageContent` in `lib/site-cms-content.ts`) was
+compared field by field with this contract. It is close enough to map, and
+`lib/public-cms/map-from-cms.ts` does so. Five differences are real and are
+recorded here rather than smoothed over.
+
+| Consumer field | Lane B provides | Handling |
+| --- | --- | --- |
+| `slug`, `path` | `SITE_PAGE_DEFINITIONS`, without a trailing slash | normalised (`/services` → `/services/`) |
+| `status` | `PublishedSitePageState` — `PUBLISHED`, `HIDDEN`, `UNMANAGED`, `BROKEN` | only `PUBLISHED` maps; the rest refuse |
+| `seo.title` / `description` | yes | direct |
+| `seo.canonicalPath` | **absent** | derived as the page's own path; any other value would be wrong |
+| `seo.robots` | **absent** | see finding 2 |
+| `heading` (h1) | **no page-level field** | derived from the enabled `HERO` section; see finding 1 |
+| `sections[].headingLevel` | **absent** — B stores a section `type` | derived; see finding 1 |
+| `sections[].body` | single string | wrapped into one paragraph |
+| `sections[].media` | `imageItemId`, a reference | resolved through an injected resolver; see finding 3 |
+| media `altText`, dimensions | on the gallery item, not the page | supplied by the resolver, refused if absent |
+| `revisionId` | yes | direct |
+| `publishedAt` | **not returned** | supplied by the caller; see finding 4 |
+
+### Finding 1 — heading rank is derived, not stored
+
+B stores `type` (`HERO`, `CONTENT`, `FEATURES`, `FAQ`, `CTA`, `CONTACT`), which
+describes what a section *is*, not what rank it renders at. Rank is a rendering
+decision this lane already owns, so the mapper applies one fixed rule: the
+enabled `HERO` heading becomes the page `h1`, every other enabled section is
+`h2`, and a section's feature `items` are `h3`.
+
+That is exactly the shape the current static pages already have, which the
+content inventory verified across all eleven routes. The validator is unchanged
+and still rejects a skipped level, so a future section type that broke the
+outline would fail rather than ship.
+
+A page with no enabled `HERO` heading is **refused**. Inventing an `h1` would
+put words on a customer-facing page that nobody wrote.
+
+### Finding 2 — `NOINDEX` is not expressible
+
+Every managed page in B's model is indexable. The mapper therefore emits
+`robots: "INDEX"` for all of them. Today that is correct, because all ten
+managed pages are public marketing pages.
+
+If a page ever needs to be published but not indexed, B's payload has no way to
+say so, and the mapper must not guess. That would need a field on B's side.
+
+### Finding 3 — media is a reference, and resolution is Lane B's data
+
+`imageItemId` points at a gallery item; the alt text, dimensions and variants
+live there. The mapper takes an injected resolver rather than reaching into the
+gallery itself, which keeps it pure and testable and keeps the data boundary
+where it belongs.
+
+A reference that cannot be resolved is **dropped and the section still renders
+its text** — a missing image is not a reason to lose the copy. A resolved item
+without alt text or real dimensions is refused outright, and a resolver that
+returned an authenticated path is still rejected by the contract, which the
+tests prove.
+
+Note that the gallery stores absolute URLs and this contract requires
+same-origin paths, so the origin is stripped during mapping.
+
+### Finding 4 — `publishedAt` is not in the payload
+
+`getPublishedSitePage` returns status, content and revision, but not the time of
+the publication event. The mapper requires it as an argument rather than
+defaulting to "now", which would make every page look freshly published to
+anything reading the timestamp.
+
+### Finding 5 — `/gallery/` is not a managed page
+
+B manages ten text pages. This contract knows eleven public routes, because
+`/gallery/` exists on the public site as a media collection rather than authored
+copy. It is out of scope for page mapping and stays served from the gallery,
+which is the correct split — it simply means the two route lists are not the
+same length, and neither is wrong.
+
 ## Migration order, when the schema exists
 
 1. Lane B publishes the canonical schema and API contract.

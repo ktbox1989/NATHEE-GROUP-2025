@@ -3,21 +3,58 @@ import test from "node:test";
 import {
   buildAuthCallbackUrl,
   CANONICAL_PRODUCTION_ORIGIN,
+  isPublicWebsiteOrigin,
   normalizeConfiguredAppOrigin,
+  PUBLIC_WEBSITE_ORIGIN,
   resolveAppOrigin,
 } from "../lib/app-origin.ts";
 import { isSupabaseSecretKey } from "../lib/supabase/admin.ts";
 import { parseSupabaseConfig } from "../lib/supabase/config.ts";
 
 test("application origin accepts only canonical, preview and local origins", () => {
-  assert.equal(normalizeConfiguredAppOrigin("https://natheegroup2025.com"), CANONICAL_PRODUCTION_ORIGIN);
+  assert.equal(normalizeConfiguredAppOrigin("https://app.natheegroup2025.com"), CANONICAL_PRODUCTION_ORIGIN);
   assert.equal(normalizeConfiguredAppOrigin("https://nathee-preview.chatgpt.site"), "https://nathee-preview.chatgpt.site");
   assert.equal(normalizeConfiguredAppOrigin("http://localhost:3000"), "http://localhost:3000");
-  assert.equal(normalizeConfiguredAppOrigin("http://natheegroup2025.com"), null);
-  assert.equal(normalizeConfiguredAppOrigin("https://natheegroup2025.com/path"), null);
+  assert.equal(normalizeConfiguredAppOrigin("http://app.natheegroup2025.com"), null);
+  assert.equal(normalizeConfiguredAppOrigin("https://app.natheegroup2025.com/path"), null);
   assert.equal(normalizeConfiguredAppOrigin("https://attacker.invalid"), null);
   assert.equal(resolveAppOrigin(undefined, "https://request.invalid/app", "production"), null);
   assert.equal(resolveAppOrigin(undefined, "http://localhost:3000/app", "development"), "http://localhost:3000");
+});
+
+test("the public website is never accepted as the application origin", () => {
+  // The application holds sessions, customer records and private media. The
+  // apex is a static document root Lane A deploys to by file copy; sharing an
+  // origin would share every Auth cookie and redirect target with it.
+  assert.equal(CANONICAL_PRODUCTION_ORIGIN, "https://app.natheegroup2025.com");
+  assert.equal(PUBLIC_WEBSITE_ORIGIN, "https://natheegroup2025.com");
+  assert.notEqual(CANONICAL_PRODUCTION_ORIGIN, PUBLIC_WEBSITE_ORIGIN);
+
+  for (const apex of [
+    "https://natheegroup2025.com",
+    "https://natheegroup2025.com/",
+    "http://natheegroup2025.com",
+    "https://www.natheegroup2025.com",
+  ]) {
+    assert.equal(normalizeConfiguredAppOrigin(apex), null, apex);
+  }
+  assert.equal(isPublicWebsiteOrigin("https://natheegroup2025.com"), true);
+  assert.equal(isPublicWebsiteOrigin("https://natheegroup2025.com/"), true);
+  assert.equal(isPublicWebsiteOrigin("https://app.natheegroup2025.com"), false);
+  assert.equal(isPublicWebsiteOrigin(undefined), false);
+});
+
+test("a lookalike host cannot pass as the application origin", () => {
+  for (const lookalike of [
+    "https://natheegroup2025.com.attacker.invalid",
+    "https://app.natheegroup2025.com.attacker.invalid",
+    "https://app-natheegroup2025.com",
+    "https://appnatheegroup2025.com",
+    "https://app.natheegroup2025.com:8443",
+    "https://evil.app.natheegroup2025.com",
+  ]) {
+    assert.equal(normalizeConfiguredAppOrigin(lookalike), null, lookalike);
+  }
 });
 
 test("auth callback is derived from configured origin and never from a spoofed Host", () => {
@@ -27,7 +64,7 @@ test("auth callback is derived from configured origin and never from a spoofed H
     CANONICAL_PRODUCTION_ORIGIN,
     "production",
   );
-  assert.equal(callback?.toString(), "https://natheegroup2025.com/auth/callback?next=%2Freset-password");
+  assert.equal(callback?.toString(), "https://app.natheegroup2025.com/auth/callback?next=%2Freset-password");
   assert.equal(buildAuthCallbackUrl("/app", "https://attacker.invalid", undefined, "production"), null);
 });
 

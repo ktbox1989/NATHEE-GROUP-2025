@@ -6,6 +6,7 @@ import { can, isInternalRole } from "@/lib/authorization";
 import { getCurrentActor } from "@/lib/current-actor";
 import { isSameOrigin } from "@/lib/same-origin";
 import { canTransitionTrip, tripReadinessIssue } from "@/lib/trips";
+import { eventTimestamp, recordTimestamp } from "@/lib/timestamps";
 
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   if (!isSameOrigin(request)) return new NextResponse("Forbidden", { status: 403 });
@@ -31,7 +32,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     .all();
   if (tripReadinessIssue(newStatus, assignments)) return redirect(request, "error", "trip_not_ready");
 
-  const now = new Date().toISOString();
+  // Real-world instants stay ISO-8601 because CHECK constraints compare them
+  // as text; record columns match what CURRENT_TIMESTAMP writes.
+  const occurredAt = eventTimestamp();
+  const recordedAt = recordTimestamp();
   const eventId = crypto.randomUUID();
   const auditId = crypto.randomUUID();
   const setDeparture = newStatus === "IN_TRANSIT" ? 1 : 0;
@@ -47,7 +51,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
           (id, trip_id, previous_status, new_status, note, created_by, created_at)
         SELECT ?, id, status, ?, ?, ?, ? FROM trips
         WHERE id = ? AND status = ?
-      `).bind(eventId, newStatus, note, actor.userId, now, id, trip.status),
+      `).bind(eventId, newStatus, note, actor.userId, recordedAt, id, trip.status),
       d1.prepare(`
         UPDATE trips
         SET status = ?,
@@ -56,7 +60,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
             updated_at = ?
         WHERE id = ? AND status = ?
           AND EXISTS (SELECT 1 FROM trip_status_events WHERE id = ?)
-      `).bind(newStatus, setDeparture, now, setArrival, now, now, id, trip.status, eventId),
+      `).bind(newStatus, setDeparture, occurredAt, setArrival, occurredAt, recordedAt, id, trip.status, eventId),
       d1.prepare(`
         INSERT INTO audit_logs
           (id, actor_user_id, action, entity_type, entity_id, before_json, after_json, reason, created_at)
@@ -69,7 +73,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         JSON.stringify({ status: trip.status }),
         JSON.stringify({ status: newStatus }),
         note,
-        now,
+        recordedAt,
         eventId,
       ),
       d1.prepare(`
@@ -84,7 +88,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         JSON.stringify({ state: releaseFrom }),
         JSON.stringify({ state: "RELEASED" }),
         releaseReason,
-        now,
+        recordedAt,
         id,
         releaseFrom,
       ),
@@ -92,7 +96,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         UPDATE trip_motorcycle_assignments
         SET state = 'RELEASED', released_at = ?, release_reason = ?, updated_at = ?
         WHERE trip_id = ? AND released_at IS NULL AND state = ?
-      `).bind(now, releaseReason, now, id, releaseFrom),
+      `).bind(occurredAt, releaseReason, recordedAt, id, releaseFrom),
     ]);
     if (
       (results[0].meta.changes ?? 0) !== 1

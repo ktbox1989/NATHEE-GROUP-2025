@@ -1,5 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getAppOrigin } from "@/lib/app-origin";
+import { authIdentityId } from "@/lib/auth-identity";
+import {
+  recoveryGrantCookieOptions,
+  RECOVERY_GRANT_COOKIE,
+  shouldIssueRecoveryGrant,
+} from "@/lib/auth-recovery-grant";
+import { issueRecoveryGrant } from "@/lib/auth-recovery-grant-store";
 import { safeReturnTo } from "@/lib/safe-return-to";
 import { getSupabaseConfig } from "@/lib/supabase/config";
 import { createSupabaseRouteClient } from "@/lib/supabase/route";
@@ -24,7 +31,7 @@ export async function GET(request: NextRequest) {
   }
 
   const { client, applyAuthCookies } = createSupabaseRouteClient(request);
-  const { error } = await client.auth.exchangeCodeForSession(code);
+  const { data, error } = await client.auth.exchangeCodeForSession(code);
   if (error) {
     return applyAuthCookies(
       NextResponse.redirect(
@@ -34,7 +41,38 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  return applyAuthCookies(
+  const response = applyAuthCookies(
     NextResponse.redirect(new URL(next, appOrigin), 303),
   );
+
+  // This is the only place in the application where a link sent to a mailbox
+  // becomes a session, so it is the only place that can attest a password change
+  // was authorised by something other than possession of a session cookie.
+  if (shouldIssueRecoveryGrant(next)) {
+    const externalAuthId = authIdentityId(data.user);
+    if (!externalAuthId) {
+      return NextResponse.redirect(
+        new URL("/forgot-password?error=expired", appOrigin),
+        303,
+      );
+    }
+    let token: string;
+    try {
+      token = await issueRecoveryGrant(externalAuthId);
+    } catch {
+      // Without a recorded grant the reset page would silently fall back to
+      // demanding a password the recovering user does not have. Say so instead.
+      return NextResponse.redirect(
+        new URL("/forgot-password?error=unavailable", appOrigin),
+        303,
+      );
+    }
+    response.cookies.set(
+      RECOVERY_GRANT_COOKIE,
+      token,
+      recoveryGrantCookieOptions(request.url),
+    );
+  }
+
+  return response;
 }

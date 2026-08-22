@@ -6,6 +6,7 @@ import { can, isInternalRole } from "@/lib/authorization";
 import { getCurrentActor } from "@/lib/current-actor";
 import { isSameOrigin } from "@/lib/same-origin";
 import { canTransitionTripAssignment, motorcycleStatusAllowsAssignmentState, tripStatusAllowsAssignmentTransition } from "@/lib/trips";
+import { eventTimestamp, recordTimestamp } from "@/lib/timestamps";
 
 const actionTargets = {
   MARK_LOADED: "LOADED",
@@ -51,7 +52,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     return redirect(request, tripId, "error", "assignment_state_mismatch");
   }
 
-  const now = new Date().toISOString();
+  // Load-state instants are CHECK-compared against assigned_at as text; the
+  // record columns sort against rows that took the CURRENT_TIMESTAMP default.
+  const occurredAt = eventTimestamp();
+  const recordedAt = recordTimestamp();
   const auditId = crypto.randomUUID();
   try {
     const d1 = getD1();
@@ -65,7 +69,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
             release_reason = CASE WHEN ? = 'RELEASED' THEN ? ELSE release_reason END,
             updated_at = ?
         WHERE id = ? AND trip_id = ? AND state = ?
-      `).bind(newState, newState, now, newState, now, newState, now, newState, reason, now, assignmentId, tripId, assignment.state),
+      `).bind(newState, newState, occurredAt, newState, occurredAt, newState, occurredAt, newState, reason, recordedAt, assignmentId, tripId, assignment.state),
       d1.prepare(`
         INSERT INTO audit_logs
           (id, actor_user_id, company_id, action, entity_type, entity_id, before_json, after_json, reason, created_at)
@@ -78,11 +82,11 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         JSON.stringify({ state: assignment.state }),
         JSON.stringify({ state: newState }),
         reason,
-        now,
+        recordedAt,
         assignmentId,
         tripId,
         newState,
-        now,
+        recordedAt,
       ),
     ]);
     if ((results[0].meta.changes ?? 0) !== 1 || (results[1].meta.changes ?? 0) !== 1) {
