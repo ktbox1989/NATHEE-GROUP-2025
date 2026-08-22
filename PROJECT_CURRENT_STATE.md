@@ -43,6 +43,49 @@ photographs. That was not true of the running site and has been corrected.
 
 ## Closed local milestones
 
+### Authorization coverage and response headers became build gates
+
+- Server-side authorization held on all 84 protected surfaces, but it held
+  because someone had checked each one by hand. `scripts/test-authorization-
+  coverage.mjs` turns that into a build failure: every `route.ts` under
+  `app/api` and every page or layout under `app/app` and `app/portal` must
+  resolve the actor **and** decide with it. Resolving alone is identification,
+  not authorization; it is what would let a signed-in customer read another
+  company's records.
+- Being public is still allowed, but only as one of six declared entries with a
+  stated reason, so a missing check cannot be mistaken for an intended one. A
+  declared entry that outlives its file also fails, because a stale exception is
+  how a surface loses its check years later. Four QR routes satisfy the gate
+  through a declared delegate, and the delegate is itself verified — delegating
+  is not an escape.
+- Every mutating handler must check same-origin, public or not: a session cookie
+  travels with a cross-site form post.
+- Fixed a real gap in `worker/index.ts`: the image-optimization path returned
+  before `applySecurityHeaders`, so an optimized image was the one response
+  served without any of them. `fetch` now has a single exit, and the gate
+  requires it to stay that way by counting exits rather than inspecting branches.
+- Added `Content-Security-Policy: base-uri 'none'; object-src 'none'; form-action
+  'self'; frame-ancestors 'none'` and `Cross-Origin-Resource-Policy: same-origin`.
+  These directives cannot change how the application loads its own scripts,
+  styles or images, so they cannot break a render, but they close the ways an
+  injected fragment becomes an account compromise — chiefly a form that posts a
+  password off-site and a `<base>` tag that silently retargets every relative URL
+  on the page. A `script-src`/`style-src` policy is deliberately **not** claimed:
+  the RSC runtime inlines its own payload, so a correct one needs nonce
+  propagation through the framework and real browser acceptance.
+- The header gate asserts the policy **and** that the application contains no
+  markup the policy forbids, across 117 sources. Asserting a policy without
+  asserting compatibility is how a header gets quietly removed later.
+- Verification: full tests 234/234 (135 unit + 99 integration); authorization
+  coverage 84 surfaces, 78 authorized, 6 declared public, with 9 proven
+  rejections + 1 acceptance; response headers 6 headers and 4 CSP directives,
+  with 13 proven rejections + 1 acceptance; Auth wiring gate 24 rejections + 1
+  acceptance; TypeScript PASS; ESLint PASS; Vinext production build PASS; public
+  SEO/Gallery/mobile/responsive/PWA/deployment guards PASS; `git diff --check`
+  PASS.
+- No migration was added. No Production file, D1 row, Supabase value, R2 object,
+  DNS record or credential was changed.
+
 ### Proof required before a password can be changed (`0023`)
 
 - Closed an account-takeover path: `/api/auth/update-password` accepted any live
@@ -431,6 +474,8 @@ photographs. That was not true of the running site and has been corrected.
 - Release gate negative tests now cover installability: 9 rejections + 1 acceptance
 - Postcheck contract test (`test-production-postcheck-contract.sh`): 29 routes, content-only
 - Auth wiring gate (`test-auth-security-gates.mjs`): PASS, with 24 proven rejections + 1 acceptance
+- Authorization coverage gate (`test-authorization-coverage.mjs`): 84 surfaces, 78 authorized, 6 declared public, with 9 proven rejections + 1 acceptance
+- Response security header gate (`test-response-security-headers.mjs`): 6 headers, 4 CSP directives, 117 sources, with 13 proven rejections + 1 acceptance
 - TypeScript `tsc --noEmit`: PASS
 
 ## Open Owner gates
