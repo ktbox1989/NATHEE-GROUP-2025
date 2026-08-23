@@ -113,9 +113,56 @@ turns it into the exact set of paths to drop.
 | `MEDIA_PUBLISHED` / `MEDIA_WITHDRAWN` | pages using it, `/gallery/`, `/` | the home page carries a gallery preview |
 | `SETTINGS_PUBLISHED` | every public route, `robots.txt` | brand, nav, phones and footer are on every page |
 
-The home page cannot be unpublished. An unrecognised event neither purges
-everything nor silently does nothing: it is reported as needing the guarded
-deploy.
+| `POST_PUBLISHED` | that post, `/news/` | sitemap regenerated |
+| `POST_UNPUBLISHED` | that post, `/news/`, sitemap | URL must stop returning 200 |
+| `POST_MOVED` | both URLs, `/news/`, sitemap | the old URL keeps answering, with a 301 |
+
+Publishing a post fans out to the post and the index and no further. Nothing
+else shows posts, and invalidating the eleven marketing routes on every
+editorial edit would dump most of the cache for a change none of them display.
+
+A rename invalidates **both** URLs. Dropping only one leaves half the site
+serving the state from before the rename. The old URL is not in `removedPaths`:
+it has to keep answering, with a 301, because that is what carries the inbound
+links to the new slug — removing it throws them away.
+
+The home page cannot be unpublished.
+
+`delivery` states how a change reaches visitors, as a field rather than a phrase
+to match on:
+
+- **`CACHE`** — the promise the CMS makes to editors: content and media go live
+  with no deployment.
+- **`DEPLOY`** — the change is in the release itself (templates, styles,
+  scripts, the manifest) and needs the guarded Z.com deploy. An unrecognised
+  event lands here: it neither purges everything nor silently does nothing.
+- **`REJECTED`** — the event was malformed: a post path that is not one, a
+  rename to itself, unpublishing the home page. That is neither of the others.
+  A deployment would not fix it, and reporting success would tell an editor
+  their change is live when no cache was touched.
+
+## One sitemap, one robots.txt
+
+Pages and posts are validated separately, but a site has exactly one sitemap.
+`buildSitemap` merges both, keeps only what is published and indexable,
+deduplicates, and sorts — sorting so the generated file can be reviewed as a
+diff rather than merely observed.
+
+A page reports when it was published. A post reports its edit date if it has
+one and its publication date otherwise, and `/news/` reports the newest post's
+date, because that is what actually changed when it appeared. A site with no
+posts has no news section in its sitemap at all.
+
+`buildRobotsTxt` keeps crawlers out of `/api/`, `/app/`, `/auth/`, `/login/` and
+the login status page. That is a courtesy to the crawler, not a boundary —
+`robots.txt` protects nothing and authentication is the real control — but it
+stops a crawl budget being spent on URLs that only answer with a redirect. A
+test asserts the generated contract still matches the `robots.txt` currently
+shipped, because one of the two is what crawlers actually get.
+
+A non-canonical origin disallows everything, including its sitemap. A staging
+copy indexed alongside production splits the site's ranking between two hosts,
+and the wrong one wins about half the time.
 
 Changes to templates, styles, scripts or the manifest still require the Z.com
 deployment. Saying so plainly stops an editor waiting for a change that was

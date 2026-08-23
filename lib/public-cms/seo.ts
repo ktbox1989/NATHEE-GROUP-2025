@@ -19,6 +19,7 @@ import {
 import {
   POSTS_INDEX_PATH,
   absolutePostUrl,
+  buildPostSitemapUrls,
   type PostAvailability,
   type PublicPost,
 } from "./posts.ts";
@@ -554,4 +555,106 @@ export function buildPostHead(availability: PostAvailability, options: HeadOptio
       },
     ],
   };
+}
+
+// ---------------------------------------------------------------------------
+// One sitemap, one robots.txt
+//
+// Pages and posts are listed by separate builders because they are validated
+// separately, but a site has exactly one sitemap. Emitting two, or emitting one
+// that forgets a content type, is the kind of mistake nobody notices until the
+// posts have been missing from search for a month.
+// ---------------------------------------------------------------------------
+
+export type SitemapEntry = {
+  url: string;
+  /** Omitted when the content type has no meaningful modification date. */
+  lastModified?: string;
+};
+
+/**
+ * The whole public sitemap, from both content types.
+ *
+ * Published and indexable only, deduplicated, sorted. Sorting is not cosmetic:
+ * it makes the generated file diffable, so a change to the sitemap can be
+ * reviewed rather than merely observed.
+ */
+export function buildSitemap(
+  pages: ReadonlyArray<PageAvailability>,
+  posts: ReadonlyArray<PostAvailability> = [],
+): SitemapEntry[] {
+  const entries = new Map<string, SitemapEntry>();
+
+  for (const availability of pages) {
+    if (availability.state !== "PUBLISHED") continue;
+    const page = availability.page;
+    if (page.seo.robots !== "INDEX") continue;
+    entries.set(absoluteUrl(page.seo.canonicalPath), {
+      url: absoluteUrl(page.seo.canonicalPath),
+      lastModified: page.publishedAt,
+    });
+  }
+
+  for (const url of buildPostSitemapUrls(posts)) {
+    if (entries.has(url)) continue;
+    const post = posts.find(
+      (availability) =>
+        availability.state === "PUBLISHED" && absolutePostUrl(availability.post.seo.canonicalPath) === url,
+    );
+    const published = post?.state === "PUBLISHED" ? post.post : null;
+    entries.set(url, {
+      url,
+      // A post's last modification is the edit if there was one, otherwise the
+      // publication. The index carries the newest post's date, because that is
+      // what actually changed when it appeared.
+      ...(published ? { lastModified: published.updatedAt ?? published.publishedAt } : {}),
+    });
+  }
+
+  const newest = posts
+    .filter((availability): availability is { state: "PUBLISHED"; post: PublicPost } => availability.state === "PUBLISHED")
+    .map((availability) => availability.post)
+    .filter((post) => post.seo.robots === "INDEX")
+    .map((post) => post.updatedAt ?? post.publishedAt)
+    .sort()
+    .at(-1);
+  const indexUrl = absolutePostUrl(POSTS_INDEX_PATH);
+  if (newest && entries.has(indexUrl)) entries.set(indexUrl, { url: indexUrl, lastModified: newest });
+
+  return [...entries.values()].sort((left, right) => (left.url < right.url ? -1 : left.url > right.url ? 1 : 0));
+}
+
+/**
+ * Paths a crawler must never be invited into.
+ *
+ * These are the authenticated surfaces. `robots.txt` is a request, not a
+ * control — it does not protect anything, and the real boundary is
+ * authentication. It is here so that a crawler does not spend its budget on
+ * URLs that will only answer with a redirect to a login page.
+ */
+export const ROBOTS_DISALLOWED = Object.freeze(["/api/", "/app/", "/auth/", "/login/", "/login-status.html"]);
+
+export type RobotsOptions = {
+  /**
+   * When false, everything is disallowed. For a staging or preview origin that
+   * is the only correct answer: a second copy of the site competing with the
+   * real one in search is worse than no copy at all.
+   */
+  indexable?: boolean;
+};
+
+/** The robots.txt body, as text, so it can be asserted rather than eyeballed. */
+export function buildRobotsTxt(options: RobotsOptions = {}): string {
+  const sitemap = `${CANONICAL_ORIGIN}/sitemap.xml`;
+  if (options.indexable === false) {
+    return ["User-agent: *", "Disallow: /", ""].join("\n");
+  }
+  return [
+    "User-agent: *",
+    "Allow: /",
+    ...ROBOTS_DISALLOWED.map((path) => `Disallow: ${path}`),
+    "",
+    `Sitemap: ${sitemap}`,
+    "",
+  ].join("\n");
 }
