@@ -1,37 +1,66 @@
 # Application runtime state — measured, not assumed
 
-Measured from this worktree at `2026-08-23T04:34Z` against live DNS and the live
-network. Nothing here was changed; every command below is read-only.
+Measured from this worktree at `2026-08-23T05:30Z` against live DNS and the live
+network, re-run after the Owner identified the source of the 502. Nothing here
+was changed; every command below is read-only.
 
-## Headline: there is no 502, because there is no hostname
+## Headline: the 502 is real, and it is not the application
 
-The task that opened this lane described a **502** at
-`https://app.natheegroup2025.com`. That is not what is happening, and the
-difference matters: a 502 means the name resolved and something upstream
-answered badly, which would point at the runtime. What is actually happening is
-that **the name does not resolve at all**.
+The 502 was observed by an external web fetcher, not in a Cloudflare or Sites
+dashboard, not on the Z.com terminal, and not by the Owner in a browser. That
+detail settles it.
 
-Three independent observations agree:
+A fetch proxy that cannot resolve or connect to an upstream reports **502 Bad
+Gateway** about its own upstream connection. The status describes the proxy, not
+an origin server, and it is returned whether the name is missing, the host is
+unreachable, or the runtime is broken. So the 502 is consistent with the DNS
+evidence and adds nothing to it. It was never evidence of a runtime.
 
-| Check | Result |
-| --- | --- |
-| `curl https://app.natheegroup2025.com/` | `Could not resolve host` |
-| `nslookup app.natheegroup2025.com` (local resolver `192.168.1.1`) | `Non-existent domain` |
-| `nslookup app.natheegroup2025.com 8.8.8.8` (Google public DNS) | `Non-existent domain` |
-| `bash scripts/verify-app-integration.sh` | `/api/health was unreachable` |
+**Authoritative DNS is the source of truth here, and it says the record does not
+exist.** Measured this run, with a control on every resolver:
 
-The network and the resolver are working — the control checks below succeed from
-the same shell in the same minute — so this is not a sandbox limitation.
+| Probe | `app.natheegroup2025.com` | `natheegroup2025.com` (control) |
+| --- | --- | --- |
+| `ns-a1.cloud.z.com` (authoritative) | **no A, no CNAME** | `A 118.27.146.25` |
+| `ns-a3.cloud.z.com` (authoritative) | **no A, no CNAME** | `A 118.27.146.25` |
+| `ns-a4.cloud.z.com` (authoritative) | **no A, no CNAME** | `A 118.27.146.25` |
+| `8.8.8.8` | NXDOMAIN | `A 118.27.146.25` |
+| `1.1.1.1` | NXDOMAIN | `A 118.27.146.25` |
+| `9.9.9.9` | NXDOMAIN | `A 118.27.146.25` |
+| `208.67.222.222` | NXDOMAIN | `A 118.27.146.25` |
 
-## What does resolve
+Every resolver answered the control in the same run, so this is an absent record
+rather than a broken probe or a blocked network.
 
-| Host | Result |
-| --- | --- |
-| `natheegroup2025.com` | `A 118.27.146.25` — public site **LIVE, HTTP 200** |
-| `www.natheegroup2025.com` | `A 118.27.146.25` — same host |
-| `app.natheegroup2025.com` | **NXDOMAIN** |
-| `api.natheegroup2025.com` | NXDOMAIN |
-| `admin.natheegroup2025.com` | NXDOMAIN |
+## The blocker, stated exactly
+
+**The `app.natheegroup2025.com` DNS / custom-domain record is not proven to
+exist publicly.** Nothing about the application runtime may be diagnosed until
+that changes.
+
+## The order that has to be followed
+
+```text
+authoritative DNS → public resolvers → TLS → HTTP → runtime
+```
+
+`npm run verify:hostname` walks exactly that ladder and refuses to skip a rung:
+TLS is not attempted until the name resolves consistently, and HTTP is not
+attempted until TLS completes, so the run cannot produce a status that invites a
+conclusion the DNS evidence does not support. Today it reports:
+
+```text
+APP_HOSTNAME_DNS_MISSING app.natheegroup2025.com has no record on any authoritative nameserver for the zone
+runtimeDiagnosable=false
+```
+
+Only once the hostname resolves consistently **and** terminates TLS does a 5xx
+become attributable to the application, at which point the same command reports
+`APP_HOSTNAME_RUNTIME_FAILING` with `runtimeDiagnosable=true`. That rule is
+enforced in `lib/hostname-diagnosis.ts` and swept in
+`tests/hostname-diagnosis.test.ts`: for every incomplete rung, every HTTP status
+from 200 to 504 must stay non-diagnosable. The misdiagnosis cannot recur
+silently.
 
 ## The zone is on Z.com nameservers, not Cloudflare
 
@@ -59,21 +88,16 @@ stating plainly because the brief assumed a Cloudflare binding:
 There is no code change that can produce that record. It is a DNS and TLS
 action, which is an Owner Gate.
 
-## Where the reported 502 may have come from
+## Where the 502 came from
 
-Recorded as an open question rather than guessed at, because the answer changes
-what to do next:
+Answered by the Owner: it came from an external web fetcher, not from a
+dashboard, terminal or browser. An independent external fetch still returns 502
+while authoritative DNS returns NXDOMAIN, and those two facts do not conflict
+for the reason given at the top of this document.
 
-- a Sites or Cloudflare dashboard preview panel showing a 502 for a custom domain
-  whose origin is not yet bound;
-- a browser or corporate resolver with a stale or wildcard entry;
-- a different hostname — for example the artifact's own `*.chatgpt.site` preview,
-  which is owner-only and not reachable from here.
-
-**Requested from the Owner:** where the 502 was observed (URL, and whether in a
-browser, a dashboard, or a terminal). If it was a dashboard, the runtime may
-already exist and only the DNS record is missing, which is a shorter path than a
-runtime that is failing.
+The practical consequence is that the shorter path is the one in play: there is
+no evidence of a failing runtime to chase, and the work is to create the record
+and bind the hostname.
 
 ## What is verified ready on the source side
 
@@ -95,7 +119,9 @@ The application is ready to be deployed. Nothing about it is ready to be
 ## Blockers, exactly
 
 1. **DNS.** No record exists for `app.natheegroup2025.com` on the Z.com
-   nameservers. Owner action.
+   nameservers, confirmed at the authoritative servers and at four public
+   resolvers, each with a control. Owner action. Verify with
+   `npm run verify:hostname`.
 2. **TLS.** A certificate covering that hostname, issued by whatever terminates
    it. Owner action.
 3. **Runtime binding.** The Sites artifact must be published and bound to the
