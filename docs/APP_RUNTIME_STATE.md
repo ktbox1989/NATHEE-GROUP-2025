@@ -105,3 +105,37 @@ The application is ready to be deployed. Nothing about it is ready to be
 Until 1–3 exist, `/api/health` cannot be reached, and therefore **no live check
 in `docs/OWNER_GATE_CHECKLIST.md` Gate 7 or Gate 8 can be attempted**.
 `APP_RUNTIME_PASS` remains NOT_PROVEN, and no local test can change that.
+
+## Acceptance is now one command, waiting on those three
+
+The moment the hostname resolves and the runtime answers, Gates 7 and 8 are a
+single run:
+
+```bash
+npm run verify:acceptance
+```
+
+Measured today against the real origin, it reports what is actually true:
+
+```text
+FAIL [unauthenticated] reachable: https://app.natheegroup2025.com could not be reached: fetch failed
+SKIP [authenticated] owner-login: NATHEE_OWNER_EMAIL / NATHEE_OWNER_PASSWORD not supplied
+...
+APP_RUNTIME_FAIL passed=0 failed=1 skipped=6 (reachable)
+```
+
+The design point is what it does *not* do. A check that could not run is
+reported `SKIP` and forces `APP_RUNTIME_INCOMPLETE`, never a pass; the pass token
+is not printed by the failing or incomplete verdicts, so searching a log for it
+cannot produce a false hit; and customer isolation is only claimed when two
+accounts in two different companies actually hold distinguishable records.
+
+That it can genuinely reject a broken runtime is tested rather than asserted:
+`scripts/test-production-acceptance-rejections.mjs` serves a real HTTPS
+impersonation of the application and breaks it 21 ways, requiring the runner to
+catch each, plus three ways it could lie by omission. It runs in
+`npm run test:security` as `ACCEPTANCE_NEGATIVE_PASS`.
+
+So the remaining distance to `APP_RUNTIME_PASS` is exactly the three Owner
+actions above, plus supplying an OWNER and two customer accounts at run time.
+Nothing further is waiting on source work.

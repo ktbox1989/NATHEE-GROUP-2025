@@ -114,3 +114,51 @@ triggers, 128 indexes. A runtime missing any one reports `degraded`, and
 Only when Gates 1–8 all pass on Production may the runtime be described as
 accepted. **APP_RUNTIME_PASS must not be claimed before then**, and a green
 source build is not evidence for any of it.
+
+## Running Gates 7 and 8
+
+Both are one command, so acceptance is measured rather than asserted:
+
+```bash
+npm run verify:acceptance
+```
+
+It reads the application origin from `NATHEE_APP_BASE_URL` and defaults to
+`https://app.natheegroup2025.com`. With no credentials it runs everything that
+can be proven anonymously — readiness, security headers, the real login form,
+the protected tree refusing anonymous requests, private media and QR refusing
+anonymous callers — and stops there.
+
+The authenticated half needs accounts, supplied at run time and never stored:
+
+```bash
+NATHEE_OWNER_EMAIL=... NATHEE_OWNER_PASSWORD=... \
+NATHEE_CUSTOMER_A_EMAIL=... NATHEE_CUSTOMER_A_PASSWORD=... \
+NATHEE_CUSTOMER_B_EMAIL=... NATHEE_CUSTOMER_B_PASSWORD=... \
+  npm run verify:acceptance
+```
+
+The two customers must belong to **different companies**; one account cannot
+demonstrate isolation, and the run says so rather than passing.
+
+It ends in exactly one of three verdicts:
+
+| Verdict | Exit | Meaning |
+| --- | --- | --- |
+| `APP_RUNTIME_PASS` | 0 | every check ran and passed |
+| `APP_RUNTIME_FAIL` | 1 | a check ran and failed |
+| `APP_RUNTIME_INCOMPLETE` | 2 | a check could not run — **not** a pass |
+
+Only the first authorises the claim. The word `APP_RUNTIME_PASS` is never
+printed by the other two, so a log may be searched for it safely.
+
+That the runner can actually reject a broken runtime is itself tested:
+`scripts/test-production-acceptance-rejections.mjs` stands up an HTTPS server
+impersonating the application and breaks it 21 different ways — a false
+readiness check, a missing security header, the placeholder login page, the
+application shell rendering anonymously, private evidence served to a stranger,
+a refused OWNER, a sign-in absent from the Audit trail, one customer reading
+another's record — and requires the run to catch each one. It also proves the
+three ways the runner could lie by omission are handled: missing credentials,
+an OWNER without customers, and two customers whose records are
+indistinguishable all report INCOMPLETE rather than PASS.
