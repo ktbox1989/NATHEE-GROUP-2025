@@ -253,6 +253,135 @@ same length, and neither is wrong.
 Until step 6, Production keeps serving the static release, which is the
 behaviour every default in this module is chosen to preserve.
 
+## Posts and news
+
+`lib/public-cms/posts.ts` is the consumer contract for editorial content. Lane B
+has no posts schema today, so this is the receiving end of a contract that does
+not yet have a sender — written now so that when the schema arrives the work is
+a mapping function rather than a design argument.
+
+**Status: inactive.** No route renders it, and no static page links to it.
+
+### Why it is not just another page
+
+The eleven marketing routes are a closed list, and a CMS page for anything else
+is refused. Posts are the opposite shape: the whole point is that an editor
+creates URLs nobody enumerated in advance. So the safety comes from the slug
+rules and the published state instead of from an allowlist.
+
+Everything a post renders that a page also renders **is** the page's code.
+Sections, media and the heading outline all come from `contract.ts`, through
+`validateSections`, which pages and posts now share. The single-`h1`,
+no-skipped-level rule is a property of the public site rather than of a content
+type, and a second copy of it would be a second chance to get one wrong.
+
+### Slugs
+
+`/news/` is the index; a post is `/news/<slug>/`.
+
+Slugs are lowercase latin words joined by single hyphens, at most 80 characters.
+A Thai title left to itself produces a Thai slug, and a percent-encoded Thai
+slug is unreadable in a shared link and fragile in a sitemap — so the CMS must
+supply a latin slug and anything else is refused rather than transliterated,
+because transliteration is a guess about a brand name.
+
+`page`, `feed`, `rss`, `atom`, `sitemap`, `index`, `all`, `category` and `tag`
+are reserved: a post at `/news/page/2/` is unreachable however carefully it is
+rendered. A post can never take a marketing route, and the path must be exactly
+the one derived from the slug — a disagreement between them means one is wrong
+with no way to tell which.
+
+### The list
+
+Newest first, with the slug as the tie-break. The tie-break is not cosmetic:
+posts published in one batch share a timestamp, and without a deterministic
+order the list reshuffles between requests, so pagination shows one post twice
+and hides another.
+
+A page past the end, a page number that is not a positive integer, or a category
+with no posts is a **refusal**, not an empty list at 200. An empty list served
+as 200 is a soft 404: it keeps the URL indexed and tells the visitor the site is
+broken rather than that they mistyped. An empty site still has a first page.
+
+### Redirects
+
+Post redirects differ from page redirects in one way that matters. A marketing
+route can never be a redirect source, which makes chains impossible by
+construction. A post's rename target **can** itself be renamed later, so chains
+are real here and are resolved rather than assumed away — up to four hops, after
+which the table is treated as broken and the visitor gets a 404 rather than a
+redirect loop in their browser. A cycle back to the starting path resolves to
+nothing for the same reason.
+
+A redirect may not point at a marketing route, off-site, at the index, or at
+itself.
+
+### SEO
+
+`buildPostHead` and `buildPageHead` in `seo.ts` produce the same `HeadModel`,
+because the parts that differ between a post and a page are the schema type, the
+article dates and the breadcrumb depth, and nothing else.
+
+| | Page | Post |
+| --- | --- | --- |
+| `og:type` | `website` | `article` |
+| schema | route's own type, `Service` naming its provider | `BlogPosting` |
+| breadcrumb | หน้าแรก → page | หน้าแรก → ข่าวสาร → post |
+| dates | — | `datePublished`, and `dateModified` only if edited |
+
+`PUBLIC_ROUTE_SCHEMA_TYPES` mirrors what the static release already emits, so
+moving a route onto the CMS does not silently change how a search engine is told
+to read it. There is exactly one `Organization` node, referenced by `@id` from
+the `Service` provider and from a post's author and publisher, rather than
+repeated — two Organization records would compete.
+
+A post that has never been edited publishes **no** `dateModified`. Defaulting it
+to the publication date would tell a search engine the post was edited when it
+was not.
+
+The unfurl image is the display variant in JPEG or PNG. AVIF and WebP are
+skipped deliberately: several chat clients cannot decode them and show no image
+at all rather than falling back. With no usable photograph the brand logo is
+used, never nothing.
+
+### Preview emits no social tags
+
+A preview response carries **no** Open Graph or Twitter tags at all, and no
+structured data.
+
+`noindex` is read by crawlers. It is not read by LINE, by email clients, or by
+any of the other places a preview link actually gets pasted — those unfurl the
+URL and render a card. Without this rule, sharing a preview link with one
+colleague would render the unpublished copy to everyone in the conversation,
+which is the leak the preview boundary exists to prevent. The canonical still
+points at the published URL so a leaked link cannot compete in search.
+
+### Sitemap
+
+Published and indexable only, deduplicated and sorted, with `/news/` listed
+above the posts — but only when there is at least one, because advertising an
+empty section of the site is worse than omitting it. An unpublished post is
+absent because it has no `PublicPost` to be listed: it cannot be forgotten.
+
+### Lane B gate
+
+Posts need a schema on Lane B's side before any of this can be mapped:
+
+- post identity, slug and publication state;
+- publication and modification timestamps as separate fields;
+- an excerpt distinct from the body, since the list needs one;
+- a category reference with a label;
+- a featured image reference resolvable to alt text and real dimensions;
+- per-post SEO title, description and an indexable flag — the same
+  `NOINDEX`-is-not-expressible finding as for pages applies here, and matters
+  more, because a post is far more likely to be published but deliberately
+  unlisted; and
+- the slug history, so a rename can become a 301 rather than a dead link.
+
+Until that exists, `validatePublicPost` has no sender and the routes stay
+unbuilt. That is the correct state: an empty news section is honest, and a fake
+one is not.
+
 ## Quotation form
 
 Lane B owns the endpoint, database and anti-abuse verification.

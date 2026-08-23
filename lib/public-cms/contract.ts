@@ -95,11 +95,11 @@ export type ValidationResult<T> =
   | { ok: true; value: T }
   | { ok: false; violations: ContractViolation[] };
 
-function isNonEmptyString(value: unknown, max = 5000): value is string {
+export function isNonEmptyString(value: unknown, max = 5000): value is string {
   return typeof value === "string" && value.trim().length > 0 && value.length <= max;
 }
 
-function isIsoTimestamp(value: unknown): value is string {
+export function isIsoTimestamp(value: unknown): value is string {
   return typeof value === "string" && !Number.isNaN(Date.parse(value));
 }
 
@@ -197,8 +197,8 @@ function validateSeo(input: unknown, path: unknown): ContractViolation[] {
   return violations;
 }
 
-function validateSection(input: unknown, index: number): ContractViolation[] {
-  const field = `sections[${index}]`;
+function validateSection(input: unknown, index: number, prefix = "sections"): ContractViolation[] {
+  const field = `${prefix}[${index}]`;
   const violations: ContractViolation[] = [];
   if (typeof input !== "object" || input === null) return [{ field, reason: "must be an object" }];
   const section = input as Partial<PublicSection>;
@@ -265,29 +265,48 @@ export function validatePublicPage(input: unknown): ValidationResult<PublicPage>
   if (!isIsoTimestamp(page.publishedAt)) violations.push({ field: "publishedAt", reason: "must be an ISO timestamp" });
 
   violations.push(...validateSeo(page.seo, page.path));
-
-  if (!Array.isArray(page.sections)) {
-    violations.push({ field: "sections", reason: "must be an array" });
-  } else {
-    page.sections.forEach((section, index) => violations.push(...validateSection(section, index)));
-
-    // The public site is held to a single h1 and no skipped heading level.
-    // Enforce it on the data so the renderer cannot produce an invalid outline.
-    let previous = 1;
-    page.sections.forEach((section, index) => {
-      const level = (section as PublicSection)?.headingLevel;
-      if (level === 2 || level === 3) {
-        if (level - previous > 1) {
-          violations.push({
-            field: `sections[${index}].headingLevel`,
-            reason: `heading order jumps h${previous} to h${level}`,
-          });
-        }
-        previous = level;
-      }
-    });
-  }
+  violations.push(...validateSections(page.sections));
 
   if (violations.length > 0) return { ok: false, violations };
   return { ok: true, value: page as PublicPage };
+}
+
+/**
+ * Validates a body of sections and the heading outline they produce.
+ *
+ * Shared by every content type that renders authored copy under a single h1 —
+ * pages today, posts as well — because the accessibility rule is a property of
+ * the public site, not of one content type. A second copy of it would be a
+ * second chance to get it wrong.
+ *
+ * `startingLevel` is the rank already emitted above these sections, which is
+ * always the h1 the content type supplies from its own title or heading.
+ */
+export function validateSections(
+  input: unknown,
+  field = "sections",
+  startingLevel = 1,
+): ContractViolation[] {
+  if (!Array.isArray(input)) return [{ field, reason: "must be an array" }];
+
+  const violations: ContractViolation[] = [];
+  input.forEach((section, index) => violations.push(...validateSection(section, index, field)));
+
+  // The public site is held to a single h1 and no skipped heading level.
+  // Enforce it on the data so the renderer cannot produce an invalid outline.
+  let previous = startingLevel;
+  input.forEach((section, index) => {
+    const level = (section as PublicSection)?.headingLevel;
+    if (level === 2 || level === 3) {
+      if (level - previous > 1) {
+        violations.push({
+          field: `${field}[${index}].headingLevel`,
+          reason: `heading order jumps h${previous} to h${level}`,
+        });
+      }
+      previous = level;
+    }
+  });
+
+  return violations;
 }
