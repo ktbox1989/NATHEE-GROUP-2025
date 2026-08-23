@@ -34,7 +34,18 @@ import {
   type PublicSection,
 } from "./contract.ts";
 
-/** The subset of Lane B's `CmsSection` this mapper consumes. */
+/**
+ * Lane B's `CmsSection`, as the public side receives it.
+ *
+ * This used to declare only the seven fields the page mapper read, which is
+ * how the other seven came to be dropped without anyone noticing: a field that
+ * is not in the type cannot be missed. It now mirrors Lane B's section in full,
+ * so anything discarded is discarded on purpose.
+ *
+ * The optional fields are optional to this type, not to Lane B — its parser
+ * always emits them — so that a caller constructing a section by hand for a
+ * test is not forced to fill in five empty strings.
+ */
 export type CmsSectionInput = {
   id: string;
   type: string;
@@ -43,6 +54,13 @@ export type CmsSectionInput = {
   body: string;
   imageItemId: string;
   items: Array<{ title: string; body: string }>;
+  eyebrow?: string;
+  primaryLabel?: string;
+  primaryHref?: string;
+  secondaryLabel?: string;
+  secondaryHref?: string;
+  galleryCategorySlug?: string;
+  galleryLimit?: number;
 };
 
 export type CmsPageInput = {

@@ -199,3 +199,102 @@ export async function resolvePost(
 
   return { source: "CMS", post: validated.value };
 }
+
+// --- actually fetching from the CMS -------------------------------------------
+
+/**
+ * The loader `resolvePage` and `resolvePost` were always given by the caller,
+ * which meant every transport failure was somebody else's problem: a 502 from a
+ * proxy, an HTML error page where JSON was expected, a response cut off
+ * mid-stream. Each of those reaches the validator as either a throw or a shape
+ * that fails for a confusing reason, and one of them does not fail at all.
+ *
+ * The dangerous one is truncation. A response cut off mid-array can still parse
+ * as valid JSON if the cut happens to land on a boundary, and what arrives is a
+ * page that is *structurally correct and missing half its content*. Nothing
+ * downstream can tell that from a page an editor deliberately shortened. The
+ * only place it is detectable is here, against the declared content length.
+ */
+export const CMS_MAX_PAYLOAD_BYTES = 2 * 1024 * 1024;
+
+export type CmsFetchResult = { ok: true; payload: unknown } | { ok: false; reason: string };
+
+export type CmsFetchOptions = {
+  fetchImpl?: typeof fetch;
+  timeoutMs?: number;
+  maxBytes?: number;
+};
+
+export async function fetchCmsJson(url: string, options: CmsFetchOptions = {}): Promise<CmsFetchResult> {
+  const fetchImpl = options.fetchImpl ?? globalThis.fetch;
+  if (typeof fetchImpl !== "function") return { ok: false, reason: "no fetch implementation is available" };
+
+  const maxBytes = options.maxBytes ?? CMS_MAX_PAYLOAD_BYTES;
+
+  const loaded = await loadWithDeadline(async () => {
+    const response = await fetchImpl(url, {
+      headers: { accept: "application/json" },
+      // A public page must never carry a visitor's credentials to the CMS, and
+      // a cached CMS response is the stale-content bug this whole module
+      // exists to prevent.
+      credentials: "omit",
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      // 5xx and 4xx alike: neither is content. Thrown rather than returned so
+      // the deadline wrapper reports it uniformly.
+      throw new Error(`CMS answered HTTP ${response.status}`);
+    }
+
+    const contentType = response.headers.get("content-type") ?? "";
+    if (!/^application\/json\b/i.test(contentType.trim())) {
+      // A proxy error page is the usual cause, and it would otherwise reach
+      // JSON.parse and fail as "unexpected token <".
+      throw new Error(`CMS answered ${contentType || "no content type"}, expected application/json`);
+    }
+
+    const body = await response.text();
+    const byteLength = new TextEncoder().encode(body).length;
+    if (byteLength > maxBytes) {
+      throw new Error(`CMS payload is ${byteLength} bytes, over the ${maxBytes} limit`);
+    }
+
+    const declared = response.headers.get("content-length");
+    if (declared !== null && declared.trim() !== "") {
+      const expected = Number(declared);
+      if (Number.isFinite(expected) && expected !== byteLength) {
+        // The case nothing downstream could catch.
+        throw new Error(`CMS response was truncated: declared ${expected} bytes, received ${byteLength}`);
+      }
+    }
+
+    try {
+      return JSON.parse(body) as unknown;
+    } catch {
+      throw new Error("CMS response was not valid JSON");
+    }
+  }, options.timeoutMs);
+
+  return loaded.ok ? { ok: true, payload: loaded.payload } : { ok: false, reason: loaded.reason };
+}
+
+/**
+ * A loader for `resolvePage` / `resolvePost`, bound to one CMS endpoint.
+ *
+ * Returns null rather than throwing on failure, which both resolvers already
+ * treat as "no page" and fall back on. The reason is lost at that boundary by
+ * design: the resolvers report their own, and a page must not embed a CMS error
+ * message in anything a visitor could see.
+ */
+export function createCmsLoader(
+  endpoint: string,
+  options: CmsFetchOptions = {},
+): (path: string) => Promise<unknown> {
+  return async (path: string) => {
+    const url = `${endpoint.replace(/\/$/, "")}${path}`;
+    const result = await fetchCmsJson(url, options);
+    if (!result.ok) throw new Error(result.reason);
+    return result.payload;
+  };
+}

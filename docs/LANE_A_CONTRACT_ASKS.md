@@ -9,8 +9,45 @@ serves the static release today and every default in `lib/public-cms/` is chosen
 to keep it that way. These are what stand between that and an Owner editing the
 site without a deployment.
 
-Measured against `main` at `74d88b4`. Lane A work is on
-`lane-a/public-cms-hardening-20260823`.
+Measured against `main` at `8da1053`. Lane A work is on
+`lane-a/public-product-hardening-20260823`; the earlier
+`lane-a/public-cms-hardening-20260823` is already merged into `main`.
+
+---
+
+## Answered by Lane B on 2026-08-23
+
+Read-only inspection of `origin/production-readiness` at `967401f`, which is
+**not yet merged into `main`**.
+
+Lane B has shipped the posts schema — migration `0026_public_posts`,
+`lib/post-cms-content.ts`, `lib/post-cms-store.ts` and `lib/post-cms-public.ts`
+— and it answers asks 1 and 3 for posts, field for field:
+
+| Ask | How it was answered |
+| --- | --- |
+| posts schema | `PostContent` with slug, title, excerpt, category, featured image and sections |
+| `updatedAt` null until edited | taken from publication events: the first PUBLISH is `publishedAt`, a later one sets `updatedAt` |
+| excerpt distinct from body | `excerpt`, bounded separately and required |
+| category id **and** label | `PostCategory = { id, label }` |
+| `NOINDEX` expressible | `POST_ROBOTS = ["INDEX", "NOINDEX"]` |
+
+`mapStoredPostToPublicPost` calls Lane A's `validatePublicPost` on its own
+output rather than trusting it, and derives `canonicalPath` from the slug rather
+than storing it. That is the contract working the way it was meant to: one
+validator, owned by the consumer, run by the producer.
+
+Still outstanding for posts: **slug history**, so a rename becomes a 301 rather
+than a dead link, and the `POST_PUBLISHED` / `POST_UNPUBLISHED` / `POST_MOVED`
+events (ask 2) — `planInvalidation` handles all three already; only the emitter
+is missing.
+
+Posts map to `PublicSection[]`, not to blocks, which is the right split: a news
+article is prose, where a marketing page and a case study are composed.
+
+**One merge note.** `package.json` is the only file both lanes touch, and it
+will conflict again. The resolution is a union that drops nothing — Lane B's
+post tests and acceptance gates, Lane A's block, portfolio and public-CMS tests.
 
 ---
 
@@ -101,6 +138,58 @@ A test asserts every visibility `lib/gallery.ts` defines has an entry, so the
 suite fails rather than the site.
 
 ---
+
+## 8. Four block types have no section type
+
+The public renderer implements twelve blocks. Lane B's seven section types map
+onto seven of them. The rest are recorded in `BLOCKS_LANE_B_CANNOT_EXPRESS`
+rather than invented:
+
+| Block | What Lane B would need |
+| --- | --- |
+| `STATS` | a figure with a **required** provenance string; an unsourced number must not be publishable |
+| `VIDEO` | a media file, a poster reference and an optional `.vtt` captions track |
+| `RELATED_SERVICES` | a list of links; `FEATURES` carries cards with prose instead |
+| `FEATURED_WORK` | the portfolio schema below |
+
+`IMAGE` is deliberately absent too: a `CONTENT` section carrying an image maps
+to `TEXT`, which renders the copy and the photograph together, and a standalone
+captioned image has no section type of its own.
+
+## 9. External video would need a CSP change, not a content field
+
+The public `Content-Security-Policy` declares `default-src 'self'` and states
+neither `frame-src` nor `media-src`, so both fall back to it. An embedded
+YouTube or Vimeo player is blocked and renders as an empty box.
+
+Self-hosted `.mp4` and `.webm` under `/assets/` work today and are what the
+`VIDEO` block accepts. Allowing an embed is a security decision about the policy
+— it would mean trusting a third-party origin to run in a frame on the marketing
+site — and it is not Lane A's to make alone.
+
+## 10. The portfolio has no schema
+
+`lib/public-cms/portfolio.ts` is a complete consumer contract with no sender.
+It needs slug, publication state, title, summary, categories drawn from the
+gallery's own ids, a featured image, a gallery, a body of blocks, related
+service links, per-entry SEO and a revision id — and, as for posts, slug history
+so a rename becomes a 301.
+
+**The hard requirement:** whatever produces a portfolio entry must not copy a
+job row into it. The consumer refuses any payload carrying `vin`,
+`registration`, `jobNumber`, `contactPhone`, `storageKey`, `podId` or any of the
+other names in `FORBIDDEN_PAYLOAD_KEYS`, at any depth. That is a backstop, not a
+licence: the mapper on Lane B's side should be selecting fields, not spreading a
+row and letting this catch it.
+
+## 11. Section types are a shared contract now
+
+Adding a `CmsSectionType` will make every page containing it fall back to the
+static release, because the block mapper refuses a section type it has never
+seen rather than rendering an unreviewed shape. That is the right failure
+direction, but it is a coordinated change: Lane A needs the new type mapped
+before Lane B ships content using it. A test compares the two lists so the
+suite fails rather than the site.
 
 ## Already reconciled, no action needed
 

@@ -4,7 +4,9 @@ import { PUBLIC_CMS_CONTRACT_VERSION, PUBLIC_ROUTE_PATHS, type PublicMedia } fro
 import {
   POSTS_INDEX_PATH,
   POSTS_PAGE_SIZE,
+  POSTS_EMPTY_STATE,
   buildPostCategories,
+  buildRelatedPosts,
   buildPostList,
   buildPostSitemapUrls,
   comparePostsForList,
@@ -373,4 +375,63 @@ test("the sitemap does not repeat a URL", () => {
     { state: "PUBLISHED", post: same },
   ]);
   assert.deepEqual(urls, ["https://natheegroup2025.com/news/", "https://natheegroup2025.com/news/a/"]);
+});
+
+// --- what a reader sees at the end of an article, and on an empty section ----
+
+test("related posts prefer the same category and then fill from the newest", () => {
+  // A "related" strip with one item in it looks like a defect, so it is filled
+  // rather than left short.
+  const current = dated("current", "2026-06-01T00:00:00.000Z", "fleet");
+  const all = [
+    current,
+    dated("same-a", "2026-01-01T00:00:00.000Z", "fleet"),
+    dated("same-b", "2026-02-01T00:00:00.000Z", "fleet"),
+    dated("other-new", "2026-05-01T00:00:00.000Z", "notice"),
+    dated("other-old", "2026-03-01T00:00:00.000Z", "notice"),
+  ];
+  const related = buildRelatedPosts(current, all, 3);
+  assert.deepEqual(related.map((post) => post.slug), ["same-b", "same-a", "other-new"]);
+});
+
+test("the article being read is never in its own related strip", () => {
+  const current = dated("current", "2026-06-01T00:00:00.000Z");
+  const related = buildRelatedPosts(current, [current, dated("other", "2026-01-01T00:00:00.000Z")]);
+  assert.equal(related.some((post) => post.slug === "current"), false);
+});
+
+test("an uncategorised post still gets related reading", () => {
+  const current = dated("current", "2026-06-01T00:00:00.000Z", null);
+  const related = buildRelatedPosts(current, [current, dated("a", "2026-01-01T00:00:00.000Z", "fleet")], 2);
+  assert.deepEqual(related.map((post) => post.slug), ["a"]);
+});
+
+test("the related strip does not reshuffle between requests", () => {
+  const current = dated("current", "2026-06-01T00:00:00.000Z", "fleet");
+  const stamp = "2026-01-01T00:00:00.000Z";
+  const all = [current, dated("z", stamp, "fleet"), dated("a", stamp, "fleet"), dated("m", stamp, "fleet")];
+  const first = buildRelatedPosts(current, all, 2).map((post) => post.slug);
+  const second = buildRelatedPosts(current, [...all].reverse(), 2).map((post) => post.slug);
+  assert.deepEqual(first, second);
+  assert.deepEqual(first, ["a", "m"]);
+});
+
+test("a site with a single post has an empty related strip rather than a broken one", () => {
+  const only = dated("only", "2026-06-01T00:00:00.000Z");
+  assert.deepEqual(buildRelatedPosts(only, [only]), []);
+  assert.deepEqual(buildRelatedPosts(only, [only], 0), []);
+});
+
+test("an empty news section says so, and offers a way onward", () => {
+  const result = buildPostList([]);
+  assert.equal(result.ok, true);
+  assert.ok(result.ok && result.emptyState);
+  assert.equal(result.ok && result.emptyState?.heading, POSTS_EMPTY_STATE.heading);
+  // A dead end with an apology on it is still a dead end.
+  assert.ok(result.ok && result.emptyState?.action?.href);
+});
+
+test("a list with posts on it carries no empty state", () => {
+  const result = buildPostList([dated("a", "2026-01-01T00:00:00.000Z")]);
+  assert.equal(result.ok && result.emptyState, null);
 });

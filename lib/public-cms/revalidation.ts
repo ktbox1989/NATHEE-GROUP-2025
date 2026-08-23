@@ -13,6 +13,7 @@
 
 import { PUBLIC_ROUTE_PATHS, type PublicRoutePath } from "./contract.ts";
 import { POSTS_INDEX_PATH, isPostPath } from "./posts.ts";
+import { WORK_INDEX_PATH, isWorkPath } from "./portfolio.ts";
 
 export type PublishEvent =
   | { kind: "PAGE_PUBLISHED"; path: PublicRoutePath; revisionId: string }
@@ -24,7 +25,12 @@ export type PublishEvent =
   // known routes, so the path is carried and checked rather than typed.
   | { kind: "POST_PUBLISHED"; path: string; revisionId: string }
   | { kind: "POST_UNPUBLISHED"; path: string }
-  | { kind: "POST_MOVED"; from: string; to: string };
+  | { kind: "POST_MOVED"; from: string; to: string }
+  // Portfolio entries. Same shape as posts, and for the same reason: a work
+  // item is its own URL rather than one of the eleven known routes.
+  | { kind: "WORK_PUBLISHED"; path: string; revisionId: string }
+  | { kind: "WORK_UNPUBLISHED"; path: string }
+  | { kind: "WORK_MOVED"; from: string; to: string };
 
 // Surfaces that are derived from page content rather than authored directly.
 const SITEMAP_PATH = "/sitemap.xml";
@@ -188,6 +194,49 @@ export function planInvalidation(event: PublishEvent): InvalidationPlan {
         // 404, which is what carries the inbound links to the new slug.
         removedPaths: [],
         reason: `post moved from ${event.from} to ${event.to}`,
+      };
+    }
+
+    case "WORK_PUBLISHED": {
+      if (!isWorkPath(event.path) || event.path === WORK_INDEX_PATH) {
+        return refuse(`"${event.path}" is not a work path`);
+      }
+      // The entry and the index that lists it. The home page carries a gallery
+      // preview rather than a portfolio preview, so it is not affected.
+      return {
+        delivery: "CACHE",
+        paths: unique([event.path, WORK_INDEX_PATH]),
+        regenerateSitemap: true,
+        removedPaths: [],
+        reason: `work ${event.path} published at revision ${event.revisionId}`,
+      };
+    }
+
+    case "WORK_UNPUBLISHED": {
+      if (!isWorkPath(event.path) || event.path === WORK_INDEX_PATH) {
+        return refuse(`"${event.path}" is not a work path`);
+      }
+      return {
+        delivery: "CACHE",
+        paths: unique([event.path, WORK_INDEX_PATH, SITEMAP_PATH]),
+        regenerateSitemap: true,
+        removedPaths: [event.path],
+        reason: `work ${event.path} unpublished`,
+      };
+    }
+
+    case "WORK_MOVED": {
+      if (!isWorkPath(event.from) || !isWorkPath(event.to)) {
+        return refuse(`"${event.from}" -> "${event.to}" is not a work rename`);
+      }
+      if (event.from === event.to) return refuse("a work item cannot be renamed to itself");
+      return {
+        delivery: "CACHE",
+        paths: unique([event.from, event.to, WORK_INDEX_PATH, SITEMAP_PATH]),
+        regenerateSitemap: true,
+        // The old URL keeps answering, with a 301, so inbound links survive.
+        removedPaths: [],
+        reason: `work moved from ${event.from} to ${event.to}`,
       };
     }
 
