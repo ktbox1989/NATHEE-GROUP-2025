@@ -1,0 +1,1467 @@
+{
+  "seedVersion": 1,
+  "consumerContractVersion": 1,
+  "generatedFrom": "public-site/",
+  "pages": {
+    "about": {
+      "version": 1,
+      "seo": {
+        "title": "เกี่ยวกับ บริษัท นทีกรุ๊ป2025 จำกัด | NATHEE GROUP 2025",
+        "description": "รู้จักบริษัท นทีกรุ๊ป2025 จำกัด ผ่านภาพลาน รถขนส่ง งานจัดเก็บ และงานขึ้นตู้ Container ที่บริษัทปฏิบัติจริง"
+      },
+      "sections": [
+        {
+          "id": "about-01",
+          "type": "HERO",
+          "enabled": true,
+          "eyebrow": "ABOUT NATHEE",
+          "heading": "เกี่ยวกับ บริษัท นทีกรุ๊ป2025 จำกัด",
+          "body": "ผู้ให้บริการขนส่งรถจักรยานยนต์ รับฝากและจัดเก็บรถ รองรับรถขนส่ง 4 ล้อและ 6 ล้อ งานล็อต และการเตรียมขึ้นตู้ Container",
+          "imageItemId": "motorcycle-fleet-staging-01",
+          "primaryLabel": "",
+          "primaryHref": "",
+          "secondaryLabel": "",
+          "secondaryHref": "",
+          "galleryCategorySlug": "",
+          "galleryLimit": 12,
+          "items": []
+        },
+        {
+          "id": "about-02",
+          "type": "CONTENT",
+          "enabled": true,
+          "eyebrow": "",
+          "heading": "ความพร้อมที่เห็นได้จากงานจริง",
+          "body": "ภาพที่เผยแพร่ยืนยันพื้นที่ลาน การจัดเรียงรถจำนวนมาก รถขนส่งของบริษัท และการปฏิบัติงานภายในตู้ Container โดยไม่ใช้สถิติที่ยังไม่ได้รับการยืนยัน",
+          "imageItemId": "",
+          "primaryLabel": "",
+          "primaryHref": "",
+          "secondaryLabel": "",
+          "secondaryHref": "",
+          "galleryCategorySlug": "",
+          "galleryLimit": 12,
+          "items": []
+        },
+        {
+          "id": "about-03",
+          "type": "CONTENT",
+          "enabled": true,
+          "eyebrow": "",
+          "heading": "ลาน รถขนส่ง และการโหลด",
+          "body": "ภาพจริงเป็นหลักฐานเชิงพาณิชย์หลักของบริษัท จึงแสดงพร้อมคำอธิบายที่ตรวจสอบได้",
+          "imageItemId": "motorcycle-fleet-staging-01",
+          "primaryLabel": "",
+          "primaryHref": "",
+          "secondaryLabel": "",
+          "secondaryHref": "",
+          "galleryCategorySlug": "",
+          "galleryLimit": 12,
+          "items": []
+        },
+        {
+          "id": "about-04",
+          "type": "CONTENT",
+          "enabled": true,
+          "eyebrow": "",
+          "heading": "คำถามที่พบบ่อย",
+          "body": "คำตอบใช้เฉพาะข้อมูลบริการที่ยืนยันแล้ว และไม่รับรองราคา เวลา หรือความจุโดยไม่มีการประเมินจริง",
+          "imageItemId": "",
+          "primaryLabel": "",
+          "primaryHref": "",
+          "secondaryLabel": "",
+          "secondaryHref": "",
+          "galleryCategorySlug": "",
+          "galleryLimit": 12,
+          "items": []
+        }
+      ]
+    },
+    "contact": {
+      "version": 1,
+      "seo": {
+        "title": "ติดต่อ บริษัท นทีกรุ๊ป2025 จำกัด | NATHEE GROUP 2025",
+        "description": "โทร สแกน LINE หรือเปิด Google Maps เพื่อค้นหาชื่อบริษัท นทีกรุ๊ป2025 จำกัด ก่อนยืนยันจุดรับรถ"
+      },
+      "sections": [
+        {
+          "id": "contact-01",
+          "type": "HERO",
+          "enabled": true,
+          "eyebrow": "CONTACT",
+          "heading": "ติดต่อทีมงาน",
+          "body": "แจ้งต้นทาง ปลายทาง จำนวนรถ และวันที่ต้องการ เพื่อให้ทีมงานประเมินบริการ",
+          "imageItemId": "nathee-yard-front-01",
+          "primaryLabel": "",
+          "primaryHref": "",
+          "secondaryLabel": "",
+          "secondaryHref": "",
+          "galleryCategorySlug": "",
+          "galleryLimit": 12,
+          "items": []
+        },
+        {
+          "id": "contact-02",
+          "type": "CONTENT",
+          "enabled": true,
+          "eyebrow": "",
+          "heading": "บริษัท นทีกรุ๊ป2025 จำกัด",
+          "body": "โทรหาเรา สแกน QR LINE หรือเปิด Google Maps เพื่อค้นหาชื่อบริษัท กรุณายืนยันจุดรับรถกับทีมงานก่อนเดินทางทุกครั้ง",
+          "imageItemId": "",
+          "primaryLabel": "",
+          "primaryHref": "",
+          "secondaryLabel": "",
+          "secondaryHref": "",
+          "galleryCategorySlug": "",
+          "galleryLimit": 12,
+          "items": []
+        },
+        {
+          "id": "contact-03",
+          "type": "CONTENT",
+          "enabled": true,
+          "eyebrow": "",
+          "heading": "ส่งรายละเอียดและขอพิกัดจุดรับรถ",
+          "body": "QR นี้เป็นไฟล์ที่ Owner มอบให้โดยตรง เว็บไซต์ไม่เดาชื่อ LINE ID และไม่ใช้บัญชีตัวอย่าง",
+          "imageItemId": "nathee-yard-front-01",
+          "primaryLabel": "",
+          "primaryHref": "",
+          "secondaryLabel": "",
+          "secondaryHref": "",
+          "galleryCategorySlug": "",
+          "galleryLimit": 12,
+          "items": []
+        },
+        {
+          "id": "contact-04",
+          "type": "CONTENT",
+          "enabled": true,
+          "eyebrow": "",
+          "heading": "ยืนยันจุดรับรถก่อนเดินทาง",
+          "body": "ภาพด้านข้างเป็นพื้นที่ลานจริง แต่ repository ยังไม่มีเลขที่อยู่หรือพิกัดที่ Owner ยืนยัน จึงไม่แสดงหมุดหรือที่อยู่จากการคาดเดา",
+          "imageItemId": "",
+          "primaryLabel": "",
+          "primaryHref": "",
+          "secondaryLabel": "",
+          "secondaryHref": "",
+          "galleryCategorySlug": "",
+          "galleryLimit": 12,
+          "items": []
+        }
+      ]
+    },
+    "container-loading": {
+      "version": 1,
+      "seo": {
+        "title": "รับขึ้นตู้รถจักรยานยนต์และส่งออก | NATHEE GROUP 2025",
+        "description": "รับขึ้นตู้ Container และเตรียมส่งออกรถจักรยานยนต์ รองรับงานรายคันและล็อตใหญ่ตามแผนขนส่ง"
+      },
+      "sections": [
+        {
+          "id": "container-loading-01",
+          "type": "HERO",
+          "enabled": true,
+          "eyebrow": "CONTAINER LOADING",
+          "heading": "รับขึ้นตู้ Container และเตรียมส่งออก",
+          "body": "วางลำดับรถและขั้นตอนการโหลดตามจำนวน ขนาดตู้ และข้อกำหนดของงาน เพื่อให้การเตรียมส่งออกเป็นระบบ",
+          "imageItemId": "motorcycle-yard-container-01",
+          "primaryLabel": "",
+          "primaryHref": "",
+          "secondaryLabel": "",
+          "secondaryHref": "",
+          "galleryCategorySlug": "",
+          "galleryLimit": 12,
+          "items": []
+        },
+        {
+          "id": "container-loading-02",
+          "type": "FEATURES",
+          "enabled": true,
+          "eyebrow": "",
+          "heading": "ขั้นตอนที่ลูกค้าเข้าใจได้ก่อนเริ่มงาน",
+          "body": "รายละเอียดแต่ละงานยืนยันอีกครั้งตามเส้นทาง จำนวนรถ และขอบเขตบริการ",
+          "imageItemId": "",
+          "primaryLabel": "",
+          "primaryHref": "",
+          "secondaryLabel": "",
+          "secondaryHref": "",
+          "galleryCategorySlug": "",
+          "galleryLimit": 12,
+          "items": [
+            {
+              "title": "ตรวจรายการ",
+              "body": "ยืนยันรถที่ต้องขึ้นตู้และข้อมูลตู้ที่เกี่ยวข้อง"
+            },
+            {
+              "title": "เตรียมพื้นที่",
+              "body": "จัดลำดับรถและวัสดุสำหรับปฏิบัติงาน"
+            },
+            {
+              "title": "จัดวางและยึดรถ",
+              "body": "ดำเนินการตามแผนงานและพื้นที่ภายในตู้"
+            },
+            {
+              "title": "เก็บหลักฐาน",
+              "body": "บันทึกภาพและข้อมูลก่อนส่งมอบขั้นตอนถัดไป"
+            }
+          ]
+        },
+        {
+          "id": "container-loading-03",
+          "type": "CONTENT",
+          "enabled": true,
+          "eyebrow": "",
+          "heading": "หลักฐานจากการปฏิบัติงานจริง",
+          "body": "เลือกภาพที่เกี่ยวข้องกับบริการนี้จาก Portfolio ที่ Owner อนุมัติแล้ว",
+          "imageItemId": "motorcycle-yard-container-01",
+          "primaryLabel": "",
+          "primaryHref": "",
+          "secondaryLabel": "",
+          "secondaryHref": "",
+          "galleryCategorySlug": "",
+          "galleryLimit": 12,
+          "items": []
+        },
+        {
+          "id": "container-loading-04",
+          "type": "CONTENT",
+          "enabled": true,
+          "eyebrow": "",
+          "heading": "คำถามที่พบบ่อย",
+          "body": "คำตอบใช้เฉพาะข้อมูลบริการที่ยืนยันแล้ว และไม่รับรองราคา เวลา หรือความจุโดยไม่มีการประเมินจริง",
+          "imageItemId": "",
+          "primaryLabel": "",
+          "primaryHref": "",
+          "secondaryLabel": "",
+          "secondaryHref": "",
+          "galleryCategorySlug": "",
+          "galleryLimit": 12,
+          "items": []
+        },
+        {
+          "id": "container-loading-05",
+          "type": "CONTENT",
+          "enabled": true,
+          "eyebrow": "",
+          "heading": "ขอให้ทีมงานประเมินจากรายละเอียดจริง",
+          "body": "แจ้งต้นทาง ปลายทาง จำนวนรถ วันที่ และบริการเพิ่มเติมที่ต้องการ",
+          "imageItemId": "",
+          "primaryLabel": "",
+          "primaryHref": "",
+          "secondaryLabel": "",
+          "secondaryHref": "",
+          "galleryCategorySlug": "",
+          "galleryLimit": 12,
+          "items": []
+        }
+      ]
+    },
+    "dealer-fleet": {
+      "version": 1,
+      "seo": {
+        "title": "ขนส่งรถมอเตอร์ไซค์ Dealer และ Fleet | NATHEE GROUP 2025",
+        "description": "บริการขนส่งรถจักรยานยนต์สำหรับ Dealer, Fleet และงานล็อตใหญ่ รองรับการวางแผนหลายคันและหลายเที่ยว"
+      },
+      "sections": [
+        {
+          "id": "dealer-fleet-01",
+          "type": "HERO",
+          "enabled": true,
+          "eyebrow": "DEALER / FLEET",
+          "heading": "งาน Dealer, Fleet และงานล็อตใหญ่",
+          "body": "รองรับองค์กรที่ต้องขนส่งรถหลายคัน งานประจำ หรือหลายจุดส่ง โดยประเมินแผนรถและรอบงานจากข้อมูลจริง",
+          "imageItemId": "motorcycle-yard-container-01",
+          "primaryLabel": "",
+          "primaryHref": "",
+          "secondaryLabel": "",
+          "secondaryHref": "",
+          "galleryCategorySlug": "",
+          "galleryLimit": 12,
+          "items": []
+        },
+        {
+          "id": "dealer-fleet-02",
+          "type": "FEATURES",
+          "enabled": true,
+          "eyebrow": "",
+          "heading": "ขั้นตอนที่ลูกค้าเข้าใจได้ก่อนเริ่มงาน",
+          "body": "รายละเอียดแต่ละงานยืนยันอีกครั้งตามเส้นทาง จำนวนรถ และขอบเขตบริการ",
+          "imageItemId": "",
+          "primaryLabel": "",
+          "primaryHref": "",
+          "secondaryLabel": "",
+          "secondaryHref": "",
+          "galleryCategorySlug": "",
+          "galleryLimit": 12,
+          "items": [
+            {
+              "title": "รับบัญชีรถ",
+              "body": "ตรวจจำนวนและข้อมูลรถจากรายการที่ลูกค้าส่ง"
+            },
+            {
+              "title": "วางรอบงาน",
+              "body": "แบ่งเที่ยว จุดรับ และจุดส่งตามกำหนดจริง"
+            },
+            {
+              "title": "จัดเตรียมรถ",
+              "body": "เรียงคิวรถก่อนโหลดและประสานผู้เกี่ยวข้อง"
+            },
+            {
+              "title": "ติดตามการส่งมอบ",
+              "body": "เทียบรายการและหลักฐานตามขอบเขตงาน"
+            }
+          ]
+        },
+        {
+          "id": "dealer-fleet-03",
+          "type": "CONTENT",
+          "enabled": true,
+          "eyebrow": "",
+          "heading": "หลักฐานจากการปฏิบัติงานจริง",
+          "body": "เลือกภาพที่เกี่ยวข้องกับบริการนี้จาก Portfolio ที่ Owner อนุมัติแล้ว",
+          "imageItemId": "motorcycle-yard-container-01",
+          "primaryLabel": "",
+          "primaryHref": "",
+          "secondaryLabel": "",
+          "secondaryHref": "",
+          "galleryCategorySlug": "",
+          "galleryLimit": 12,
+          "items": []
+        },
+        {
+          "id": "dealer-fleet-04",
+          "type": "CONTENT",
+          "enabled": true,
+          "eyebrow": "",
+          "heading": "คำถามที่พบบ่อย",
+          "body": "คำตอบใช้เฉพาะข้อมูลบริการที่ยืนยันแล้ว และไม่รับรองราคา เวลา หรือความจุโดยไม่มีการประเมินจริง",
+          "imageItemId": "",
+          "primaryLabel": "",
+          "primaryHref": "",
+          "secondaryLabel": "",
+          "secondaryHref": "",
+          "galleryCategorySlug": "",
+          "galleryLimit": 12,
+          "items": []
+        },
+        {
+          "id": "dealer-fleet-05",
+          "type": "CONTENT",
+          "enabled": true,
+          "eyebrow": "",
+          "heading": "ขอให้ทีมงานประเมินจากรายละเอียดจริง",
+          "body": "แจ้งต้นทาง ปลายทาง จำนวนรถ วันที่ และบริการเพิ่มเติมที่ต้องการ",
+          "imageItemId": "",
+          "primaryLabel": "",
+          "primaryHref": "",
+          "secondaryLabel": "",
+          "secondaryHref": "",
+          "galleryCategorySlug": "",
+          "galleryLimit": 12,
+          "items": []
+        }
+      ]
+    },
+    "home": {
+      "version": 1,
+      "seo": {
+        "title": "บริษัท นทีกรุ๊ป2025 จำกัด | ขนส่งรถจักรยานยนต์ทั่วประเทศ",
+        "description": "บริการขนส่งรถจักรยานยนต์ทั่วประเทศและต่างประเทศ รถใหม่ รถมือสอง รับฝาก สต๊อก ขึ้นตู้ Container และงาน Dealer หรือ Fleet"
+      },
+      "sections": [
+        {
+          "id": "home-01",
+          "type": "HERO",
+          "enabled": true,
+          "eyebrow": "MOTORCYCLE LOGISTICS",
+          "heading": "ขนส่งรถจักรยานยนต์ครบทั้งในประเทศและต่างประเทศ",
+          "body": "รองรับรถใหม่ รถมือสอง รถขนส่ง 4 ล้อและ 6 ล้อ งานรายคัน งาน Dealer / Fleet รับฝาก สต๊อก และขึ้นตู้ส่งออก",
+          "imageItemId": "motorcycle-truck-loading-01",
+          "primaryLabel": "",
+          "primaryHref": "",
+          "secondaryLabel": "",
+          "secondaryHref": "",
+          "galleryCategorySlug": "",
+          "galleryLimit": 12,
+          "items": []
+        },
+        {
+          "id": "home-02",
+          "type": "FEATURES",
+          "enabled": true,
+          "eyebrow": "",
+          "heading": "งานขนส่งที่รองรับการใช้งานจริง",
+          "body": "เลือกดูรายละเอียดบริการตามประเภทงาน หรือโทรแจ้งข้อมูลเพื่อให้ทีมงานประเมิน",
+          "imageItemId": "",
+          "primaryLabel": "",
+          "primaryHref": "",
+          "secondaryLabel": "",
+          "secondaryHref": "",
+          "galleryCategorySlug": "",
+          "galleryLimit": 12,
+          "items": [
+            {
+              "title": "ขนส่งรถจักรยานยนต์ทั่วประเทศ",
+              "body": "แจ้งต้นทาง ปลายทาง จำนวนรถ และวันที่ต้องการ ทีมงานจะประเมินรูปแบบรถขนส่งและแผนการรับส่งให้เหมาะกับงานจริง"
+            },
+            {
+              "title": "ขนส่งรถจักรยานยนต์ต่างประเทศ",
+              "body": "รองรับการเตรียมรถและการประสานงานขนส่งต่างประเทศตามปลายทาง จำนวนรถ เอกสาร และเงื่อนไขของแต่ละเที่ยว"
+            },
+            {
+              "title": "รับฝากรถ สต๊อกรถ และสต๊อกสินค้า",
+              "body": "รองรับการรับรถเข้าพื้นที่ จัดเก็บ และเตรียมรถสำหรับขั้นตอนถัดไป โดยกำหนดรายละเอียดและระยะเวลาตามงานจริง"
+            },
+            {
+              "title": "รับขึ้นตู้ Container และเตรียมส่งออก",
+              "body": "วางลำดับรถและขั้นตอนการโหลดตามจำนวน ขนาดตู้ และข้อกำหนดของงาน เพื่อให้การเตรียมส่งออกเป็นระบบ"
+            },
+            {
+              "title": "งาน Dealer, Fleet และงานล็อตใหญ่",
+              "body": "รองรับองค์กรที่ต้องขนส่งรถหลายคัน งานประจำ หรือหลายจุดส่ง โดยประเมินแผนรถและรอบงานจากข้อมูลจริง"
+            }
+          ]
+        },
+        {
+          "id": "home-03",
+          "type": "CONTENT",
+          "enabled": true,
+          "eyebrow": "",
+          "heading": "ภาพผลงานจริงของบริษัท",
+          "body": "รถขนส่ง ลานจัดเก็บ งานล็อต และการขึ้นตู้จากภาพที่ Owner อนุมัติให้เผยแพร่",
+          "imageItemId": "motorcycle-truck-loading-01",
+          "primaryLabel": "",
+          "primaryHref": "",
+          "secondaryLabel": "",
+          "secondaryHref": "",
+          "galleryCategorySlug": "",
+          "galleryLimit": 12,
+          "items": []
+        },
+        {
+          "id": "home-04",
+          "type": "CONTENT",
+          "enabled": true,
+          "eyebrow": "",
+          "heading": "แจ้งรายละเอียดเพื่อประเมินงาน",
+          "body": "เตรียมจุดรับ จุดส่ง จำนวนรถ และวันที่ต้องการ แล้วติดต่อทีมงานโดยตรง",
+          "imageItemId": "",
+          "primaryLabel": "",
+          "primaryHref": "",
+          "secondaryLabel": "",
+          "secondaryHref": "",
+          "galleryCategorySlug": "",
+          "galleryLimit": 12,
+          "items": []
+        }
+      ]
+    },
+    "international": {
+      "version": 1,
+      "seo": {
+        "title": "ขนส่งรถจักรยานยนต์ต่างประเทศ | NATHEE GROUP 2025",
+        "description": "บริการประสานงานขนส่งรถจักรยานยนต์ต่างประเทศ เตรียมรถ จัดลำดับงาน และรองรับกระบวนการส่งออก"
+      },
+      "sections": [
+        {
+          "id": "international-01",
+          "type": "HERO",
+          "enabled": true,
+          "eyebrow": "INTERNATIONAL",
+          "heading": "ขนส่งรถจักรยานยนต์ต่างประเทศ",
+          "body": "รองรับการเตรียมรถและการประสานงานขนส่งต่างประเทศตามปลายทาง จำนวนรถ เอกสาร และเงื่อนไขของแต่ละเที่ยว",
+          "imageItemId": "motorcycle-yard-container-01",
+          "primaryLabel": "",
+          "primaryHref": "",
+          "secondaryLabel": "",
+          "secondaryHref": "",
+          "galleryCategorySlug": "",
+          "galleryLimit": 12,
+          "items": []
+        },
+        {
+          "id": "international-02",
+          "type": "FEATURES",
+          "enabled": true,
+          "eyebrow": "",
+          "heading": "ขั้นตอนที่ลูกค้าเข้าใจได้ก่อนเริ่มงาน",
+          "body": "รายละเอียดแต่ละงานยืนยันอีกครั้งตามเส้นทาง จำนวนรถ และขอบเขตบริการ",
+          "imageItemId": "",
+          "primaryLabel": "",
+          "primaryHref": "",
+          "secondaryLabel": "",
+          "secondaryHref": "",
+          "galleryCategorySlug": "",
+          "galleryLimit": 12,
+          "items": [
+            {
+              "title": "ตรวจปลายทาง",
+              "body": "รับประเทศปลายทาง จำนวนรถ และผู้รับผิดชอบเอกสาร"
+            },
+            {
+              "title": "ตรวจรายการรถ",
+              "body": "เทียบรายการรถกับขอบเขตที่ได้รับ"
+            },
+            {
+              "title": "เตรียมและจัดเรียง",
+              "body": "วางแผนการจัดเรียงและงาน Container ตามข้อมูลจริง"
+            },
+            {
+              "title": "รวบรวมหลักฐาน",
+              "body": "จัดเก็บข้อมูลและภาพที่ได้รับอนุญาตตามขั้นตอน"
+            }
+          ]
+        },
+        {
+          "id": "international-03",
+          "type": "CONTENT",
+          "enabled": true,
+          "eyebrow": "",
+          "heading": "หลักฐานจากการปฏิบัติงานจริง",
+          "body": "เลือกภาพที่เกี่ยวข้องกับบริการนี้จาก Portfolio ที่ Owner อนุมัติแล้ว",
+          "imageItemId": "motorcycle-yard-container-01",
+          "primaryLabel": "",
+          "primaryHref": "",
+          "secondaryLabel": "",
+          "secondaryHref": "",
+          "galleryCategorySlug": "",
+          "galleryLimit": 12,
+          "items": []
+        },
+        {
+          "id": "international-04",
+          "type": "CONTENT",
+          "enabled": true,
+          "eyebrow": "",
+          "heading": "คำถามที่พบบ่อย",
+          "body": "คำตอบใช้เฉพาะข้อมูลบริการที่ยืนยันแล้ว และไม่รับรองราคา เวลา หรือความจุโดยไม่มีการประเมินจริง",
+          "imageItemId": "",
+          "primaryLabel": "",
+          "primaryHref": "",
+          "secondaryLabel": "",
+          "secondaryHref": "",
+          "galleryCategorySlug": "",
+          "galleryLimit": 12,
+          "items": []
+        },
+        {
+          "id": "international-05",
+          "type": "CONTENT",
+          "enabled": true,
+          "eyebrow": "",
+          "heading": "ขอให้ทีมงานประเมินจากรายละเอียดจริง",
+          "body": "แจ้งต้นทาง ปลายทาง จำนวนรถ วันที่ และบริการเพิ่มเติมที่ต้องการ",
+          "imageItemId": "",
+          "primaryLabel": "",
+          "primaryHref": "",
+          "secondaryLabel": "",
+          "secondaryHref": "",
+          "galleryCategorySlug": "",
+          "galleryLimit": 12,
+          "items": []
+        }
+      ]
+    },
+    "motorcycle-transport": {
+      "version": 1,
+      "seo": {
+        "title": "ขนส่งรถจักรยานยนต์ทั่วประเทศ | NATHEE GROUP 2025",
+        "description": "บริการขนส่งมอเตอร์ไซค์ทั่วประเทศและต่างจังหวัด รองรับรถใหม่ รถมือสอง งานรายคัน และงานจำนวนมาก"
+      },
+      "sections": [
+        {
+          "id": "motorcycle-transport-01",
+          "type": "HERO",
+          "enabled": true,
+          "eyebrow": "DOMESTIC TRANSPORT",
+          "heading": "ขนส่งรถจักรยานยนต์ทั่วประเทศ",
+          "body": "แจ้งต้นทาง ปลายทาง จำนวนรถ และวันที่ต้องการ ทีมงานจะประเมินรูปแบบรถขนส่งและแผนการรับส่งให้เหมาะกับงานจริง",
+          "imageItemId": "motorcycle-truck-loading-01",
+          "primaryLabel": "",
+          "primaryHref": "",
+          "secondaryLabel": "",
+          "secondaryHref": "",
+          "galleryCategorySlug": "",
+          "galleryLimit": 12,
+          "items": []
+        },
+        {
+          "id": "motorcycle-transport-02",
+          "type": "FEATURES",
+          "enabled": true,
+          "eyebrow": "",
+          "heading": "ขั้นตอนที่ลูกค้าเข้าใจได้ก่อนเริ่มงาน",
+          "body": "รายละเอียดแต่ละงานยืนยันอีกครั้งตามเส้นทาง จำนวนรถ และขอบเขตบริการ",
+          "imageItemId": "",
+          "primaryLabel": "",
+          "primaryHref": "",
+          "secondaryLabel": "",
+          "secondaryHref": "",
+          "galleryCategorySlug": "",
+          "galleryLimit": 12,
+          "items": [
+            {
+              "title": "ส่งข้อมูลรถ",
+              "body": "แจ้งจำนวน ประเภท และสภาพข้อมูลเบื้องต้นของรถ"
+            },
+            {
+              "title": "ยืนยันจุดรับ–ส่ง",
+              "body": "ระบุพื้นที่ ผู้ประสานงาน และช่วงเวลาที่ต้องการ"
+            },
+            {
+              "title": "จัดรถขนส่ง",
+              "body": "ประเมินรถ 4 ล้อหรือ 6 ล้อตามลักษณะและจำนวน"
+            },
+            {
+              "title": "ส่งมอบ",
+              "body": "ตรวจรายการปลายทางตามขอบเขตงานที่ตกลง"
+            }
+          ]
+        },
+        {
+          "id": "motorcycle-transport-03",
+          "type": "CONTENT",
+          "enabled": true,
+          "eyebrow": "",
+          "heading": "หลักฐานจากการปฏิบัติงานจริง",
+          "body": "เลือกภาพที่เกี่ยวข้องกับบริการนี้จาก Portfolio ที่ Owner อนุมัติแล้ว",
+          "imageItemId": "motorcycle-truck-loading-01",
+          "primaryLabel": "",
+          "primaryHref": "",
+          "secondaryLabel": "",
+          "secondaryHref": "",
+          "galleryCategorySlug": "",
+          "galleryLimit": 12,
+          "items": []
+        },
+        {
+          "id": "motorcycle-transport-04",
+          "type": "CONTENT",
+          "enabled": true,
+          "eyebrow": "",
+          "heading": "คำถามที่พบบ่อย",
+          "body": "คำตอบใช้เฉพาะข้อมูลบริการที่ยืนยันแล้ว และไม่รับรองราคา เวลา หรือความจุโดยไม่มีการประเมินจริง",
+          "imageItemId": "",
+          "primaryLabel": "",
+          "primaryHref": "",
+          "secondaryLabel": "",
+          "secondaryHref": "",
+          "galleryCategorySlug": "",
+          "galleryLimit": 12,
+          "items": []
+        },
+        {
+          "id": "motorcycle-transport-05",
+          "type": "CONTENT",
+          "enabled": true,
+          "eyebrow": "",
+          "heading": "ขอให้ทีมงานประเมินจากรายละเอียดจริง",
+          "body": "แจ้งต้นทาง ปลายทาง จำนวนรถ วันที่ และบริการเพิ่มเติมที่ต้องการ",
+          "imageItemId": "",
+          "primaryLabel": "",
+          "primaryHref": "",
+          "secondaryLabel": "",
+          "secondaryHref": "",
+          "galleryCategorySlug": "",
+          "galleryLimit": 12,
+          "items": []
+        }
+      ]
+    },
+    "quotation": {
+      "version": 1,
+      "seo": {
+        "title": "ขอใบเสนอราคาขนส่งรถจักรยานยนต์ | NATHEE GROUP 2025",
+        "description": "เตรียมต้นทาง ปลายทาง จำนวนรถ ประเภทรถ และวันที่ต้องการ เพื่อให้ทีมงาน NATHEE GROUP 2025 ประเมินจากงานจริง"
+      },
+      "sections": [
+        {
+          "id": "quotation-01",
+          "type": "HERO",
+          "enabled": true,
+          "eyebrow": "GET A QUOTE",
+          "heading": "ขอใบเสนอราคา",
+          "body": "เตรียมข้อมูลให้ครบแล้วติดต่อทีมงาน ระบบจะประเมินจากงานจริงและไม่แสดงราคาเดาหรือสถานะสำเร็จปลอม",
+          "imageItemId": "",
+          "primaryLabel": "",
+          "primaryHref": "",
+          "secondaryLabel": "",
+          "secondaryHref": "",
+          "galleryCategorySlug": "",
+          "galleryLimit": 12,
+          "items": []
+        },
+        {
+          "id": "quotation-02",
+          "type": "CONTENT",
+          "enabled": true,
+          "eyebrow": "",
+          "heading": "ข้อมูลที่ช่วยให้ประเมินได้เร็ว",
+          "body": "แบบฟอร์มออนไลน์จะเปิดเฉพาะเมื่อ Backend และฐานข้อมูล Production ผ่านการตรวจจริง ระหว่างนี้ใช้โทรศัพท์หรือ LINE ซึ่งเป็นช่องทางที่ยืนยันแล้ว",
+          "imageItemId": "",
+          "primaryLabel": "",
+          "primaryHref": "",
+          "secondaryLabel": "",
+          "secondaryHref": "",
+          "galleryCategorySlug": "",
+          "galleryLimit": 12,
+          "items": []
+        },
+        {
+          "id": "quotation-03",
+          "type": "CONTENT",
+          "enabled": true,
+          "eyebrow": "",
+          "heading": "คำถามที่พบบ่อย",
+          "body": "คำตอบใช้เฉพาะข้อมูลบริการที่ยืนยันแล้ว และไม่รับรองราคา เวลา หรือความจุโดยไม่มีการประเมินจริง",
+          "imageItemId": "",
+          "primaryLabel": "",
+          "primaryHref": "",
+          "secondaryLabel": "",
+          "secondaryHref": "",
+          "galleryCategorySlug": "",
+          "galleryLimit": 12,
+          "items": []
+        }
+      ]
+    },
+    "services": {
+      "version": 1,
+      "seo": {
+        "title": "บริการขนส่งรถจักรยานยนต์ครบวงจร | NATHEE GROUP 2025",
+        "description": "รวมบริการขนส่งรถจักรยานยนต์ทั่วประเทศและต่างประเทศ รับฝากรถ สต๊อก ขึ้นตู้ Container และงาน Dealer หรือ Fleet"
+      },
+      "sections": [
+        {
+          "id": "services-01",
+          "type": "HERO",
+          "enabled": true,
+          "eyebrow": "OUR SERVICES",
+          "heading": "บริการขนส่งที่วางแผนตามงานจริง",
+          "body": "รองรับรถใหม่ รถมือสอง งานรายคัน และงานล็อตใหญ่ โดยประเมินจากจุดรับส่ง จำนวนรถ ช่วงเวลา และข้อกำหนดของแต่ละงาน",
+          "imageItemId": "motorcycle-truck-loading-01",
+          "primaryLabel": "",
+          "primaryHref": "",
+          "secondaryLabel": "",
+          "secondaryHref": "",
+          "galleryCategorySlug": "",
+          "galleryLimit": 12,
+          "items": []
+        },
+        {
+          "id": "services-02",
+          "type": "FEATURES",
+          "enabled": true,
+          "eyebrow": "",
+          "heading": "บริการทั้งหมด",
+          "body": "รับส่งรถจักรยานยนต์ระหว่างจังหวัด พร้อมวางแผนรถ 4 ล้อหรือ 6 ล้อตามจำนวน",
+          "imageItemId": "",
+          "primaryLabel": "",
+          "primaryHref": "",
+          "secondaryLabel": "",
+          "secondaryHref": "",
+          "galleryCategorySlug": "",
+          "galleryLimit": 12,
+          "items": [
+            {
+              "title": "ขนส่งในประเทศ",
+              "body": "รับส่งรถจักรยานยนต์ระหว่างจังหวัด พร้อมวางแผนรถ 4 ล้อหรือ 6 ล้อตามจำนวน"
+            },
+            {
+              "title": "ขนส่งต่างประเทศ",
+              "body": "ประสานงานการเตรียมรถและรายละเอียดสำหรับการขนส่งต่างประเทศ"
+            },
+            {
+              "title": "รับฝากและสต๊อก",
+              "body": "รองรับการรับฝากรถ สต๊อกรถ และสต๊อกสินค้าตามข้อตกลง"
+            },
+            {
+              "title": "Container และส่งออก",
+              "body": "เตรียมและจัดลำดับรถสำหรับขึ้นตู้ Container"
+            },
+            {
+              "title": "Dealer / Fleet",
+              "body": "รองรับงานประจำ งานหลายคัน และการวางแผนเป็นล็อต"
+            }
+          ]
+        },
+        {
+          "id": "services-03",
+          "type": "FEATURES",
+          "enabled": true,
+          "eyebrow": "",
+          "heading": "ขั้นตอนที่ลูกค้าเข้าใจได้ก่อนเริ่มงาน",
+          "body": "รายละเอียดแต่ละงานยืนยันอีกครั้งตามเส้นทาง จำนวนรถ และขอบเขตบริการ",
+          "imageItemId": "",
+          "primaryLabel": "",
+          "primaryHref": "",
+          "secondaryLabel": "",
+          "secondaryHref": "",
+          "galleryCategorySlug": "",
+          "galleryLimit": 12,
+          "items": [
+            {
+              "title": "รับรายละเอียด",
+              "body": "ตรวจเส้นทาง จำนวนรถ วันที่ และบริการที่ต้องใช้"
+            },
+            {
+              "title": "ประเมินงาน",
+              "body": "เลือกแนวทาง รถขนส่ง และขั้นตอนจากข้อมูลจริง"
+            },
+            {
+              "title": "ยืนยันขอบเขต",
+              "body": "ตกลงจุดรับส่ง ผู้ประสานงาน และหลักฐานที่ต้องจัดเก็บ"
+            },
+            {
+              "title": "ปฏิบัติงาน",
+              "body": "ดำเนินงานและส่งมอบตามรายการที่ยืนยัน"
+            }
+          ]
+        },
+        {
+          "id": "services-04",
+          "type": "CONTENT",
+          "enabled": true,
+          "eyebrow": "",
+          "heading": "หลักฐานจากการปฏิบัติงานจริง",
+          "body": "เลือกภาพที่เกี่ยวข้องกับบริการนี้จาก Portfolio ที่ Owner อนุมัติแล้ว",
+          "imageItemId": "motorcycle-truck-loading-01",
+          "primaryLabel": "",
+          "primaryHref": "",
+          "secondaryLabel": "",
+          "secondaryHref": "",
+          "galleryCategorySlug": "",
+          "galleryLimit": 12,
+          "items": []
+        },
+        {
+          "id": "services-05",
+          "type": "CONTENT",
+          "enabled": true,
+          "eyebrow": "",
+          "heading": "คำถามที่พบบ่อย",
+          "body": "คำตอบใช้เฉพาะข้อมูลบริการที่ยืนยันแล้ว และไม่รับรองราคา เวลา หรือความจุโดยไม่มีการประเมินจริง",
+          "imageItemId": "",
+          "primaryLabel": "",
+          "primaryHref": "",
+          "secondaryLabel": "",
+          "secondaryHref": "",
+          "galleryCategorySlug": "",
+          "galleryLimit": 12,
+          "items": []
+        },
+        {
+          "id": "services-06",
+          "type": "CONTENT",
+          "enabled": true,
+          "eyebrow": "",
+          "heading": "ขอให้ทีมงานประเมินจากรายละเอียดจริง",
+          "body": "แจ้งต้นทาง ปลายทาง จำนวนรถ วันที่ และบริการเพิ่มเติมที่ต้องการ",
+          "imageItemId": "",
+          "primaryLabel": "",
+          "primaryHref": "",
+          "secondaryLabel": "",
+          "secondaryHref": "",
+          "galleryCategorySlug": "",
+          "galleryLimit": 12,
+          "items": []
+        }
+      ]
+    },
+    "storage": {
+      "version": 1,
+      "seo": {
+        "title": "รับฝากรถและสต๊อกรถจักรยานยนต์ | NATHEE GROUP 2025",
+        "description": "บริการรับฝากรถจักรยานยนต์ สต๊อกรถและสินค้า รองรับการจัดเก็บก่อนขนส่งหรือส่งมอบตามข้อตกลง"
+      },
+      "sections": [
+        {
+          "id": "storage-01",
+          "type": "HERO",
+          "enabled": true,
+          "eyebrow": "STORAGE",
+          "heading": "รับฝากรถ สต๊อกรถ และสต๊อกสินค้า",
+          "body": "รองรับการรับรถเข้าพื้นที่ จัดเก็บ และเตรียมรถสำหรับขั้นตอนถัดไป โดยกำหนดรายละเอียดและระยะเวลาตามงานจริง",
+          "imageItemId": "motorcycle-storage-yard-01",
+          "primaryLabel": "",
+          "primaryHref": "",
+          "secondaryLabel": "",
+          "secondaryHref": "",
+          "galleryCategorySlug": "",
+          "galleryLimit": 12,
+          "items": []
+        },
+        {
+          "id": "storage-02",
+          "type": "FEATURES",
+          "enabled": true,
+          "eyebrow": "",
+          "heading": "ขั้นตอนที่ลูกค้าเข้าใจได้ก่อนเริ่มงาน",
+          "body": "รายละเอียดแต่ละงานยืนยันอีกครั้งตามเส้นทาง จำนวนรถ และขอบเขตบริการ",
+          "imageItemId": "",
+          "primaryLabel": "",
+          "primaryHref": "",
+          "secondaryLabel": "",
+          "secondaryHref": "",
+          "galleryCategorySlug": "",
+          "galleryLimit": 12,
+          "items": [
+            {
+              "title": "รับรายการ",
+              "body": "ยืนยันจำนวนรถและผู้ประสานงานก่อนนำเข้าพื้นที่"
+            },
+            {
+              "title": "รับเข้า",
+              "body": "บันทึกรายการและหลักฐานตามขอบเขตที่ตกลง"
+            },
+            {
+              "title": "จัดเก็บ",
+              "body": "วางรถในพื้นที่ปฏิบัติงานและติดตามรายการ"
+            },
+            {
+              "title": "เตรียมนำออก",
+              "body": "ตรวจรายการและนัดหมายก่อนส่งต่อหรือส่งมอบ"
+            }
+          ]
+        },
+        {
+          "id": "storage-03",
+          "type": "CONTENT",
+          "enabled": true,
+          "eyebrow": "",
+          "heading": "หลักฐานจากการปฏิบัติงานจริง",
+          "body": "เลือกภาพที่เกี่ยวข้องกับบริการนี้จาก Portfolio ที่ Owner อนุมัติแล้ว",
+          "imageItemId": "motorcycle-storage-yard-01",
+          "primaryLabel": "",
+          "primaryHref": "",
+          "secondaryLabel": "",
+          "secondaryHref": "",
+          "galleryCategorySlug": "",
+          "galleryLimit": 12,
+          "items": []
+        },
+        {
+          "id": "storage-04",
+          "type": "CONTENT",
+          "enabled": true,
+          "eyebrow": "",
+          "heading": "คำถามที่พบบ่อย",
+          "body": "คำตอบใช้เฉพาะข้อมูลบริการที่ยืนยันแล้ว และไม่รับรองราคา เวลา หรือความจุโดยไม่มีการประเมินจริง",
+          "imageItemId": "",
+          "primaryLabel": "",
+          "primaryHref": "",
+          "secondaryLabel": "",
+          "secondaryHref": "",
+          "galleryCategorySlug": "",
+          "galleryLimit": 12,
+          "items": []
+        },
+        {
+          "id": "storage-05",
+          "type": "CONTENT",
+          "enabled": true,
+          "eyebrow": "",
+          "heading": "ขอให้ทีมงานประเมินจากรายละเอียดจริง",
+          "body": "แจ้งต้นทาง ปลายทาง จำนวนรถ วันที่ และบริการเพิ่มเติมที่ต้องการ",
+          "imageItemId": "",
+          "primaryLabel": "",
+          "primaryHref": "",
+          "secondaryLabel": "",
+          "secondaryHref": "",
+          "galleryCategorySlug": "",
+          "galleryLimit": 12,
+          "items": []
+        }
+      ]
+    }
+  },
+  "gallery": {
+    "categories": [
+      {
+        "id": "container",
+        "slug": "container",
+        "label": "Container Loading / Export"
+      },
+      {
+        "id": "dealer-fleet",
+        "slug": "dealer-fleet",
+        "label": "Dealer / Fleet"
+      },
+      {
+        "id": "large-batch",
+        "slug": "large-batch",
+        "label": "งานล็อตใหญ่"
+      },
+      {
+        "id": "storage",
+        "slug": "storage",
+        "label": "ลานสต๊อก / รับฝากรถ"
+      },
+      {
+        "id": "truck-4",
+        "slug": "truck-4",
+        "label": "รถ 4 ล้อ"
+      },
+      {
+        "id": "truck-6",
+        "slug": "truck-6",
+        "label": "รถ 6 ล้อ"
+      },
+      {
+        "id": "truck-loading",
+        "slug": "truck-loading",
+        "label": "โหลดรถขึ้นรถบรรทุก"
+      }
+    ],
+    "items": [
+      {
+        "id": "motorcycle-container-loading-01",
+        "title": "จัดเรียงรถจักรยานยนต์ในตู้ Container",
+        "caption": "การจัดวางและยึดรถจักรยานยนต์ภายในตู้ Container ระหว่างปฏิบัติงาน",
+        "altText": "รถจักรยานยนต์ห้าคันถูกจัดเรียงและยึดภายในตู้ Container ระหว่างปฏิบัติงาน",
+        "categoryId": "container",
+        "status": "PUBLISHED",
+        "visibility": "PUBLIC",
+        "featured": true,
+        "order": 90,
+        "width": 1108,
+        "height": 1477,
+        "variants": [
+          {
+            "role": "THUMBNAIL",
+            "format": "jpeg",
+            "src": "/assets/gallery/motorcycle-container-loading-01-thumbnail.jpg"
+          },
+          {
+            "role": "THUMBNAIL",
+            "format": "webp",
+            "src": "/assets/gallery/motorcycle-container-loading-01-thumbnail.webp"
+          },
+          {
+            "role": "THUMBNAIL",
+            "format": "avif",
+            "src": "/assets/gallery/motorcycle-container-loading-01-thumbnail.avif"
+          },
+          {
+            "role": "DISPLAY",
+            "format": "jpeg",
+            "src": "/assets/gallery/motorcycle-container-loading-01-display.jpg"
+          },
+          {
+            "role": "DISPLAY",
+            "format": "webp",
+            "src": "/assets/gallery/motorcycle-container-loading-01-display.webp"
+          },
+          {
+            "role": "DISPLAY",
+            "format": "avif",
+            "src": "/assets/gallery/motorcycle-container-loading-01-display.avif"
+          }
+        ]
+      },
+      {
+        "id": "motorcycle-fleet-staging-01",
+        "title": "เตรียมรถจักรยานยนต์จำนวนมากก่อนขนส่ง",
+        "caption": "รถจักรยานยนต์จัดเรียงเป็นแถวใกล้รถบรรทุกสำหรับเตรียมการขนส่ง",
+        "altText": "รถจักรยานยนต์หลายคันเรียงเป็นแถวบนพื้นที่กลางแจ้งใกล้รถบรรทุก",
+        "categoryId": "dealer-fleet",
+        "status": "PUBLISHED",
+        "visibility": "PUBLIC",
+        "featured": true,
+        "order": 60,
+        "width": 1477,
+        "height": 1108,
+        "variants": [
+          {
+            "role": "THUMBNAIL",
+            "format": "jpeg",
+            "src": "/assets/gallery/motorcycle-fleet-staging-01-thumbnail.jpg"
+          },
+          {
+            "role": "THUMBNAIL",
+            "format": "webp",
+            "src": "/assets/gallery/motorcycle-fleet-staging-01-thumbnail.webp"
+          },
+          {
+            "role": "THUMBNAIL",
+            "format": "avif",
+            "src": "/assets/gallery/motorcycle-fleet-staging-01-thumbnail.avif"
+          },
+          {
+            "role": "DISPLAY",
+            "format": "jpeg",
+            "src": "/assets/gallery/motorcycle-fleet-staging-01-display.jpg"
+          },
+          {
+            "role": "DISPLAY",
+            "format": "webp",
+            "src": "/assets/gallery/motorcycle-fleet-staging-01-display.webp"
+          },
+          {
+            "role": "DISPLAY",
+            "format": "avif",
+            "src": "/assets/gallery/motorcycle-fleet-staging-01-display.avif"
+          }
+        ]
+      },
+      {
+        "id": "motorcycle-pickup-loading-01",
+        "title": "ขนส่งรถจักรยานยนต์ด้วยรถ 4 ล้อ",
+        "caption": "การยึดรถจักรยานยนต์บนโครงบรรทุกเหนือรถ 4 ล้อ",
+        "altText": "รถกระบะ 4 ล้อบรรทุกรถจักรยานยนต์บนโครงด้านบนและยึดด้วยสายรัด",
+        "categoryId": "truck-4",
+        "status": "PUBLISHED",
+        "visibility": "PUBLIC",
+        "featured": true,
+        "order": 80,
+        "width": 1169,
+        "height": 1399,
+        "variants": [
+          {
+            "role": "THUMBNAIL",
+            "format": "jpeg",
+            "src": "/assets/gallery/motorcycle-pickup-loading-01-thumbnail.jpg"
+          },
+          {
+            "role": "THUMBNAIL",
+            "format": "webp",
+            "src": "/assets/gallery/motorcycle-pickup-loading-01-thumbnail.webp"
+          },
+          {
+            "role": "THUMBNAIL",
+            "format": "avif",
+            "src": "/assets/gallery/motorcycle-pickup-loading-01-thumbnail.avif"
+          },
+          {
+            "role": "DISPLAY",
+            "format": "jpeg",
+            "src": "/assets/gallery/motorcycle-pickup-loading-01-display.jpg"
+          },
+          {
+            "role": "DISPLAY",
+            "format": "webp",
+            "src": "/assets/gallery/motorcycle-pickup-loading-01-display.webp"
+          },
+          {
+            "role": "DISPLAY",
+            "format": "avif",
+            "src": "/assets/gallery/motorcycle-pickup-loading-01-display.avif"
+          }
+        ]
+      },
+      {
+        "id": "motorcycle-storage-yard-01",
+        "title": "ลานจัดเก็บรถจักรยานยนต์จำนวนมาก",
+        "caption": "รถจักรยานยนต์ที่จัดเรียงในพื้นที่ลานเพื่อรอการดำเนินงาน",
+        "altText": "รถจักรยานยนต์จำนวนมากจัดเรียงเป็นแถวภายในพื้นที่ลานจัดเก็บ",
+        "categoryId": "storage",
+        "status": "PUBLISHED",
+        "visibility": "PUBLIC",
+        "featured": true,
+        "order": 20,
+        "width": 1477,
+        "height": 1108,
+        "variants": [
+          {
+            "role": "THUMBNAIL",
+            "format": "jpeg",
+            "src": "/assets/gallery/motorcycle-storage-yard-01-thumbnail.jpg"
+          },
+          {
+            "role": "THUMBNAIL",
+            "format": "webp",
+            "src": "/assets/gallery/motorcycle-storage-yard-01-thumbnail.webp"
+          },
+          {
+            "role": "THUMBNAIL",
+            "format": "avif",
+            "src": "/assets/gallery/motorcycle-storage-yard-01-thumbnail.avif"
+          },
+          {
+            "role": "DISPLAY",
+            "format": "jpeg",
+            "src": "/assets/gallery/motorcycle-storage-yard-01-display.jpg"
+          },
+          {
+            "role": "DISPLAY",
+            "format": "webp",
+            "src": "/assets/gallery/motorcycle-storage-yard-01-display.webp"
+          },
+          {
+            "role": "DISPLAY",
+            "format": "avif",
+            "src": "/assets/gallery/motorcycle-storage-yard-01-display.avif"
+          }
+        ]
+      },
+      {
+        "id": "motorcycle-storage-yard-02",
+        "title": "การจัดเรียงรถจักรยานยนต์ในลาน",
+        "caption": "รถจักรยานยนต์จัดเรียงเป็นแถวภายในพื้นที่ปฏิบัติงาน",
+        "altText": "รถจักรยานยนต์หลายแถวจัดเก็บอยู่ภายในพื้นที่ลานของบริษัท",
+        "categoryId": "storage",
+        "status": "PUBLISHED",
+        "visibility": "PUBLIC",
+        "featured": false,
+        "order": 50,
+        "width": 1477,
+        "height": 1108,
+        "variants": [
+          {
+            "role": "THUMBNAIL",
+            "format": "jpeg",
+            "src": "/assets/gallery/motorcycle-storage-yard-02-thumbnail.jpg"
+          },
+          {
+            "role": "THUMBNAIL",
+            "format": "webp",
+            "src": "/assets/gallery/motorcycle-storage-yard-02-thumbnail.webp"
+          },
+          {
+            "role": "THUMBNAIL",
+            "format": "avif",
+            "src": "/assets/gallery/motorcycle-storage-yard-02-thumbnail.avif"
+          },
+          {
+            "role": "DISPLAY",
+            "format": "jpeg",
+            "src": "/assets/gallery/motorcycle-storage-yard-02-display.jpg"
+          },
+          {
+            "role": "DISPLAY",
+            "format": "webp",
+            "src": "/assets/gallery/motorcycle-storage-yard-02-display.webp"
+          },
+          {
+            "role": "DISPLAY",
+            "format": "avif",
+            "src": "/assets/gallery/motorcycle-storage-yard-02-display.avif"
+          }
+        ]
+      },
+      {
+        "id": "motorcycle-truck-loading-01",
+        "title": "ขนส่งรถจักรยานยนต์ด้วยรถบรรทุก 4 ล้อ",
+        "caption": "การจัดเรียงรถจักรยานยนต์บนโครงบรรทุกสองชั้นระหว่างปฏิบัติงาน",
+        "altText": "รถบรรทุก 4 ล้อบรรทุกรถจักรยานยนต์บนโครงสองชั้นระหว่างปฏิบัติงาน",
+        "categoryId": "truck-loading",
+        "status": "PUBLISHED",
+        "visibility": "PUBLIC",
+        "featured": true,
+        "order": 10,
+        "width": 1706,
+        "height": 960,
+        "variants": [
+          {
+            "role": "THUMBNAIL",
+            "format": "jpeg",
+            "src": "/assets/gallery/motorcycle-truck-loading-01-thumbnail.jpg"
+          },
+          {
+            "role": "THUMBNAIL",
+            "format": "webp",
+            "src": "/assets/gallery/motorcycle-truck-loading-01-thumbnail.webp"
+          },
+          {
+            "role": "THUMBNAIL",
+            "format": "avif",
+            "src": "/assets/gallery/motorcycle-truck-loading-01-thumbnail.avif"
+          },
+          {
+            "role": "DISPLAY",
+            "format": "jpeg",
+            "src": "/assets/gallery/motorcycle-truck-loading-01-display.jpg"
+          },
+          {
+            "role": "DISPLAY",
+            "format": "webp",
+            "src": "/assets/gallery/motorcycle-truck-loading-01-display.webp"
+          },
+          {
+            "role": "DISPLAY",
+            "format": "avif",
+            "src": "/assets/gallery/motorcycle-truck-loading-01-display.avif"
+          }
+        ]
+      },
+      {
+        "id": "motorcycle-yard-container-01",
+        "title": "ลานรถจักรยานยนต์และพื้นที่เตรียม Container",
+        "caption": "รถจักรยานยนต์จำนวนมากจัดเรียงในลานข้างพื้นที่เตรียมตู้ Container",
+        "altText": "รถจักรยานยนต์จำนวนมากจัดเรียงเป็นแถวในลานข้างรถบรรทุกตู้ Container",
+        "categoryId": "large-batch",
+        "status": "PUBLISHED",
+        "visibility": "PUBLIC",
+        "featured": true,
+        "order": 40,
+        "width": 1477,
+        "height": 1108,
+        "variants": [
+          {
+            "role": "THUMBNAIL",
+            "format": "jpeg",
+            "src": "/assets/gallery/motorcycle-yard-container-01-thumbnail.jpg"
+          },
+          {
+            "role": "THUMBNAIL",
+            "format": "webp",
+            "src": "/assets/gallery/motorcycle-yard-container-01-thumbnail.webp"
+          },
+          {
+            "role": "THUMBNAIL",
+            "format": "avif",
+            "src": "/assets/gallery/motorcycle-yard-container-01-thumbnail.avif"
+          },
+          {
+            "role": "DISPLAY",
+            "format": "jpeg",
+            "src": "/assets/gallery/motorcycle-yard-container-01-display.jpg"
+          },
+          {
+            "role": "DISPLAY",
+            "format": "webp",
+            "src": "/assets/gallery/motorcycle-yard-container-01-display.webp"
+          },
+          {
+            "role": "DISPLAY",
+            "format": "avif",
+            "src": "/assets/gallery/motorcycle-yard-container-01-display.avif"
+          }
+        ]
+      },
+      {
+        "id": "nathee-six-wheel-truck-01",
+        "title": "รถบรรทุก 6 ล้อของบริษัท",
+        "caption": "รถบรรทุกสำหรับงานขนส่งรถจักรยานยนต์ของนทีกรุ๊ป2025",
+        "altText": "รถบรรทุก 6 ล้อสีขาวพร้อมชื่อบริษัทและหมายเลขโทรศัพท์ของนทีกรุ๊ป2025",
+        "categoryId": "truck-6",
+        "status": "PUBLISHED",
+        "visibility": "PUBLIC",
+        "featured": false,
+        "order": 70,
+        "width": 1093,
+        "height": 1093,
+        "variants": [
+          {
+            "role": "THUMBNAIL",
+            "format": "jpeg",
+            "src": "/assets/gallery/nathee-six-wheel-truck-01-thumbnail.jpg"
+          },
+          {
+            "role": "THUMBNAIL",
+            "format": "webp",
+            "src": "/assets/gallery/nathee-six-wheel-truck-01-thumbnail.webp"
+          },
+          {
+            "role": "THUMBNAIL",
+            "format": "avif",
+            "src": "/assets/gallery/nathee-six-wheel-truck-01-thumbnail.avif"
+          },
+          {
+            "role": "DISPLAY",
+            "format": "jpeg",
+            "src": "/assets/gallery/nathee-six-wheel-truck-01-display.jpg"
+          },
+          {
+            "role": "DISPLAY",
+            "format": "webp",
+            "src": "/assets/gallery/nathee-six-wheel-truck-01-display.webp"
+          },
+          {
+            "role": "DISPLAY",
+            "format": "avif",
+            "src": "/assets/gallery/nathee-six-wheel-truck-01-display.avif"
+          }
+        ]
+      },
+      {
+        "id": "nathee-yard-front-01",
+        "title": "พื้นที่ลานและจุดปฏิบัติงาน",
+        "caption": "บริเวณด้านหน้าพื้นที่ลานที่ใช้สำหรับจัดเก็บและเตรียมรถจักรยานยนต์",
+        "altText": "ด้านหน้าพื้นที่ลานของนทีกรุ๊ป2025 มีรั้วกั้น รถบรรทุก และรถจักรยานยนต์ภายในพื้นที่",
+        "categoryId": "storage",
+        "status": "PUBLISHED",
+        "visibility": "PUBLIC",
+        "featured": false,
+        "order": 30,
+        "width": 1477,
+        "height": 1108,
+        "variants": [
+          {
+            "role": "THUMBNAIL",
+            "format": "jpeg",
+            "src": "/assets/gallery/nathee-yard-front-01-thumbnail.jpg"
+          },
+          {
+            "role": "THUMBNAIL",
+            "format": "webp",
+            "src": "/assets/gallery/nathee-yard-front-01-thumbnail.webp"
+          },
+          {
+            "role": "THUMBNAIL",
+            "format": "avif",
+            "src": "/assets/gallery/nathee-yard-front-01-thumbnail.avif"
+          },
+          {
+            "role": "DISPLAY",
+            "format": "jpeg",
+            "src": "/assets/gallery/nathee-yard-front-01-display.jpg"
+          },
+          {
+            "role": "DISPLAY",
+            "format": "webp",
+            "src": "/assets/gallery/nathee-yard-front-01-display.webp"
+          },
+          {
+            "role": "DISPLAY",
+            "format": "avif",
+            "src": "/assets/gallery/nathee-yard-front-01-display.avif"
+          }
+        ]
+      }
+    ]
+  },
+  "settings": {
+    "version": 1,
+    "brand": {
+      "name": "NATHEE GROUP 2025",
+      "legalName": "บริษัท นทีกรุ๊ป2025 จำกัด",
+      "abbreviation": "NG",
+      "tagline": "MOTORCYCLE LOGISTICS · 2025",
+      "logoItemId": ""
+    },
+    "contact": {
+      "primaryPhone": "063-194-1191",
+      "secondaryPhone": "085-680-2082"
+    },
+    "navigation": {
+      "items": [
+        {
+          "label": "หน้าแรก",
+          "href": "/"
+        },
+        {
+          "label": "บริการ",
+          "href": "/services"
+        },
+        {
+          "label": "ผลงาน",
+          "href": "/gallery"
+        },
+        {
+          "label": "เกี่ยวกับเรา",
+          "href": "/about"
+        },
+        {
+          "label": "ติดต่อ",
+          "href": "/contact"
+        }
+      ],
+      "loginLabel": "เข้าสู่ระบบ"
+    },
+    "footer": {
+      "copyright": "© 2026 บริษัท นทีกรุ๊ป2025 จำกัด",
+      "secondaryText": "NATHEE GROUP · MOTORCYCLE LOGISTICS"
+    }
+  },
+  "posts": []
+}
