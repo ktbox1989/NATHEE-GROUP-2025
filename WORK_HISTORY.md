@@ -1,5 +1,37 @@
 # NATHEE GROUP 2025 — Work History
 
+## 2026-08-23 — Lane A: public CMS hardening (local only, inactive)
+
+- Branch `lane-a/public-cms-hardening-20260823`, from `main` at `74d88b4`; nine commits through `4d05660`.
+- Reconciled the public quotation contract against Lane B's live endpoint. Four
+  real mismatches: the request key was in a format the server refuses, so every
+  submission would have failed as `error=invalid`; success is a 303 redirect
+  rather than a JSON acknowledgement; five fields were unmodelled; and three
+  bounds were looser than the server's, which truncates silently rather than
+  rejecting.
+- Added the posts/news consumer contract, the shared head model for pages and
+  posts, the gallery consumer contract with its two-condition public boundary,
+  the site-settings chrome contract, and the deterministic CMS seed generator.
+- Fixed a real availability defect: the CMS loader was awaited with no
+  deadline, so a slow CMS held the request open until an upstream timeout
+  produced a gateway error page instead of the static fallback.
+- Fixed a real accessibility defect: `/login/` rendered the whole site
+  navigation with no skip link, because it is built by a different function
+  from the eleven marketing routes and no gate looked at it.
+- Fixed a real caching defect: `sitemap.xml` and `robots.txt` were served with
+  no `Cache-Control`, so after a publish a cache could keep advertising
+  withdrawn URLs for days.
+- A preview now emits no Open Graph or Twitter tags: `noindex` is read by
+  crawlers, not by the chat clients a preview link is actually pasted into.
+- Verification: `npm test` 621 passing (429 unit + 192 database), plus every
+  public, security and CMS gate; lint PASS; `tsc --noEmit` PASS;
+  production build PASS; all eight CI bash gates PASS locally.
+- Deployment: **none**. Production untouched, `/login` redirect still INACTIVE,
+  `APP_RUNTIME_PASS` still NOT_PROVEN, the CMS boundary still defaults to
+  `STATIC`. Nothing was merged to `main`.
+- Remaining work is blocked on Lane B contract fields or Owner gates, listed
+  field by field in `docs/LANE_A_CONTRACT_ASKS.md`.
+
 ## 2026-08-23 — Lane A: public CMS integration prep, inactive
 
 - Implementation commits: `b39944f`, `6b0f614`, `1f3b9c4`

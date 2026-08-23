@@ -43,7 +43,11 @@ ErrorDocument 404 /404.html
   # separate acceptance period; do not add includeSubDomains without review.
   Header always set Strict-Transport-Security "max-age=300"
 
-  <FilesMatch "\.(?:html?)$">
+  # Pages and the surfaces derived from them. A publish regenerates the sitemap
+  # and robots.txt, so both must revalidate for the same reason a page does:
+  # with no Cache-Control at all a cache invents its own freshness lifetime, and
+  # a stale sitemap keeps advertising withdrawn URLs and hides the new ones.
+  <FilesMatch "\.(?:html?|xml|txt)$">
     Header always set Cache-Control "no-cache, must-revalidate"
   </FilesMatch>
 

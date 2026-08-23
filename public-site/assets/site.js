@@ -112,5 +112,22 @@
   more?.addEventListener('click', () => { limit += 24; render(); });
   lightbox?.querySelector('[data-lightbox-close]')?.addEventListener('click', close); lightbox?.querySelector('[data-lightbox-prev]')?.addEventListener('click', () => move(-1)); lightbox?.querySelector('[data-lightbox-next]')?.addEventListener('click', () => move(1));
   lightbox?.addEventListener('click', event => { if (event.target === lightbox) close(); });
+
+  // Swipe between photographs. The gallery is the sales asset and most of its
+  // visitors are on a phone, where arrow buttons are the least natural way to
+  // move through forty images. Deliberately conservative: a drag shorter than
+  // 48px, or one that is more vertical than horizontal, is someone scrolling
+  // and must not advance the gallery.
+  let swipeX = 0, swipeY = 0, swiping = false;
+  lightbox?.addEventListener('touchstart', event => { swiping = !lightbox.hidden && event.touches.length === 1; if (!swiping) return; swipeX = event.touches[0].clientX; swipeY = event.touches[0].clientY; }, { passive: true });
+  lightbox?.addEventListener('touchcancel', () => { swiping = false; }, { passive: true });
+  lightbox?.addEventListener('touchend', event => {
+    if (!swiping || lightbox.hidden) return;
+    swiping = false;
+    const touch = event.changedTouches[0]; if (!touch) return;
+    const dx = touch.clientX - swipeX, dy = touch.clientY - swipeY;
+    if (Math.abs(dx) < 48 || Math.abs(dx) <= Math.abs(dy)) return;
+    move(dx < 0 ? 1 : -1);
+  }, { passive: true });
   document.addEventListener('keydown', event => { if (!lightbox || lightbox.hidden) return; if (event.key === 'Escape') close(); if (event.key === 'ArrowLeft') move(-1); if (event.key === 'ArrowRight') move(1); if (event.key === 'Tab') { const controls = [...lightbox.querySelectorAll('button')]; const current = controls.indexOf(document.activeElement); const next = event.shiftKey ? (current <= 0 ? controls.length - 1 : current - 1) : (current + 1) % controls.length; event.preventDefault(); controls[next]?.focus(); } });
 })();

@@ -113,9 +113,56 @@ turns it into the exact set of paths to drop.
 | `MEDIA_PUBLISHED` / `MEDIA_WITHDRAWN` | pages using it, `/gallery/`, `/` | the home page carries a gallery preview |
 | `SETTINGS_PUBLISHED` | every public route, `robots.txt` | brand, nav, phones and footer are on every page |
 
-The home page cannot be unpublished. An unrecognised event neither purges
-everything nor silently does nothing: it is reported as needing the guarded
-deploy.
+| `POST_PUBLISHED` | that post, `/news/` | sitemap regenerated |
+| `POST_UNPUBLISHED` | that post, `/news/`, sitemap | URL must stop returning 200 |
+| `POST_MOVED` | both URLs, `/news/`, sitemap | the old URL keeps answering, with a 301 |
+
+Publishing a post fans out to the post and the index and no further. Nothing
+else shows posts, and invalidating the eleven marketing routes on every
+editorial edit would dump most of the cache for a change none of them display.
+
+A rename invalidates **both** URLs. Dropping only one leaves half the site
+serving the state from before the rename. The old URL is not in `removedPaths`:
+it has to keep answering, with a 301, because that is what carries the inbound
+links to the new slug — removing it throws them away.
+
+The home page cannot be unpublished.
+
+`delivery` states how a change reaches visitors, as a field rather than a phrase
+to match on:
+
+- **`CACHE`** — the promise the CMS makes to editors: content and media go live
+  with no deployment.
+- **`DEPLOY`** — the change is in the release itself (templates, styles,
+  scripts, the manifest) and needs the guarded Z.com deploy. An unrecognised
+  event lands here: it neither purges everything nor silently does nothing.
+- **`REJECTED`** — the event was malformed: a post path that is not one, a
+  rename to itself, unpublishing the home page. That is neither of the others.
+  A deployment would not fix it, and reporting success would tell an editor
+  their change is live when no cache was touched.
+
+## One sitemap, one robots.txt
+
+Pages and posts are validated separately, but a site has exactly one sitemap.
+`buildSitemap` merges both, keeps only what is published and indexable,
+deduplicates, and sorts — sorting so the generated file can be reviewed as a
+diff rather than merely observed.
+
+A page reports when it was published. A post reports its edit date if it has
+one and its publication date otherwise, and `/news/` reports the newest post's
+date, because that is what actually changed when it appeared. A site with no
+posts has no news section in its sitemap at all.
+
+`buildRobotsTxt` keeps crawlers out of `/api/`, `/app/`, `/auth/`, `/login/` and
+the login status page. That is a courtesy to the crawler, not a boundary —
+`robots.txt` protects nothing and authentication is the real control — but it
+stops a crawl budget being spent on URLs that only answer with a redirect. A
+test asserts the generated contract still matches the `robots.txt` currently
+shipped, because one of the two is what crawlers actually get.
+
+A non-canonical origin disallows everything, including its sitemap. A staging
+copy indexed alongside production splits the site's ranking between two hosts,
+and the wrong one wins about half the time.
 
 Changes to templates, styles, scripts or the manifest still require the Z.com
 deployment. Saying so plainly stops an editor waiting for a change that was
@@ -252,6 +299,202 @@ same length, and neither is wrong.
 
 Until step 6, Production keeps serving the static release, which is the
 behaviour every default in this module is chosen to preserve.
+
+## Recovery, when the CMS is not there
+
+Every way a CMS fails is decided here rather than discovered in production, and
+each one falls back to the static release with a reason.
+
+| Failure | Behaviour |
+| --- | --- |
+| loader throws, sync or async | static, reason carries the error |
+| response is not JSON | static — a proxy error page is a parse failure, not a page |
+| `null` / `undefined` | static, "CMS returned no page" |
+| schema drift | static, with the violations reported rather than swallowed |
+| newer contract version | static — refused whole, never partially rendered |
+| unpublished, hidden, scheduled, archived | static — a draft has no representation |
+| page delivered for the wrong route | static — otherwise the About copy silently serves at `/services/` |
+| private media path anywhere in the payload | static — this one is a refusal, not a degradation |
+| **no answer at all** | static after `CMS_LOAD_TIMEOUT_MS` |
+
+### The slow case is the dangerous one
+
+A CMS that is *down* was already survivable: a rejected promise falls back
+immediately. A CMS that is *slow* was not. `resolvePage` awaited the loader with
+no deadline, so a load that never settled held the request open until something
+upstream gave up — and what the visitor eventually saw was a gateway error page,
+not the static release. The one failure the fallback exists to prevent was the
+one it did not cover.
+
+`loadWithDeadline` bounds the wait and never rejects. It attaches a no-op catch
+to the abandoned promise before racing: without that, a load that times out and
+rejects a moment later becomes an unhandled rejection, which on a worker runtime
+can take down the whole isolate — the outage this is all meant to survive.
+
+### Posts have nothing to fall back to
+
+`resolvePost` applies the identical rules, but a post has no static release
+behind it. A refusal there means the URL is a 404, not that something else
+renders. The caller must treat `STATIC` as "this post is not available" —
+showing a stale or partial article would be worse than showing none.
+
+## Site settings, and the one fallback that is a value
+
+The chrome — brand, navigation, telephone numbers, footer — appears on every
+page, which makes it the one piece of CMS content whose failure is total. A page
+body that fails to load falls back to the static release and the visitor never
+knows. Chrome that fails leaves the site with no way to get anywhere, on every
+URL at once.
+
+So `buildSiteChrome` is the only consumer here with a **value** fallback rather
+than a source fallback. Unusable settings render the shipped defaults and say
+why, rather than rendering an empty header. Three conditions trigger it: no
+usable navigation link, no dialable telephone number, or no brand name. Each one
+would leave a visitor stranded on whatever page they landed on.
+
+A navigation item is re-checked on this side even though Lane B's parser already
+blocks the authenticated prefixes. A link into `/app/` sends a customer from the
+marketing site to a login screen and reads as broken; an off-site link in the
+header is how a single compromised settings row becomes a phishing redirect on
+every page at once. An item that fails is dropped and **reported** — a
+silently shorter menu is how this kind of thing goes unnoticed.
+
+Telephone numbers are published with the separators stripped from the `tel:`
+href and kept in the display text. Some handsets dial a `tel:` containing dashes
+incorrectly, which on a phone-first site is the difference between a call and a
+customer giving up.
+
+The current page carries `aria-current="page"`, so it is announced rather than
+only coloured.
+
+## Posts and news
+
+`lib/public-cms/posts.ts` is the consumer contract for editorial content. Lane B
+has no posts schema today, so this is the receiving end of a contract that does
+not yet have a sender — written now so that when the schema arrives the work is
+a mapping function rather than a design argument.
+
+**Status: inactive.** No route renders it, and no static page links to it.
+
+### Why it is not just another page
+
+The eleven marketing routes are a closed list, and a CMS page for anything else
+is refused. Posts are the opposite shape: the whole point is that an editor
+creates URLs nobody enumerated in advance. So the safety comes from the slug
+rules and the published state instead of from an allowlist.
+
+Everything a post renders that a page also renders **is** the page's code.
+Sections, media and the heading outline all come from `contract.ts`, through
+`validateSections`, which pages and posts now share. The single-`h1`,
+no-skipped-level rule is a property of the public site rather than of a content
+type, and a second copy of it would be a second chance to get one wrong.
+
+### Slugs
+
+`/news/` is the index; a post is `/news/<slug>/`.
+
+Slugs are lowercase latin words joined by single hyphens, at most 80 characters.
+A Thai title left to itself produces a Thai slug, and a percent-encoded Thai
+slug is unreadable in a shared link and fragile in a sitemap — so the CMS must
+supply a latin slug and anything else is refused rather than transliterated,
+because transliteration is a guess about a brand name.
+
+`page`, `feed`, `rss`, `atom`, `sitemap`, `index`, `all`, `category` and `tag`
+are reserved: a post at `/news/page/2/` is unreachable however carefully it is
+rendered. A post can never take a marketing route, and the path must be exactly
+the one derived from the slug — a disagreement between them means one is wrong
+with no way to tell which.
+
+### The list
+
+Newest first, with the slug as the tie-break. The tie-break is not cosmetic:
+posts published in one batch share a timestamp, and without a deterministic
+order the list reshuffles between requests, so pagination shows one post twice
+and hides another.
+
+A page past the end, a page number that is not a positive integer, or a category
+with no posts is a **refusal**, not an empty list at 200. An empty list served
+as 200 is a soft 404: it keeps the URL indexed and tells the visitor the site is
+broken rather than that they mistyped. An empty site still has a first page.
+
+### Redirects
+
+Post redirects differ from page redirects in one way that matters. A marketing
+route can never be a redirect source, which makes chains impossible by
+construction. A post's rename target **can** itself be renamed later, so chains
+are real here and are resolved rather than assumed away — up to four hops, after
+which the table is treated as broken and the visitor gets a 404 rather than a
+redirect loop in their browser. A cycle back to the starting path resolves to
+nothing for the same reason.
+
+A redirect may not point at a marketing route, off-site, at the index, or at
+itself.
+
+### SEO
+
+`buildPostHead` and `buildPageHead` in `seo.ts` produce the same `HeadModel`,
+because the parts that differ between a post and a page are the schema type, the
+article dates and the breadcrumb depth, and nothing else.
+
+| | Page | Post |
+| --- | --- | --- |
+| `og:type` | `website` | `article` |
+| schema | route's own type, `Service` naming its provider | `BlogPosting` |
+| breadcrumb | หน้าแรก → page | หน้าแรก → ข่าวสาร → post |
+| dates | — | `datePublished`, and `dateModified` only if edited |
+
+`PUBLIC_ROUTE_SCHEMA_TYPES` mirrors what the static release already emits, so
+moving a route onto the CMS does not silently change how a search engine is told
+to read it. There is exactly one `Organization` node, referenced by `@id` from
+the `Service` provider and from a post's author and publisher, rather than
+repeated — two Organization records would compete.
+
+A post that has never been edited publishes **no** `dateModified`. Defaulting it
+to the publication date would tell a search engine the post was edited when it
+was not.
+
+The unfurl image is the display variant in JPEG or PNG. AVIF and WebP are
+skipped deliberately: several chat clients cannot decode them and show no image
+at all rather than falling back. With no usable photograph the brand logo is
+used, never nothing.
+
+### Preview emits no social tags
+
+A preview response carries **no** Open Graph or Twitter tags at all, and no
+structured data.
+
+`noindex` is read by crawlers. It is not read by LINE, by email clients, or by
+any of the other places a preview link actually gets pasted — those unfurl the
+URL and render a card. Without this rule, sharing a preview link with one
+colleague would render the unpublished copy to everyone in the conversation,
+which is the leak the preview boundary exists to prevent. The canonical still
+points at the published URL so a leaked link cannot compete in search.
+
+### Sitemap
+
+Published and indexable only, deduplicated and sorted, with `/news/` listed
+above the posts — but only when there is at least one, because advertising an
+empty section of the site is worse than omitting it. An unpublished post is
+absent because it has no `PublicPost` to be listed: it cannot be forgotten.
+
+### Lane B gate
+
+Posts need a schema on Lane B's side before any of this can be mapped:
+
+- post identity, slug and publication state;
+- publication and modification timestamps as separate fields;
+- an excerpt distinct from the body, since the list needs one;
+- a category reference with a label;
+- a featured image reference resolvable to alt text and real dimensions;
+- per-post SEO title, description and an indexable flag — the same
+  `NOINDEX`-is-not-expressible finding as for pages applies here, and matters
+  more, because a post is far more likely to be published but deliberately
+  unlisted; and
+- the slug history, so a rename can become a 301 rather than a dead link.
+
+Until that exists, `validatePublicPost` has no sender and the routes stay
+unbuilt. That is the correct state: an empty news section is honest, and a fake
+one is not.
 
 ## Quotation form
 

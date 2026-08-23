@@ -1483,6 +1483,78 @@ Production is complete: real login, OWNER mapping, customer isolation and QR
 scanning still require the signed-in acceptance flow in section 5 of
 `docs/PRODUCTION_GO_LIVE.md`.
 
+## Lane A — Public CMS hardening run, 2026-08-23 (local only)
+
+Branch `lane-a/public-cms-hardening-20260823`, started from `main` at
+`74d88b4e5e7024d187712ae803417b743e9332a2` and pushed to `origin`. **Nothing was
+merged to `main` and nothing was deployed.** The CMS boundary still defaults to
+`STATIC`, `/login` redirect is still `INACTIVE`, and `APP_RUNTIME_PASS` is still
+`NOT_PROVEN`.
+
+### Four defects found in existing code, each fixed
+
+1. **Every quotation submission would have been rejected.** The frontend
+   contract emitted a request key in a format `parseQuotationForm` refuses, so
+   the enquiry would have failed as `error=invalid` — indistinguishable, to
+   whoever diagnosed it, from the customer mistyping their telephone number. The
+   contract also expected a JSON acknowledgement the endpoint does not send: it
+   answers with a 303 to `/quotation?submitted=QT-YYYY-NNNNNN`. Five fields were
+   unmodelled and three bounds were looser than the server's, which truncates
+   rather than rejecting, so the tail of what a customer typed was being lost.
+2. **A slow CMS would have shown a gateway error, not the static site.** The
+   loader was awaited with no deadline. An outage was already survivable — the
+   promise rejects and the static release serves — but a load that never settled
+   held the request open until something upstream gave up. The one failure the
+   fallback exists to prevent was the one it did not cover.
+3. **`/login/` had no skip link.** It renders the whole site navigation but is
+   built by a different function from the eleven marketing routes, and the
+   release verifier only ever looked at those eleven. A keyboard user had to tab
+   through every menu item to reach the content.
+4. **The sitemap was served with no `Cache-Control`.** `sitemap.xml` and
+   `robots.txt` matched neither rule in `.htaccess`, so a cache invented its own
+   freshness lifetime — and after a publish could keep advertising withdrawn
+   URLs for days.
+
+### Built, and inactive by design
+
+- **Posts / news** (`lib/public-cms/posts.ts`) — a complete consumer contract
+  with no sender. The routes are unbuilt because Lane B has no posts schema, and
+  an empty news section is honest where a fabricated one is not.
+- **One head model** for pages and posts — canonical, robots, hreflang, Open
+  Graph, Twitter, and a schema.org graph with a single Organization node.
+  A preview emits no social tags at all: `noindex` is read by crawlers, not by
+  LINE or email, which unfurl the link and would render unpublished copy to
+  everyone in the conversation.
+- **Gallery** (`lib/public-cms/gallery.ts`) — an item is public only when it is
+  both `PUBLISHED` and `PUBLIC` **and** every source still passes the media
+  rules. Two independent conditions, because one mistyped visibility column
+  must not be enough to put a customer's motorcycle on a marketing page.
+- **Site settings** — the only consumer with a *value* fallback: unusable
+  settings render the shipped chrome rather than an empty header, because chrome
+  that fails leaves the site with no way to get anywhere on every URL at once.
+- **CMS seed** (`scripts/build-cms-seed.mjs`) — the static release as a
+  reviewable import artefact in Lane B's canonical schema. Byte-identical
+  between runs, validated by Lane B's own parser, and round-tripped back through
+  the mapper so it cannot be valid input that renders nothing. Writes no
+  database.
+- **Swipe** on the gallery lightbox, and a gesture guard so a scroll attempt
+  never advances it.
+
+### Verification at `4d05660`
+
+`npm test` 621 passing (429 unit + 192 database) with every public, security,
+CMS, accessibility and seed gate; `npm run lint` clean; `tsc --noEmit` clean;
+production build PASS; all eight CI bash gates pass locally, including
+`LOGIN_REDIRECT_STATE_PASS state=INACTIVE`.
+
+### What is blocked
+
+`docs/LANE_A_CONTRACT_ASKS.md` lists it field by field: the posts schema, post
+publish events, a way to express `NOINDEX`, `publishedAt` on the page payload,
+the origin the quotation form must be served from, and the missing column for
+new/used. None of it can be worked around without inventing content or widening
+a validator, and neither is acceptable.
+
 ## Prohibited claims
 
 - Do not report the full application as Production-deployed.

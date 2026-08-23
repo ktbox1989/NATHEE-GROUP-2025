@@ -66,3 +66,95 @@ Before activating the dynamic Media Library:
 9. Hide and archive the test records, then verify audit history and rollback procedure.
 
 Rollback is forward-only for schema. Application rollback can stop using Gallery tables without deleting media or history. R2 originals must not be bulk-deleted as part of a UI rollback.
+
+## The public consumer contract
+
+`lib/public-cms/gallery.ts` is the receiving end: what the public site will
+render from this library, in what order, and what it does when one image is
+broken.
+
+### Two independent conditions, not one
+
+An item reaches the public gallery only when it is **both** `PUBLISHED` **and**
+`PUBLIC`, and only when every one of its sources still passes the public media
+rules — same-origin, under `/assets/`, no traversal, and none of the
+authenticated prefixes.
+
+That duplication is the point. This library holds customer motorcycle
+photographs, inspection findings, proof-of-delivery images and signatures
+alongside the marketing portfolio. Publishing one of those is not a typo, it is
+an incident, and a single mistyped visibility column should not be enough to
+cause it.
+
+`GALLERY_VISIBILITY_IS_PUBLIC` writes out every visibility and whether it may
+be shown, rather than testing `!== PUBLIC`. A visibility added later is then a
+decision someone has to make, instead of a value that silently defaults to
+visible — and a test asserts every visibility the library defines has an entry.
+An unrecognised value is refused.
+
+### Ordering
+
+Featured first, then the editor's order, then the id.
+
+The id tie-break is new and is not cosmetic. Two items given the same order
+number sort differently on each render without it, so "load more" shows one
+photograph twice and hides another. An item whose order is missing or not a
+number sorts last rather than first, because an unordered item appearing ahead
+of the Owner's chosen lead image is the more expensive mistake.
+
+### Filters
+
+Only categories that actually have a published photograph are offered: a filter
+leading to an empty grid is worse than no filter. Labels sort by the Thai
+alphabet.
+
+A link to a category the Owner has since emptied shows the **whole gallery**
+rather than a dead end — a stale link is a normal event and the full portfolio
+is a better answer than an empty page. An item with no category still gets a
+label, never an empty caption.
+
+### Failure
+
+One unrenderable photograph is dropped and reported in `skipped`; the rest of
+the gallery renders. An image with no alt text, no real dimensions, or no
+JPEG/PNG fallback is not rendered at all — a broken `<img>` on a sales page
+looks worse than one fewer picture.
+
+`hasMore` is measured against how many items **matched**, not against how many
+rendered, so a skipped item is not silently offered again by "load more".
+
+When nothing can be shown the view says which of the three reasons applies:
+nothing published, nothing in this category, or nothing in this category could
+be rendered. They need different answers from the page.
+
+### The lightbox
+
+Stated as data — `LIGHTBOX_KEYS`, the gesture rule, the focus contract — so the
+behaviour is testable without a browser and the static release cannot answer
+different keys from a future rendered version.
+
+- `Escape` closes, `ArrowLeft` and `ArrowRight` move.
+- Navigation **wraps**, so no arrow key is ever dead, including with one image.
+- Focus moves to the close button on open, `Tab` cycles within the dialog, and
+  focus returns to whatever opened it on close.
+- The position (`ภาพที่ 3 จาก 40`) is announced; a screen reader otherwise has
+  no way to know how far through a set it is.
+- The requested image loads **eagerly** at display size. The visitor asked for
+  this exact photograph, so lazily loading it shows them an empty dialog.
+
+### Swipe
+
+The static lightbox now answers a horizontal swipe: left for the next
+photograph, right for the previous. Most of this gallery is looked at on a
+phone, where arrow buttons are the least natural way through forty images.
+
+It is deliberately conservative. A drag shorter than 48px, or one that is more
+vertical than horizontal, is someone scrolling and does not move the gallery —
+a swipe handler that fires on a scroll attempt makes a page feel broken, which
+is worse than not having one. The listeners are passive, so they never block
+scrolling, and `touchcancel` resets the gesture. `scripts/test-responsive-layout.mjs`
+asserts both halves: that the handlers exist, and that both guards are still
+there.
+
+This changes `public-site/assets/site.js`, so it reaches visitors only through
+the guarded Z.com deployment — not through a content publish.
