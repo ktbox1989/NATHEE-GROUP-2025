@@ -20,6 +20,10 @@ for (const token of ["aria-expanded={open}", "aria-controls={menuId}", "Escape",
 for (const token of ["width={96}", "height={96}", "data-orientation={orientation}", "galleryImageVariants.role", "sizes="]) assert.ok(cmsPage.includes(token), `CMS image sizing contract missing: ${token}`);
 for (const token of ["width={item.width ?? 640}", "height={item.height ?? 480}", "loading=\"lazy\"", "sizes="]) assert.ok(lightbox.includes(token), `Gallery CLS/loading contract missing: ${token}`);
 for (const token of ["thumbnailAvif", "displayAvif", "source.sizes", "image.srcset", "image.fetchPriority"]) assert.ok(publicJs.includes(token), `Public responsive image contract missing: ${token}`);
+// Most of this gallery is looked at on a phone, where arrow buttons are the
+// least natural way through forty photographs — and where a swipe that fires
+// on a scroll attempt makes the page feel broken. Both halves are asserted.
+for (const token of ["touchstart", "touchend", "touchcancel", "changedTouches", "Math.abs(dx) < 48", "Math.abs(dx) <= Math.abs(dy)", "{ passive: true }"]) assert.ok(publicJs.includes(token), `Public gallery gesture contract missing: ${token}`);
 for (const token of ["hero-work-photo", "motorcycle-truck-loading-01-display.avif", "fetchpriority=\"high\"", "data-gallery-preview"]) assert.ok(publicHome.includes(token), `Hero responsive image contract missing: ${token}`);
 
 for (const path of ["app/app/companies/page.tsx", "app/app/jobs/page.tsx", "app/app/motorcycles/page.tsx", "app/app/yard/page.tsx", "app/app/audit/page.tsx"]) {
@@ -52,4 +56,4 @@ for (const item of manifest.items) {
   }
 }
 
-console.log(`RESPONSIVE_LAYOUT_VERIFY_PASS viewports=${viewports.join(",")} tables=5 imageVariants=${imageChecks}`);
+console.log(`RESPONSIVE_LAYOUT_VERIFY_PASS viewports=${viewports.join(",")} tables=5 imageVariants=${imageChecks} lightboxGestures=swipe+keyboard`);

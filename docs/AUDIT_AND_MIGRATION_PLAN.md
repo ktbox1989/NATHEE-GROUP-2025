@@ -199,3 +199,68 @@ The trip/motorcycle load slice is implemented locally through additive migration
 Container Load Manifest is implemented locally through migrations `0009`–`0010`. It validates ISO 6346 identity, enforces trip/container exclusivity, capacity, Seal and load/unload readiness, and retains Container/assignment/status history without hard delete.
 
 Inspection, damage, POD and per-motorcycle print/PDF records are implemented locally through migration `0011`. Database triggers require a passed receipt inspection before `INSPECTED` and an active same-motorcycle DELIVERY-evidence POD before `DELIVERED`. Bounded CSV/XLSX motorcycle staging, zero-error reconciliation and atomic confirmation are implemented locally through migration `0017`; operational QR identity backfill/guards are implemented in `0018`; real operational summaries plus bounded Audit keyset pagination are implemented through `0019`; immutable private evidence Display/Thumbnail metadata and upload idempotency are implemented through `0020`; private immutable recipient signatures for every new POD are implemented through `0021`; external provider notifications remain pending. These migrations remain unapplied in Production.
+
+## The seed artefact
+
+`node scripts/build-cms-seed.mjs` turns the live static release into a CMS seed
+in Lane B's canonical schema, and writes it to `docs/cms-seed.json` with
+`--write`.
+
+It reads `public-site/` and writes one file. It touches no database, contacts no
+network, and does not claim a migration happened. Importing the artefact is a
+separate, reviewed act on Lane B's side.
+
+### What it produces
+
+| | Count |
+| --- | --- |
+| Pages, as `CmsPageContent` | 10 |
+| Gallery items | 9 |
+| Gallery categories in use | 7 |
+| Site settings | 1 |
+| Posts | 0 |
+
+Ten pages rather than eleven: `/gallery/` is a media collection, not authored
+copy, and it seeds as the gallery rather than as a page. Seven categories rather
+than the manifest's ten, because only seven have a published photograph and a
+filter leading to an empty grid is worse than no filter.
+
+Posts is an empty list. Editorial content does not exist yet, and inventing a
+launch announcement would put words on the public site that nobody wrote.
+
+### Two gates, not one
+
+Every page is checked by **Lane B's own parser** — `parseCmsPageContent` is the
+authority on what the CMS would accept, so it is what the generator calls rather
+than a reimplementation of its rules here. Site settings go through
+`parseSiteSettings` for the same reason.
+
+Then the stronger claim: each seeded page is mapped **back** through
+`mapCmsPageToPublicPage` and re-validated against the consumer contract. Without
+that round trip the seed could be perfectly valid input that renders nothing.
+All ten pages round-trip today.
+
+### Determinism is a requirement
+
+The same tree produces byte-identical output. No timestamp, no randomness, no
+iteration over unordered structures, and the page keys are sorted.
+
+This is what makes the artefact reviewable. A seed that differed between runs
+could not be read as a diff — nobody could tell an intended content change from
+a generator artefact, and the review before an import would prove nothing.
+`scripts/test-cms-seed-negative.mjs` asserts it directly by generating twice and
+comparing bytes.
+
+### What it refuses
+
+`--check` runs in the suite and fails if the committed artefact no longer
+matches the static release, so the seed cannot quietly go stale while the site
+moves on. The negative gate breaks the release ten ways — a missing h1, a title
+or description too short for the CMS, a photograph with no alt text or no real
+dimensions, a photograph served from an authenticated path, an unknown manifest
+version, a stale artefact, a deleted one — and requires the generator to refuse
+each before anything is written.
+
+A photograph reference that does not correspond to a gallery item produces **no**
+reference rather than a made-up one: an import pointing at nothing would render
+a section with a missing image and no explanation of why.

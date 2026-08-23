@@ -49,3 +49,94 @@ Before exposing the online form:
 7. Create the Turnstile widget for the canonical hostname, set its site key and secret through the secure hosting channel, and verify `/api/health.checks.antiAbuse=true`. Keep the reviewed untrusted-file handling policy before advertising the form broadly. No provider credential or bypass is stored in this repository.
 
 Until every gate passes, deploy only the improved static sales pages. The static quotation page remains an honest telephone/LINE conversion path.
+
+## Frontend contract, reconciled against the live endpoint
+
+`lib/public-forms/quotation-contract.ts` is the consumer side: what the browser
+sends, what it accepts back, and when it may tell a customer the enquiry was
+received. It was reconciled field by field against `app/api/quotation/route.ts`
+and `lib/quotation.ts` at `main` `74d88b4`.
+
+The earlier version described a plausible JSON API that the server does not
+implement. Four differences were real, and each would have been a live defect
+the day the form was switched on.
+
+### Finding 1 — the request key was rejected before reaching D1
+
+`parseQuotationForm` requires `quote-<uuid v4>` and slices the `quote-` prefix
+off to use as the Turnstile idempotency key, so the prefix is load-bearing.
+The frontend emitted 32 bare hexadecimal characters, which fails that pattern.
+
+Every submission would have been refused as `error=invalid` — and refused in
+the way that is hardest to diagnose, because it is indistinguishable from the
+customer having filled the form in wrongly. Fixed: `createRequestKey` emits the
+server's format, `isWireRequestKey` states the rule, and
+`buildQuotationFormData` throws on a malformed key rather than letting it reach
+the network.
+
+### Finding 2 — success is a 303 redirect, not a JSON acknowledgement
+
+The endpoint answers a stored enquiry with `303` to
+`/quotation?submitted=QT-YYYY-NNNNNN`, and a failure with
+`/quotation?error=<code>`. There is no acknowledgement object and no echoed
+request key, so the frontend cannot match a key to prove the answer is its own.
+
+The binding is the response chain instead: this is the answer to this POST. A
+`?submitted=` value read off the address bar is attacker-supplied and proves
+nothing, so `reduceSubmission` takes the URL the submission's own response
+resolved to. Success additionally requires the reference to be a real business
+number (`QT-\d{4}-\d{6}`); a bare 200, an HTML page, a redirect with no
+parameter, or a rewritten value are all failures.
+
+All ten server failure codes — `invalid`, `consent`, `bot`, `challenge`,
+`file_count`, `file_size`, `file_type`, `file_name`, `save`, `cleanup` — are
+answered explicitly, and a code the frontend has never seen is treated as a
+generic retryable failure rather than mistaken for anything else.
+
+### Finding 3 — the field set and its bounds were both wrong
+
+The server accepts `companyName`, `lineId`, `vehicleType`, `desiredDate` and
+repeated `extras` entries; none were modelled. It also expects the honeypot
+field `website` to be present and empty, and `privacyConsent` to be the literal
+string `yes`.
+
+The bounds were wrong in both directions, and each direction costs something:
+
+| Field | Server | Was | Consequence |
+| --- | --- | --- | --- |
+| `origin` / `destination` | 180 | 200 | the tail is `slice()`d off in silence |
+| `notes` | 1500 | 2000 | the end of the customer's message never arrives |
+| `quantity` | 10,000 | 500 | a dealer moving a full shipment is refused |
+
+The server truncates rather than rejecting, so a looser client bound is data
+loss with no error anywhere. Every bound now mirrors the server's, and the
+tests assert the vehicle-type and extras lists are literally the server's
+exported constants so they cannot drift apart.
+
+### Finding 4 — new/used is not expressible
+
+There is no column for vehicle condition in `quote_requests` and no field for
+it in `parseQuotationForm`; an unknown form field is discarded without comment.
+The form therefore does not ask, because a question whose answer is thrown away
+is worse than an absent one. `UNMAPPABLE_QUOTATION_FIELDS` records the omission
+as a tested decision, and a test asserts the field is never sent.
+
+**Lane B gate:** collecting new/used needs a column and a parser field on the
+server side. Until then the customer can state it in `notes`.
+
+### Origin note
+
+`POST /api/quotation` calls `isSameOrigin` first and answers a cross-origin
+request with a bare `403` before parsing anything. The form must therefore be
+served from the application origin; a form on the public apex posting across to
+`app.natheegroup2025.com` would fail every time.
+`QUOTATION_ENDPOINT_REQUIRES_APP_ORIGIN` states this where the form gets wired
+up, because it is a deployment decision rather than a form detail.
+
+### Attachments
+
+`validateQuotationAttachments` mirrors the server's count, per-file, combined
+and extension limits — including CSV and XLSX, so a dealer can attach a vehicle
+list rather than retyping it. It is a courtesy to the person choosing the files:
+the server re-checks all of it and additionally reads each file signature, which
+a browser cannot be trusted to do.
