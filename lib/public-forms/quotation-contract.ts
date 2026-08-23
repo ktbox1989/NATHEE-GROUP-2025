@@ -479,3 +479,178 @@ export function shouldOfferTelephoneFallback(state: SubmissionState): boolean {
  * the file someone reads when wiring the form up.
  */
 export const QUOTATION_ENDPOINT_REQUIRES_APP_ORIGIN = true;
+
+// --- what the person filling the form actually sees ---------------------------
+
+/**
+ * How an attachment is described back to the customer before they submit.
+ *
+ * `validateQuotationAttachments` answers "is this set acceptable", which is the
+ * right question for the submit button and the wrong one for the file list: a
+ * customer who attached five photographs and one 30 MB video is told the set is
+ * too large and left to work out which file to remove. Every problem here is
+ * therefore attributed to the file that caused it.
+ */
+export type AttachmentKind = "IMAGE" | "PDF" | "SPREADSHEET" | "OTHER";
+
+export type AttachmentPreview = {
+  name: string;
+  byteSize: number;
+  sizeLabel: string;
+  kind: AttachmentKind;
+  /** Only an image can be shown as a thumbnail; the rest get a name and an icon. */
+  previewable: boolean;
+  /** The problem with this file, or null. */
+  error: string | null;
+};
+
+const IMAGE_EXTENSIONS = ["jpg", "jpeg", "png", "webp", "avif", "heic", "heif"];
+
+export function attachmentKindOf(filename: string): AttachmentKind {
+  const extension = extensionOf(filename);
+  if (IMAGE_EXTENSIONS.includes(extension)) return "IMAGE";
+  if (extension === "pdf") return "PDF";
+  if (extension === "csv" || extension === "xlsx") return "SPREADSHEET";
+  return "OTHER";
+}
+
+/** Bytes as a person reads them. Thai and English both use these units. */
+export function formatByteSize(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes < 0) return "0 KB";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+export type AttachmentSummary = {
+  previews: AttachmentPreview[];
+  totalBytes: number;
+  totalLabel: string;
+  /** Problems with the set rather than with one file. */
+  setErrors: string[];
+  /** True when every file is acceptable and the set is within its limits. */
+  acceptable: boolean;
+};
+
+/**
+ * Describes the chosen files for the list beside the form.
+ *
+ * HEIC is worth a note: iPhones produce it by default, the server accepts it,
+ * and no browser will render a thumbnail of one. Marking it un-previewable
+ * rather than rendering a broken image is the difference between "my photo did
+ * not attach" and "my photo attached and has no preview".
+ */
+export function describeAttachments(
+  files: ReadonlyArray<{ name: string; size: number }>,
+): AttachmentSummary {
+  const previews: AttachmentPreview[] = files.map((file) => {
+    const kind = attachmentKindOf(file.name);
+    const extension = extensionOf(file.name);
+    let error: string | null = null;
+
+    if (!QUOTATION_ATTACHMENT_LIMITS.extensions.includes(extension)) {
+      error = "รองรับเฉพาะรูปภาพ PDF CSV และ XLSX";
+    } else if (file.size > QUOTATION_ATTACHMENT_LIMITS.maxBytesEach) {
+      error = `ไฟล์นี้ ${formatByteSize(file.size)} เกิน 8 MB`;
+    } else if (file.size === 0) {
+      // A zero-byte file is silently dropped by the server's filter, so the
+      // customer would believe they attached something that never arrived.
+      error = "ไฟล์นี้ว่างเปล่า";
+    }
+
+    return {
+      name: file.name,
+      byteSize: file.size,
+      sizeLabel: formatByteSize(file.size),
+      kind,
+      // HEIC and HEIF are accepted by the server and rendered by no browser.
+      previewable: kind === "IMAGE" && !["heic", "heif"].includes(extension),
+      error,
+    };
+  });
+
+  const totalBytes = files.reduce((total, file) => total + file.size, 0);
+  const setErrors: string[] = [];
+  if (files.length > QUOTATION_ATTACHMENT_LIMITS.maxCount) {
+    setErrors.push(`แนบไฟล์ได้สูงสุด ${QUOTATION_ATTACHMENT_LIMITS.maxCount} ไฟล์`);
+  }
+  if (totalBytes > QUOTATION_ATTACHMENT_LIMITS.maxBytesTotal) {
+    setErrors.push(`ไฟล์แนบรวม ${formatByteSize(totalBytes)} เกิน 20 MB`);
+  }
+  // The server refuses two identical files, so saying so here saves a
+  // submission that would be rejected for a reason nobody would guess.
+  const names = files.map((file) => file.name.toLowerCase());
+  if (new Set(names).size !== names.length) setErrors.push("มีไฟล์ชื่อซ้ำกัน");
+
+  return {
+    previews,
+    totalBytes,
+    totalLabel: formatByteSize(totalBytes),
+    setErrors,
+    acceptable: setErrors.length === 0 && previews.every((preview) => preview.error === null),
+  };
+}
+
+// --- submitting once, and only once -------------------------------------------
+
+/**
+ * Whether the submit button may do anything.
+ *
+ * False while a submission is in flight and false after one has succeeded. A
+ * double tap on a phone is not a rare event, and every extra submission with a
+ * fresh key would be a second enquiry in the Owner's inbox for one customer.
+ * The request key protects the database; this protects the person.
+ */
+export function canSubmit(state: SubmissionState): boolean {
+  return state.status !== "SUBMITTING" && state.status !== "SUCCESS";
+}
+
+/**
+ * Whether a failed submission may be retried, and with which key.
+ *
+ * A retry reuses the original key so the server recognises it and returns the
+ * request number it already stored, rather than creating a second enquiry. A
+ * validation failure is not retryable as-is: the form has to change first.
+ */
+export function retryPlan(state: SubmissionState): { retryable: boolean; requestKey: string | null } {
+  if (state.status !== "ERROR") return { retryable: false, requestKey: null };
+  return { retryable: state.retryable, requestKey: state.retryable ? state.requestKey : null };
+}
+
+export type SubmissionProgress = {
+  /** 0–100, or null when the total is not yet known. */
+  percent: number | null;
+  label: string;
+  /** True while the browser is still sending bytes. */
+  busy: boolean;
+};
+
+/**
+ * What the form says while it is working.
+ *
+ * A quotation with 20 MB of photographs attached takes long enough on a mobile
+ * connection that a spinner with no number reads as a hang, and the customer
+ * submits again. Reporting real progress is what stops that.
+ */
+export function describeProgress(
+  state: SubmissionState,
+  uploaded = 0,
+  total = 0,
+): SubmissionProgress {
+  if (state.status !== "SUBMITTING") {
+    if (state.status === "SUCCESS") return { percent: 100, label: "ส่งคำขอเรียบร้อย", busy: false };
+    return { percent: null, label: "", busy: false };
+  }
+  if (!Number.isFinite(total) || total <= 0) {
+    return { percent: null, label: "กำลังส่งคำขอ…", busy: true };
+  }
+  const percent = Math.max(0, Math.min(100, Math.round((uploaded / total) * 100)));
+  // 100% before the server has answered is a lie the customer will notice, so
+  // the bar stops just short until the acknowledgement arrives.
+  const shown = percent >= 100 ? 99 : percent;
+  return {
+    percent: shown,
+    label: shown >= 99 ? "กำลังรอการยืนยันจากระบบ…" : `กำลังอัปโหลด ${shown}%`,
+    busy: true,
+  };
+}

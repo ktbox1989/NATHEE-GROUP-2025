@@ -222,6 +222,8 @@ export type PostListResult =
       pageCount: number;
       total: number;
       category: string | null;
+      /** Set only when the list is legitimately empty; never on a refusal. */
+      emptyState: ListEmptyState | null;
     }
   // A page or category that does not exist must 404 rather than render an
   // empty list at 200: a soft 404 keeps the URL indexed and tells a visitor
@@ -265,13 +267,17 @@ export function buildPostList(posts: ReadonlyArray<PublicPost>, query: PostListQ
   if (page > pageCount) return { ok: false, reason: `page ${page} is past the end` };
 
   const ordered = [...matching].sort(comparePostsForList);
+  const items = ordered.slice((page - 1) * pageSize, page * pageSize);
   return {
     ok: true,
-    items: ordered.slice((page - 1) * pageSize, page * pageSize),
+    items,
     page,
     pageCount,
     total,
     category,
+    // The only way to reach here with nothing is an empty site: a category with
+    // no posts and a page past the end are both refusals above.
+    emptyState: items.length === 0 ? POSTS_EMPTY_STATE : null,
   };
 }
 
@@ -374,4 +380,52 @@ export function buildPostSitemapUrls(
   if (options.includeIndex !== false && urls.length > 0) urls.push(absolutePostUrl(POSTS_INDEX_PATH));
 
   return [...new Set(urls)].sort();
+}
+
+// --- what the reader sees when there is nothing, or when they finish reading --
+
+/**
+ * What a surface says when it has nothing to show.
+ *
+ * Rendered rather than left blank, and rendered differently depending on why:
+ * "there are no posts yet" and "there are none in this category" are different
+ * facts, and telling a visitor the wrong one makes the site look broken. Each
+ * carries a way out, because a dead end with an apology on it is still a dead
+ * end.
+ */
+export type ListEmptyState = {
+  heading: string;
+  body: string;
+  action: { label: string; href: string } | null;
+};
+
+export const POSTS_EMPTY_STATE: Readonly<ListEmptyState> = Object.freeze({
+  heading: "ยังไม่มีข่าวสารเผยแพร่",
+  body: "เมื่อมีประกาศหรือความคืบหน้าใหม่ จะแสดงที่หน้านี้",
+  action: Object.freeze({ label: "ดูบริการทั้งหมด", href: "/services/" }),
+});
+
+/**
+ * Posts worth reading next.
+ *
+ * Same category first because that is the strongest signal of relevance, then
+ * filled from the newest remaining posts rather than left short — a "related"
+ * strip with one item in it looks like a defect. The current post is always
+ * excluded, and the order is deterministic so the strip does not reshuffle
+ * between requests on the same article.
+ */
+export function buildRelatedPosts(
+  current: PublicPost,
+  all: ReadonlyArray<PublicPost>,
+  limit = 3,
+): PublicPost[] {
+  if (!Number.isInteger(limit) || limit < 1) return [];
+
+  const candidates = all.filter((post) => post.slug !== current.slug);
+  const sameCategory = current.category
+    ? candidates.filter((post) => post.category?.id === current.category?.id)
+    : [];
+  const others = candidates.filter((post) => !sameCategory.includes(post));
+
+  return [...sameCategory.sort(comparePostsForList), ...others.sort(comparePostsForList)].slice(0, limit);
 }

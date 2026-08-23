@@ -7,7 +7,13 @@ import {
   QUOTATION_VEHICLE_TYPES,
   UNMAPPABLE_QUOTATION_FIELDS,
   VERIFIED_CONTACT_NUMBERS,
+  attachmentKindOf,
   buildQuotationFormData,
+  canSubmit,
+  describeAttachments,
+  describeProgress,
+  formatByteSize,
+  retryPlan,
   createRequestKey,
   isQuotationReference,
   isWireRequestKey,
@@ -364,4 +370,137 @@ test("the verified telephone numbers stay available when the form cannot be used
   assert.equal(shouldOfferTelephoneFallback({ status: "IDLE" }), true);
   assert.equal(shouldOfferTelephoneFallback({ status: "ERROR", message: "x", requestKey: "k", retryable: true }), true);
   assert.equal(shouldOfferTelephoneFallback({ status: "SUCCESS", reference: "QT-2026-000001", requestKey: "k" }), false);
+});
+
+// --- what the person filling the form sees -----------------------------------
+
+test("a problem is attributed to the file that caused it", () => {
+  // Telling a customer with five files that "the set is too large" leaves them
+  // to work out which one to remove.
+  const summary = describeAttachments([
+    { name: "bike.jpg", size: 1024 },
+    { name: "huge.png", size: 9 * 1024 * 1024 },
+    { name: "list.xlsx", size: 2048 },
+  ]);
+  assert.equal(summary.previews[0].error, null);
+  assert.match(summary.previews[1].error ?? "", /8 MB/);
+  assert.equal(summary.previews[2].error, null);
+  assert.equal(summary.acceptable, false);
+});
+
+test("an empty file is reported rather than silently dropped", () => {
+  // The server filters zero-byte files out, so the customer would believe they
+  // attached something that never arrived.
+  const summary = describeAttachments([{ name: "bike.jpg", size: 0 }]);
+  assert.match(summary.previews[0].error ?? "", /ว่างเปล่า/);
+  assert.equal(summary.acceptable, false);
+});
+
+test("an unsupported type is named on the file, not on the set", () => {
+  const summary = describeAttachments([{ name: "video.mov", size: 1024 }]);
+  assert.ok(summary.previews[0].error);
+  assert.deepEqual(summary.setErrors, []);
+});
+
+test("problems with the set are reported separately from problems with a file", () => {
+  const many = Array.from({ length: 6 }, (_, index) => ({ name: `a${index}.jpg`, size: 1024 }));
+  const summary = describeAttachments(many);
+  assert.equal(summary.previews.every((preview) => preview.error === null), true);
+  assert.ok(summary.setErrors.some((error) => /5 ไฟล์/.test(error)));
+
+  const heavy = Array.from({ length: 4 }, (_, index) => ({ name: `b${index}.jpg`, size: 6 * 1024 * 1024 }));
+  assert.ok(describeAttachments(heavy).setErrors.some((error) => /20 MB/.test(error)));
+});
+
+test("two files with the same name are caught here rather than by the server", () => {
+  // The server refuses identical files for a reason nobody would guess from
+  // the error it returns.
+  const summary = describeAttachments([{ name: "bike.jpg", size: 10 }, { name: "BIKE.JPG", size: 10 }]);
+  assert.ok(summary.setErrors.some((error) => /ซ้ำ/.test(error)));
+});
+
+test("an iPhone photograph attaches but cannot be previewed", () => {
+  // HEIC is what an iPhone produces by default, the server accepts it, and no
+  // browser will render a thumbnail. Marking it un-previewable is the
+  // difference between "my photo did not attach" and "it has no preview".
+  const summary = describeAttachments([{ name: "IMG_0001.HEIC", size: 2048 }]);
+  assert.equal(summary.previews[0].kind, "IMAGE");
+  assert.equal(summary.previews[0].previewable, false);
+  assert.equal(summary.previews[0].error, null);
+  assert.equal(summary.acceptable, true);
+
+  assert.equal(describeAttachments([{ name: "a.jpg", size: 1 }]).previews[0].previewable, true);
+});
+
+test("each attachment is described by kind, so the list can show the right icon", () => {
+  assert.equal(attachmentKindOf("a.jpg"), "IMAGE");
+  assert.equal(attachmentKindOf("a.pdf"), "PDF");
+  assert.equal(attachmentKindOf("list.csv"), "SPREADSHEET");
+  assert.equal(attachmentKindOf("list.xlsx"), "SPREADSHEET");
+  assert.equal(attachmentKindOf("notes.txt"), "OTHER");
+});
+
+test("sizes are shown the way a person reads them", () => {
+  assert.equal(formatByteSize(512), "512 B");
+  assert.equal(formatByteSize(2048), "2 KB");
+  assert.equal(formatByteSize(3 * 1024 * 1024), "3.0 MB");
+  assert.equal(formatByteSize(-1), "0 KB");
+});
+
+// --- submitting once ----------------------------------------------------------
+
+test("the submit button is dead while a submission is in flight or has succeeded", () => {
+  // A double tap on a phone is not a rare event, and a second submission with
+  // a fresh key would be a second enquiry in the Owner's inbox.
+  const key = createRequestKey();
+  assert.equal(canSubmit({ status: "IDLE" }), true);
+  assert.equal(canSubmit({ status: "INVALID", errors: [] }), true);
+  assert.equal(canSubmit({ status: "SUBMITTING", requestKey: key }), false);
+  assert.equal(canSubmit({ status: "SUCCESS", reference: "QT-2026-000001", requestKey: key }), false);
+  assert.equal(canSubmit({ status: "ERROR", message: "x", requestKey: key, retryable: true }), true);
+});
+
+test("a retry reuses the original key so it cannot create a second enquiry", () => {
+  const key = createRequestKey();
+  const retryable = retryPlan({ status: "ERROR", message: "x", requestKey: key, retryable: true });
+  assert.deepEqual(retryable, { retryable: true, requestKey: key });
+
+  // A validation failure is not retryable as-is; the form has to change first.
+  const rejected = retryPlan({ status: "ERROR", message: "x", requestKey: key, retryable: false });
+  assert.deepEqual(rejected, { retryable: false, requestKey: null });
+  assert.deepEqual(retryPlan({ status: "IDLE" }), { retryable: false, requestKey: null });
+  assert.deepEqual(retryPlan({ status: "SUCCESS", reference: "QT-2026-000001", requestKey: key }), {
+    retryable: false,
+    requestKey: null,
+  });
+});
+
+test("progress is reported with a number, because a bare spinner reads as a hang", () => {
+  const key = createRequestKey();
+  const submitting = { status: "SUBMITTING" as const, requestKey: key };
+  assert.deepEqual(describeProgress(submitting, 0, 0), { percent: null, label: "กำลังส่งคำขอ…", busy: true });
+  assert.equal(describeProgress(submitting, 5, 10).percent, 50);
+  assert.match(describeProgress(submitting, 5, 10).label, /50%/);
+});
+
+test("the bar stops short of complete until the server has actually answered", () => {
+  // 100% before the acknowledgement is a lie the customer will notice, and the
+  // upload finishing is not the same as the enquiry being stored.
+  const key = createRequestKey();
+  const submitting = { status: "SUBMITTING" as const, requestKey: key };
+  const finished = describeProgress(submitting, 10, 10);
+  assert.equal(finished.percent, 99);
+  assert.match(finished.label, /รอการยืนยัน/);
+  assert.equal(finished.busy, true);
+
+  const done = describeProgress({ status: "SUCCESS", reference: "QT-2026-000001", requestKey: key });
+  assert.equal(done.percent, 100);
+  assert.equal(done.busy, false);
+});
+
+test("an idle or failed form reports no progress at all", () => {
+  assert.equal(describeProgress({ status: "IDLE" }).busy, false);
+  assert.equal(describeProgress({ status: "IDLE" }).percent, null);
+  const key = createRequestKey();
+  assert.equal(describeProgress({ status: "ERROR", message: "x", requestKey: key, retryable: true }).busy, false);
 });

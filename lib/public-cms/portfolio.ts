@@ -31,6 +31,7 @@ import {
   type ValidationResult,
 } from "./contract.ts";
 import { isRenderableHref, validateBlocks, type BlockAction, type PublicBlock } from "./blocks.ts";
+import type { ListEmptyState } from "./posts.ts";
 
 export const WORK_INDEX_PATH = "/work/";
 export const WORK_PAGE_SIZE = 12;
@@ -308,6 +309,8 @@ export type WorkListResult =
       total: number;
       category: string | null;
       filters: Array<{ id: string; count: number; active: boolean }>;
+      /** Set only when the portfolio is legitimately empty, never on refusal. */
+      emptyState: ListEmptyState | null;
     }
   | { ok: false; reason: string };
 
@@ -346,16 +349,31 @@ export function buildWorkList(
   }));
 
   const ordered = [...matching].sort(compareWorkItems);
+  const paged = ordered.slice((page - 1) * pageSize, page * pageSize);
   return {
     ok: true,
-    items: ordered.slice((page - 1) * pageSize, page * pageSize),
+    items: paged,
     page,
     pageCount,
     total,
     category,
     filters,
+    emptyState: paged.length === 0 ? WORK_EMPTY_STATE : null,
   };
 }
+
+/**
+ * Shown when no work has been published yet.
+ *
+ * It points at the gallery rather than apologising, because the photographs
+ * exist and are the thing a visitor came to see — an empty portfolio with a way
+ * through to real work is not a dead end.
+ */
+export const WORK_EMPTY_STATE: Readonly<ListEmptyState> = Object.freeze({
+  heading: "ยังไม่มีผลงานเผยแพร่",
+  body: "ดูภาพงานจริงที่ Owner อนุมัติแล้วได้ที่หน้าผลงานและ Gallery",
+  action: Object.freeze({ label: "ดูภาพผลงาน", href: "/gallery/" }),
+});
 
 // --- availability and the sitemap ---------------------------------------------
 
