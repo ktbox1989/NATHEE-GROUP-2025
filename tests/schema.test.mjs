@@ -92,6 +92,8 @@ test("fresh migrations create every phase-one table", () => {
     "user_role_assignments",
     "users",
     "yard_placements",
+    "yard_rows",
+    "yard_slots",
     "yard_zones",
   ]);
   db.close();

@@ -102,7 +102,7 @@ export default async function YardPage({ searchParams }: YardPageProps) {
             <p>{zone.description || "ไม่มีรายละเอียด"}</p>
             <strong>{zone.occupied}<small> / {zone.capacity ?? "ไม่จำกัด"} คัน</small></strong>
             {full && <em>พื้นที่เต็ม</em>}
-            {canWrite && <div className="yard-zone-actions"><Link href={`/app/yard/${zone.id}/label`}>พิมพ์ QR โซน</Link><form className="yard-zone-status-form" action={`/api/yard/zones/${zone.id}/status`} method="post"><input type="hidden" name="status" value={zone.status === "ACTIVE" ? "INACTIVE" : "ACTIVE"} /><button type="submit">{zone.status === "ACTIVE" ? "ปิดใช้งาน" : "เปิดใช้งาน"}</button></form></div>}
+            {canWrite && <div className="yard-zone-actions"><Link href={`/app/yard/${zone.id}`}>ผังแถว/ช่องจอด</Link><Link href={`/app/yard/${zone.id}/label`}>พิมพ์ QR โซน</Link><form className="yard-zone-status-form" action={`/api/yard/zones/${zone.id}/status`} method="post"><input type="hidden" name="status" value={zone.status === "ACTIVE" ? "INACTIVE" : "ACTIVE"} /><button type="submit">{zone.status === "ACTIVE" ? "ปิดใช้งาน" : "เปิดใช้งาน"}</button></form></div>}
           </article>;
         })}
         {!zoneRows.length && <div className="app-panel app-empty yard-empty"><div>🅿️</div><h2>ยังไม่มีโซนลาน</h2><p>สร้างโซนจริงก่อนบันทึกตำแหน่งรถ</p></div>}

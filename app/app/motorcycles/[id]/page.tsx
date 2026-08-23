@@ -27,6 +27,7 @@ import {
   INSPECTION_RESULTS,
   INSPECTION_TYPES,
 } from "@/db/schema";
+import { getMotorcycleLocation, listFreeSlots } from "@/lib/yard-location";
 import { can, isCustomerRole, isInternalRole } from "@/lib/authorization";
 import { requireActor } from "@/lib/current-actor";
 import { inspectionTypeAllowedForStatus, maskPhone } from "@/lib/inspections";
@@ -109,6 +110,7 @@ export default async function MotorcycleDetailPage({ params, searchParams }: Mot
           .select({
             placementId: yardPlacements.id,
             yardZoneId: yardPlacements.yardZoneId,
+            yardSlotId: yardPlacements.yardSlotId,
             zoneCode: yardZones.code,
             zoneName: yardZones.name,
             enteredAt: yardPlacements.enteredAt,
@@ -223,6 +225,9 @@ export default async function MotorcycleDetailPage({ params, searchParams }: Mot
           .all()
       : Promise.resolve([]),
   ]);
+
+  // The exact bay, and the bays that are free to move into.
+  const [yardLocation, freeSlots] = await Promise.all([getMotorcycleLocation(id), listFreeSlots()]);
   const canUpdateStatus = can(actor, "status:write", record.companyId);
   const canUpload = can(actor, "images:write", record.companyId);
   const canPrintLabel = can(actor, "motorcycles:write", record.companyId);
@@ -313,7 +318,7 @@ export default async function MotorcycleDetailPage({ params, searchParams }: Mot
           <div className="record-detail-grid">
             <article className="app-panel yard-current-card">
               <span>ตำแหน่งปัจจุบัน</span>
-              {currentYard ? <><h3>{currentYard.zoneCode} · {currentYard.zoneName}</h3><p>เข้าพื้นที่ {formatThaiDateTime(currentYard.enteredAt)}</p><small>{currentYard.note || "ไม่มีหมายเหตุ"}</small></> : <><h3>อยู่นอกลาน</h3><p>ยังไม่มีตำแหน่งลานที่ active</p></>}
+              {currentYard ? <><h3>{yardLocation?.label ?? `${currentYard.zoneCode} · ${currentYard.zoneName}`}</h3><p>เข้าพื้นที่ {formatThaiDateTime(currentYard.enteredAt)}{yardLocation && !yardLocation.exact ? " · ยังไม่ได้ระบุช่องจอด" : ""}</p><small>{currentYard.note || "ไม่มีหมายเหตุ"}</small></> : <><h3>อยู่นอกลาน</h3><p>ยังไม่มีตำแหน่งลานที่ active</p></>}
             </article>
             {canUpdateYard && (
               <div className="yard-action-stack">
@@ -323,6 +328,7 @@ export default async function MotorcycleDetailPage({ params, searchParams }: Mot
                     <input type="hidden" name="expectedPlacementId" value={currentYard?.placementId ?? "none"} />
                     <input type="hidden" name="requestKey" value={crypto.randomUUID()} />
                     <div className="field"><label htmlFor="destinationZoneId">โซนปลายทาง</label><select id="destinationZoneId" name="destinationZoneId" required><option value="">เลือกโซน</option>{activeZones.filter((zone) => zone.id !== currentYard?.yardZoneId).map((zone) => <option key={zone.id} value={zone.id}>{zone.code} · {zone.name}</option>)}</select></div>
+                    {freeSlots.length > 0 && <div className="field"><label htmlFor="destinationSlotId">ช่องจอดที่แน่นอน</label><select id="destinationSlotId" name="destinationSlotId"><option value="">ระบุเฉพาะโซน (เฉพาะโซนที่ยังไม่แบ่งช่อง)</option>{freeSlots.map((slot) => <option key={slot.slotId} value={slot.slotId}>{slot.label}</option>)}</select><small>โซนที่แบ่งช่องแล้วต้องเลือกช่อง ระบบจะปฏิเสธถ้าระบุแค่โซน</small></div>}
                     <div className="field"><label htmlFor="yardNote">หมายเหตุ</label><textarea id="yardNote" name="note" rows={2} maxLength={500} /></div>
                     <button className="button button-gradient" type="submit">บันทึกตำแหน่ง</button>
                   </form>

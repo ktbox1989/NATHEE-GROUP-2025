@@ -204,6 +204,13 @@
       "when": 1787497168858,
       "tag": "0028_trip_resource_conflicts",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "6",
+      "when": 1787497917584,
+      "tag": "0029_yard_rows_and_slots",
+      "breakpoints": true
     }
   ]
 }

@@ -1,12 +1,18 @@
 import { and, eq, isNull } from "drizzle-orm";
 import { NextResponse, type NextRequest } from "next/server";
 import { getD1, getDb } from "@/db";
-import { motorcycles, yardPlacements, yardZones } from "@/db/schema";
+import { motorcycles, yardPlacements, yardRows, yardSlots, yardZones } from "@/db/schema";
 import { can } from "@/lib/authorization";
 import { getCurrentActor } from "@/lib/current-actor";
 import { isSameOrigin } from "@/lib/same-origin";
 import { isYardPlacementAllowed, isYardRequestKey, YARD_EXIT_VALUE } from "@/lib/yard";
-import { CLOSE_ACTIVE_YARD_PLACEMENT_FOR_MOVE_SQL, EXIT_ACTIVE_YARD_PLACEMENT_SQL, insertYardPlacementSql } from "@/lib/yard-sql";
+import {
+  CLOSE_ACTIVE_YARD_PLACEMENT_FOR_MOVE_SQL,
+  CLOSE_ACTIVE_YARD_PLACEMENT_FOR_SLOT_MOVE_SQL,
+  EXIT_ACTIVE_YARD_PLACEMENT_SQL,
+  insertYardPlacementSql,
+  insertYardSlotPlacementSql,
+} from "@/lib/yard-sql";
 import { eventTimestamp, recordTimestamp } from "@/lib/timestamps";
 
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
@@ -27,6 +33,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
 
   const form = await request.formData();
   const destinationZoneId = String(form.get("destinationZoneId") ?? "");
+  const destinationSlotId = String(form.get("destinationSlotId") ?? "");
   const expectedPlacementId = String(form.get("expectedPlacementId") ?? "");
   const requestKey = String(form.get("requestKey") ?? "");
   const note = String(form.get("note") ?? "").trim().slice(0, 500) || null;
@@ -35,7 +42,12 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   }
 
   const current = await db
-    .select({ id: yardPlacements.id, yardZoneId: yardPlacements.yardZoneId })
+    .select({
+      id: yardPlacements.id,
+      yardZoneId: yardPlacements.yardZoneId,
+      yardRowId: yardPlacements.yardRowId,
+      yardSlotId: yardPlacements.yardSlotId,
+    })
     .from(yardPlacements)
     .where(and(eq(yardPlacements.motorcycleId, id), isNull(yardPlacements.exitedAt)))
     .get();
@@ -63,8 +75,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         `).bind(
           auditId,
           actor.userId,
-          JSON.stringify({ yardZoneId: current.yardZoneId }),
-          JSON.stringify({ yardZoneId: null }),
+          JSON.stringify({ yardZoneId: current.yardZoneId, yardRowId: current.yardRowId, yardSlotId: current.yardSlotId }),
+          JSON.stringify({ yardZoneId: null, yardRowId: null, yardSlotId: null }),
           note,
           recordedAt,
           current.id,
@@ -73,6 +85,90 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       ]);
       if ((results[0].meta.changes ?? 0) !== 1 || (results[1].meta.changes ?? 0) !== 1) {
         return redirectTo(id, "stale_yard", request.url);
+      }
+    } catch {
+      return redirectTo(id, "save_yard", request.url);
+    }
+    return NextResponse.redirect(new URL(`/app/motorcycles/${id}?status=yard_updated`, request.url), 303);
+  }
+
+  // An exact slot decides its own zone and row, so a caller cannot name a slot
+  // in one zone and a zone in another. Everything below reads the destination
+  // from the slot alone.
+  if (destinationSlotId) {
+    if (!isYardPlacementAllowed(motorcycle.currentStatus) || current?.yardSlotId === destinationSlotId) {
+      return redirectTo(id, "invalid_yard", request.url);
+    }
+    const slot = await db
+      .select({ slotId: yardSlots.id, rowId: yardRows.id, zoneId: yardRows.yardZoneId })
+      .from(yardSlots)
+      .innerJoin(yardRows, eq(yardRows.id, yardSlots.yardRowId))
+      .innerJoin(yardZones, eq(yardZones.id, yardRows.yardZoneId))
+      .where(
+        and(
+          eq(yardSlots.id, destinationSlotId),
+          eq(yardSlots.status, "ACTIVE"),
+          eq(yardRows.status, "ACTIVE"),
+          eq(yardZones.status, "ACTIVE"),
+        ),
+      )
+      .get();
+    if (!slot) return redirectTo(id, "invalid_yard", request.url);
+
+    const placementId = crypto.randomUUID();
+    const auditId = crypto.randomUUID();
+    try {
+      const statements = [];
+      if (current) {
+        statements.push(
+          d1.prepare(CLOSE_ACTIVE_YARD_PLACEMENT_FOR_SLOT_MOVE_SQL).bind(occurredAt, current.id, id, destinationSlotId),
+        );
+      }
+      statements.push(
+        d1.prepare(insertYardSlotPlacementSql(Boolean(current))).bind(
+          placementId,
+          requestKey,
+          id,
+          motorcycle.companyId,
+          occurredAt,
+          actor.userId,
+          note,
+          destinationSlotId,
+          id,
+          ...(current ? [current.id, occurredAt] : []),
+        ),
+      );
+      statements.push(
+        d1.prepare(`
+          INSERT INTO audit_logs
+            (id, actor_user_id, company_id, action, entity_type, entity_id,
+             before_json, after_json, reason, created_at)
+          SELECT ?, ?, company_id, ?, 'motorcycle', motorcycle_id, ?, ?, ?, ?
+          FROM yard_placements WHERE id = ?
+        `).bind(
+          auditId,
+          actor.userId,
+          current ? "YARD_MOVE" : "YARD_ENTRY",
+          JSON.stringify({
+            yardZoneId: current?.yardZoneId ?? null,
+            yardRowId: current?.yardRowId ?? null,
+            yardSlotId: current?.yardSlotId ?? null,
+          }),
+          JSON.stringify({ yardZoneId: slot.zoneId, yardRowId: slot.rowId, yardSlotId: slot.slotId }),
+          note,
+          recordedAt,
+          placementId,
+        ),
+      );
+
+      const results = await d1.batch(statements);
+      const insertIndex = current ? 1 : 0;
+      const auditIndex = current ? 2 : 1;
+      const closed = !current || (results[0].meta.changes ?? 0) === 1;
+      // A slot taken between the check and the write leaves the motorcycle where
+      // it was: the close is conditional on the same emptiness the insert is.
+      if (!closed || (results[insertIndex].meta.changes ?? 0) !== 1 || (results[auditIndex].meta.changes ?? 0) !== 1) {
+        return redirectTo(id, "yard_conflict", request.url);
       }
     } catch {
       return redirectTo(id, "save_yard", request.url);
@@ -92,8 +188,12 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
 
   const placementId = crypto.randomUUID();
   const auditId = crypto.randomUUID();
-  const beforeJson = JSON.stringify({ yardZoneId: current?.yardZoneId ?? null });
-  const afterJson = JSON.stringify({ yardZoneId: destinationZoneId });
+  const beforeJson = JSON.stringify({
+    yardZoneId: current?.yardZoneId ?? null,
+    yardRowId: current?.yardRowId ?? null,
+    yardSlotId: current?.yardSlotId ?? null,
+  });
+  const afterJson = JSON.stringify({ yardZoneId: destinationZoneId, yardRowId: null, yardSlotId: null });
   const auditAction = current ? "YARD_MOVE" : "YARD_ENTRY";
   try {
     const statements = [];
