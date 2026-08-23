@@ -23,6 +23,14 @@ import {
   type PostAvailability,
   type PublicPost,
 } from "./posts.ts";
+import {
+  WORK_INDEX_PATH,
+  absoluteWorkUrl,
+  buildWorkSitemapUrls,
+  workBreadcrumb,
+  type PublicWorkItem,
+  type WorkAvailability,
+} from "./portfolio.ts";
 
 export type PageAvailability =
   | { state: "PUBLISHED"; page: PublicPage }
@@ -582,6 +590,7 @@ export type SitemapEntry = {
 export function buildSitemap(
   pages: ReadonlyArray<PageAvailability>,
   posts: ReadonlyArray<PostAvailability> = [],
+  work: ReadonlyArray<WorkAvailability> = [],
 ): SitemapEntry[] {
   const entries = new Map<string, SitemapEntry>();
 
@@ -621,6 +630,28 @@ export function buildSitemap(
   const indexUrl = absolutePostUrl(POSTS_INDEX_PATH);
   if (newest && entries.has(indexUrl)) entries.set(indexUrl, { url: indexUrl, lastModified: newest });
 
+  for (const url of buildWorkSitemapUrls(work)) {
+    if (entries.has(url)) continue;
+    const found = work.find(
+      (availability) =>
+        availability.state === "PUBLISHED" && absoluteWorkUrl(availability.work.seo.canonicalPath) === url,
+    );
+    const published = found?.state === "PUBLISHED" ? found.work : null;
+    entries.set(url, { url, ...(published ? { lastModified: published.publishedAt } : {}) });
+  }
+
+  // The portfolio index changed when its newest entry did, exactly as the news
+  // index does.
+  const newestWork = work
+    .filter((availability): availability is { state: "PUBLISHED"; work: PublicWorkItem } => availability.state === "PUBLISHED")
+    .map((availability) => availability.work)
+    .filter((entry) => entry.seo.robots === "INDEX")
+    .map((entry) => entry.publishedAt)
+    .sort()
+    .at(-1);
+  const workIndexUrl = absoluteWorkUrl(WORK_INDEX_PATH);
+  if (newestWork && entries.has(workIndexUrl)) entries.set(workIndexUrl, { url: workIndexUrl, lastModified: newestWork });
+
   return [...entries.values()].sort((left, right) => (left.url < right.url ? -1 : left.url > right.url ? 1 : 0));
 }
 
@@ -657,4 +688,77 @@ export function buildRobotsTxt(options: RobotsOptions = {}): string {
     `Sitemap: ${sitemap}`,
     "",
   ].join("\n");
+}
+
+/**
+ * The head for one portfolio entry.
+ *
+ * A case study is neither a marketing page nor a news article: it is a piece of
+ * work being shown. `CreativeWork` says that accurately, and the parts that
+ * actually earn a rich result — the image and the breadcrumb — are the same
+ * ones every other surface emits, so they come from the same helpers.
+ */
+export function buildWorkHead(availability: WorkAvailability, options: HeadOptions = {}): HeadModel {
+  const identity = options.identity ?? STATIC_SITE_IDENTITY;
+
+  if (availability.state === "UNPUBLISHED") return goneHead();
+  if (availability.state === "MOVED") return redirectHead(absoluteWorkUrl(availability.to));
+
+  const work = availability.work;
+  const url = absoluteWorkUrl(work.seo.canonicalPath);
+  const indexed = work.seo.robots === "INDEX";
+
+  const base: HeadModel = {
+    httpStatus: 200,
+    title: work.seo.title,
+    description: work.seo.description,
+    canonical: url,
+    robots: options.isPreview ? NOINDEX : indexed ? "index, follow" : "noindex, nofollow",
+    alternates: options.isPreview
+      ? []
+      : [
+          { hreflang: "th-TH", href: url },
+          { hreflang: "x-default", href: url },
+        ],
+    openGraph: {},
+    twitter: {},
+    jsonLd: [],
+    includeInSitemap: !options.isPreview && indexed,
+  };
+
+  if (options.isPreview) return base;
+
+  const image = socialImageFrom(work.featuredImage, identity.logo);
+
+  return {
+    ...base,
+    ...socialTags({ title: work.seo.title, description: work.seo.description, url, type: "article" }, image, identity, {
+      "article:published_time": work.publishedAt,
+    }),
+    jsonLd: [
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "CreativeWork",
+            name: work.title,
+            headline: work.title,
+            description: work.summary,
+            url,
+            mainEntityOfPage: { "@type": "WebPage", "@id": url },
+            datePublished: work.publishedAt,
+            image: imageObjectNode(image),
+            creator: { "@id": ORGANIZATION_ID },
+            provider: { "@id": ORGANIZATION_ID },
+            // The categories the entry is filed under, which is what a reader
+            // and a crawler both use to decide what this work was.
+            about: work.categoryIds,
+          },
+          organizationNode(identity),
+          breadcrumbNode(workBreadcrumb(work)),
+          imageObjectNode(image),
+        ],
+      },
+    ],
+  };
 }
