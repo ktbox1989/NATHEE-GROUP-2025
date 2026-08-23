@@ -133,14 +133,16 @@ accounts in two different companies actually hold distinguishable records.
 It covers what the Owner defined APP_RUNTIME_PASS to mean: readiness, the login
 form and callback, the OWNER reaching the application, customer isolation across
 two companies, QR and the print centre, the Audit trail recording the sign-in,
-and the CMS Draft to Preview to Publish loop reaching the public page with no
+the recovery form refusing to reveal who has an account, a sign-out that stops
+answering the old cookie, and the CMS Draft to Preview to Publish loop reaching
+the public page with no
 redeploy. Publishing is opted into separately and restores the revision that was
 live before, because it changes what visitors see.
 
 That it can genuinely reject a broken runtime is tested rather than asserted:
 `scripts/test-production-acceptance-rejections.mjs` serves a real HTTPS
-impersonation of the application and breaks it 29 ways, requiring the runner to
-catch each, plus five ways it could lie by omission. It runs in
+impersonation of the application and breaks it 32 ways, requiring the runner to
+catch each, plus six ways it could lie by omission. It runs in
 `npm run test:security` as `ACCEPTANCE_NEGATIVE_PASS`.
 
 So the remaining distance to `APP_RUNTIME_PASS` is exactly the three Owner

@@ -87,6 +87,7 @@ const CASES = [
   { name: "two customers whose records are indistinguishable", defect: "identicalCustomerData", credentials: "all", expect: "INCOMPLETE" },
   { name: "publishing was not opted into", defect: null, credentials: "all", writes: false, expect: "INCOMPLETE" },
   { name: "the chosen page has never been published", defect: "cmsNeverPublished", credentials: "all", expect: "INCOMPLETE" },
+  { name: "the recovery link was never confirmed by a person", defect: null, credentials: "all", attest: false, expect: "INCOMPLETE" },
 
   { name: "one readiness check is false", defect: "degradedHealth", credentials: "all", expect: "FAIL" },
   { name: "a readiness check is absent from the payload", defect: "missingHealthCheck", credentials: "all", expect: "FAIL" },
@@ -117,6 +118,9 @@ const CASES = [
   { name: "publishing is refused", defect: "publishRefused", credentials: "all", expect: "FAIL" },
   { name: "publishing succeeds but the public page does not change", defect: "publishNotLive", credentials: "all", expect: "FAIL" },
   { name: "the site is not restored after the run", defect: "restoreIgnored", credentials: "all", expect: "FAIL" },
+  { name: "recovery reveals whether an address has an account", defect: "recoveryEnumerates", credentials: "all", expect: "FAIL" },
+  { name: "a recovery request is refused outright", defect: "recoveryBroken", credentials: "all", expect: "FAIL" },
+  { name: "signing out leaves the session usable", defect: "logoutKeepsSession", credentials: "all", expect: "FAIL" },
 ];
 
 function buildHandler(defect) {
@@ -207,6 +211,34 @@ function buildHandler(defect) {
         send(response, 303, "", headers);
       });
       return undefined;
+    }
+
+    if (path === "/api/auth/forgot-password" && request.method === "POST") {
+      let body = "";
+      request.on("data", (chunk) => { body += chunk; });
+      request.on("end", () => {
+        const address = new URLSearchParams(body).get("email") ?? "";
+        if (defect === "recoveryBroken") {
+          return send(response, 303, "", { location: "/forgot-password?error=unavailable" });
+        }
+        // The defect that matters: telling the caller whether the address exists.
+        const known = [OWNER, CUSTOMER_A, CUSTOMER_B].some((account) => account.email === address);
+        if (defect === "recoveryEnumerates" && !known) {
+          return send(response, 303, "", { location: "/forgot-password?error=unknown_account" });
+        }
+        send(response, 303, "", { location: "/forgot-password?sent=1" });
+      });
+      return undefined;
+    }
+
+    if (path === "/api/auth/logout" && request.method === "POST") {
+      const cookie = request.headers.cookie ?? "";
+      const token = /nathee_session=([^;]+)/.exec(cookie)?.[1];
+      if (defect !== "logoutKeepsSession" && token) sessions.delete(token);
+      return send(response, 303, "", {
+        location: "/login?status=logged_out",
+        "set-cookie": "nathee_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT",
+      });
     }
 
     if (path === "/auth/callback") {
@@ -380,6 +412,9 @@ async function runCase(testCase) {
         ...(testCase.writes === false
           ? {}
           : { NATHEE_ACCEPTANCE_ALLOW_WRITES: "1", NATHEE_ACCEPTANCE_CMS_SLUG: CMS_SLUG }),
+        // The operator attests the emailed half of recovery; the suite stands in
+        // for that attestation, and one case withholds it on purpose.
+        ...(testCase.attest === false ? {} : { NATHEE_ACCEPTANCE_RECOVERY_VERIFIED: "1" }),
         ...credentialEnvironment(testCase.credentials),
       },
     });

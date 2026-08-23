@@ -176,21 +176,42 @@ this against it.
 
 Without both variables the CMS checks are SKIP, and the verdict is INCOMPLETE.
 
+### The one check a script cannot make
+
+Gate 8 requires that a real recovery link works. Reading the mailbox is not
+something this runner can do, so it measures the half it can — that a recovery
+request is accepted and that the reply is identical for an address that exists
+and one that does not, since a difference there turns the form into a list of
+who has an account. Sending real mail is part of the write opt-in.
+
+Complete one real recovery link by hand, confirm it lands on `/reset-password`,
+then re-run with:
+
+```bash
+NATHEE_ACCEPTANCE_RECOVERY_VERIFIED=1
+```
+
+That check is reported as attested by the operator, not as measured, because
+that is what it is. Without it the verdict is INCOMPLETE.
+
 ### The runner is itself tested
 
 `scripts/test-production-acceptance-rejections.mjs` stands up an HTTPS server
-impersonating the application and breaks it 29 different ways — a false
+impersonating the application and breaks it 32 different ways — a false
 readiness check, a missing security header, the placeholder login page, the
 application shell rendering anonymously, private evidence served to a stranger,
 a refused OWNER, a sign-in absent from the Audit trail, a draft that goes public
 the moment it is saved, a publish that never reaches the page, a run that leaves
-the site unrestored, and one customer reading a record belonging to another —
-and requires the run to catch every one.
+the site unrestored, a recovery form that reveals whether an address has an
+account, a sign-out that leaves the session cookie working, and one customer
+reading a record belonging to another — and requires the run to catch every
+one.
 
-It also proves the five ways the runner could lie by omission. Missing
+It also proves the six ways the runner could lie by omission. Missing
 credentials, an OWNER with no customers, two customers whose records cannot be
-told apart, publishing not opted into, and a page with no published revision to
-return to all report INCOMPLETE rather than PASS.
+told apart, publishing not opted into, a page with no published revision to
+return to, and an unconfirmed recovery link all report INCOMPLETE rather than
+PASS.
 
 It runs in `npm run test:security` as `ACCEPTANCE_NEGATIVE_PASS`, so the
 acceptance runner cannot quietly stop working.

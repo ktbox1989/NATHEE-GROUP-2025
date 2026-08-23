@@ -33,6 +33,8 @@ const TIMEOUT_MS = Number(process.env.NATHEE_ACCEPTANCE_TIMEOUT_MS ?? 20000);
 const ALLOW_WRITES = process.env.NATHEE_ACCEPTANCE_ALLOW_WRITES === "1";
 const CMS_SLUG = process.env.NATHEE_ACCEPTANCE_CMS_SLUG;
 const CMS_CHECKS = ["cms-draft", "cms-preview", "cms-publish", "cms-public", "cms-restore"];
+const RECOVERY_ATTESTED = process.env.NATHEE_ACCEPTANCE_RECOVERY_VERIFIED === "1";
+const LIFECYCLE_CHECKS = ["recovery-request", "recovery-link", "session-ends"];
 
 
 if (!APP_BASE.startsWith("https://")) {
@@ -254,18 +256,18 @@ async function signIn(email, password, label) {
 
 if (!ownerEmail || !ownerPassword) {
   skip(AUTH, "owner-login", "NATHEE_OWNER_EMAIL / NATHEE_OWNER_PASSWORD not supplied");
-  for (const name of ["owner-app", "owner-audit", "owner-cms", "sign-in-audited", "owner-print", "owner-qr", ...CMS_CHECKS]) {
+  for (const name of ["owner-app", "owner-audit", "owner-cms", "sign-in-audited", "owner-print", "owner-qr", ...CMS_CHECKS, ...LIFECYCLE_CHECKS]) {
     skip(AUTH, name, "requires an authenticated OWNER session");
   }
 } else if (!results.some((entry) => entry.name === "health" && entry.status === "PASS")) {
-  for (const name of ["owner-login", "owner-app", "owner-audit", "owner-cms", "sign-in-audited", "owner-print", "owner-qr", ...CMS_CHECKS]) {
+  for (const name of ["owner-login", "owner-app", "owner-audit", "owner-cms", "sign-in-audited", "owner-print", "owner-qr", ...CMS_CHECKS, ...LIFECYCLE_CHECKS]) {
     skip(AUTH, name, "the runtime is not ready; an authenticated run would prove nothing");
   }
 } else {
   const owner = await signIn(ownerEmail, ownerPassword, "OWNER");
   if (!owner.ok) {
     fail(AUTH, "owner-login", owner.detail);
-    for (const name of ["owner-app", "owner-audit", "owner-cms", "sign-in-audited", "owner-print", "owner-qr", ...CMS_CHECKS]) {
+    for (const name of ["owner-app", "owner-audit", "owner-cms", "sign-in-audited", "owner-print", "owner-qr", ...CMS_CHECKS, ...LIFECYCLE_CHECKS]) {
       skip(AUTH, name, "no OWNER session");
     }
   } else {
@@ -285,6 +287,7 @@ if (!ownerEmail || !ownerPassword) {
 
     await verifyOperationalAccess(owner.jar);
     await verifyContentLoop(owner.jar);
+    await verifyRecovery(ownerEmail);
 
     // The sign-in just performed must appear in the trail it is supposed to
     // write. This is the check that proves the audit path works end to end.
@@ -298,6 +301,8 @@ if (!ownerEmail || !ownerPassword) {
       if (/>SIGN_IN</.test(html)) pass(AUTH, "sign-in-audited", "the sign-in appears in the Audit trail");
       else fail(AUTH, "sign-in-audited", "no SIGN_IN entry is visible in the authentication view");
     }
+
+    await verifySessionEnds(owner.jar);
   }
 }
 
@@ -481,6 +486,76 @@ async function verifyContentLoop(jar) {
     );
   } else {
     pass(AUTH, "cms-restore", `${CMS_SLUG} is serving revision ${before.revisionId.slice(0, 8)} again`);
+  }
+}
+
+// Recovery splits into a half a script can measure and a half it cannot. The
+// request is measurable, and the property worth measuring is that the reply is
+// byte-identical for an address that exists and one that does not, since a
+// difference there turns the form into an account directory. Clicking the
+// emailed link needs a mailbox, so it is attested by the operator and labelled
+// as attested rather than quietly counted as measured.
+
+async function verifyRecovery(email) {
+  if (!ALLOW_WRITES) {
+    skip(AUTH, "recovery-request", "sends a real email; set NATHEE_ACCEPTANCE_ALLOW_WRITES=1 to exercise it");
+  } else {
+    const ask = (address) =>
+      request("/api/auth/forgot-password", {
+        method: "POST",
+        jar: createJar(),
+        body: new URLSearchParams({ email: address }).toString(),
+      });
+    const real = await ask(email);
+    const absent = await ask(`no-such-account-${randomUUID()}@acceptance.invalid`);
+    if (!real.ok || !absent.ok) {
+      fail(AUTH, "recovery-request", `unreachable: ${real.ok ? absent.error : real.error}`);
+    } else if (real.response.status !== 303 || !/sent=1/.test(real.response.headers.get("location") ?? "")) {
+      fail(AUTH, "recovery-request", `a recovery request returned ${real.response.status} ${real.response.headers.get("location") ?? ""}`);
+    } else if (
+      absent.response.status !== real.response.status ||
+      absent.response.headers.get("location") !== real.response.headers.get("location")
+    ) {
+      fail(AUTH, "recovery-request", "a known and an unknown address get different replies, which reveals who has an account");
+    } else {
+      pass(AUTH, "recovery-request", "accepted, and identical for a known and an unknown address");
+    }
+  }
+
+  if (RECOVERY_ATTESTED) {
+    pass(AUTH, "recovery-link", "attested by the operator: an emailed link completed and reached /reset-password");
+  } else {
+    skip(
+      AUTH,
+      "recovery-link",
+      "no script can read the mailbox; complete a real recovery link, then set NATHEE_ACCEPTANCE_RECOVERY_VERIFIED=1",
+    );
+  }
+}
+
+// Signing out has to actually end the session, not just redirect. Run last: it
+// spends the session everything above depends on.
+async function verifySessionEnds(jar) {
+  const before = await request("/app", { jar });
+  if (!before.ok || before.response.status !== 200) {
+    skip(AUTH, "session-ends", "the session was not usable before sign-out, so ending it proves nothing");
+    return;
+  }
+  // Captured before signing out and replayed afterwards. Sending the jar would
+  // only show that the client forgot the cookie; a server that clears the cookie
+  // but leaves the token valid still answers a stolen one, which is the case
+  // worth catching.
+  const stolen = jar.header();
+  const out = await request("/api/auth/logout", { method: "POST", jar, body: "" });
+  if (!out.ok) {
+    fail(AUTH, "session-ends", `sign-out unreachable: ${out.error}`);
+    return;
+  }
+  const after = await request("/app", { headers: { cookie: stolen } });
+  if (after.ok && after.response.status === 200) {
+    fail(AUTH, "session-ends", "the session cookie still works after signing out");
+  } else {
+    pass(AUTH, "session-ends", `the old cookie is refused with ${after.ok ? after.response.status : after.error}`);
   }
 }
 
