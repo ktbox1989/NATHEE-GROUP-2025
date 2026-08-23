@@ -338,6 +338,35 @@ behind it. A refusal there means the URL is a 404, not that something else
 renders. The caller must treat `STATIC` as "this post is not available" —
 showing a stale or partial article would be worse than showing none.
 
+## Site settings, and the one fallback that is a value
+
+The chrome — brand, navigation, telephone numbers, footer — appears on every
+page, which makes it the one piece of CMS content whose failure is total. A page
+body that fails to load falls back to the static release and the visitor never
+knows. Chrome that fails leaves the site with no way to get anywhere, on every
+URL at once.
+
+So `buildSiteChrome` is the only consumer here with a **value** fallback rather
+than a source fallback. Unusable settings render the shipped defaults and say
+why, rather than rendering an empty header. Three conditions trigger it: no
+usable navigation link, no dialable telephone number, or no brand name. Each one
+would leave a visitor stranded on whatever page they landed on.
+
+A navigation item is re-checked on this side even though Lane B's parser already
+blocks the authenticated prefixes. A link into `/app/` sends a customer from the
+marketing site to a login screen and reads as broken; an off-site link in the
+header is how a single compromised settings row becomes a phishing redirect on
+every page at once. An item that fails is dropped and **reported** — a
+silently shorter menu is how this kind of thing goes unnoticed.
+
+Telephone numbers are published with the separators stripped from the `tel:`
+href and kept in the display text. Some handsets dial a `tel:` containing dashes
+incorrectly, which on a phone-first site is the difference between a call and a
+customer giving up.
+
+The current page carries `aria-current="page"`, so it is announced rather than
+only coloured.
+
 ## Posts and news
 
 `lib/public-cms/posts.ts` is the consumer contract for editorial content. Lane B
