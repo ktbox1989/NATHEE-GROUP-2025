@@ -448,6 +448,14 @@ for (const testCase of CASES) {
     failures += 1;
     console.error(`ACCEPTANCE_NEGATIVE_FAIL a ${verdict} run also printed APP_RUNTIME_PASS: ${testCase.name}`);
   }
+  // Every case here targets an IP literal, where the DNS ladder does not apply.
+  // That has to be stated in the output: a run that skipped the hostname gate
+  // must never be indistinguishable from a run that passed it.
+  if (!/hostname gate not applicable/.test(output)) {
+    failures += 1;
+    console.error(`ACCEPTANCE_NEGATIVE_FAIL the skipped hostname gate was not announced: ${testCase.name}`);
+  }
+
   // Nothing supplied as a password may ever appear in the output.
   for (const secret of [OWNER.password, CUSTOMER_A.password, CUSTOMER_B.password]) {
     if (output.includes(secret)) {
@@ -455,6 +463,29 @@ for (const testCase of CASES) {
       console.error(`ACCEPTANCE_NEGATIVE_FAIL a credential was printed: ${testCase.name}`);
     }
   }
+}
+
+// The hostname gate is mandatory and first. A named host that does not resolve
+// must stop the run before a single authenticated check is attempted, because a
+// verdict drawn from an unresolvable name would be reported as evidence.
+const unresolvable = spawnSync(process.execPath, [acceptance], {
+  encoding: "utf8",
+  env: {
+    ...process.env,
+    NATHEE_APP_BASE_URL: `https://acceptance-${randomUUID()}.invalid`,
+    NATHEE_OWNER_EMAIL: OWNER.email,
+    NATHEE_OWNER_PASSWORD: OWNER.password,
+  },
+});
+const gateOutput = `${unresolvable.stdout ?? ""}${unresolvable.stderr ?? ""}`;
+if (!/APP_RUNTIME_FAIL the hostname gate did not pass/.test(gateOutput)) {
+  failures += 1;
+  console.error(`ACCEPTANCE_NEGATIVE_FAIL a name that does not resolve was not refused by the gate
+${gateOutput.trim()}`);
+}
+if (/owner-login|APP_RUNTIME_PASS/.test(gateOutput)) {
+  failures += 1;
+  console.error("ACCEPTANCE_NEGATIVE_FAIL an authenticated check ran despite the hostname gate failing");
 }
 
 // Cleartext is not an acceptable acceptance target, whatever it answers.
@@ -473,5 +504,5 @@ if (failures > 0) process.exit(1);
 const rejections = CASES.filter((testCase) => testCase.expect === "FAIL").length;
 const incomplete = CASES.filter((testCase) => testCase.expect === "INCOMPLETE").length;
 console.log(
-  `ACCEPTANCE_NEGATIVE_PASS rejections=${rejections} incomplete=${incomplete} acceptances=1 cleartextRejected=1`,
+  `ACCEPTANCE_NEGATIVE_PASS rejections=${rejections} incomplete=${incomplete} acceptances=1 cleartextRejected=1 hostnameGateEnforced=1`,
 );

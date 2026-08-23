@@ -23,6 +23,9 @@
 //     node scripts/verify-production-acceptance.mjs
 
 import { randomUUID } from "node:crypto";
+import { isIP } from "node:net";
+import { classifyHostname } from "../lib/hostname-diagnosis.ts";
+import { probeHostname } from "./probe-hostname.mjs";
 import { DEFAULT_SITE_CONTENT, SITE_PAGE_DEFINITIONS } from "../lib/site-cms-content.ts";
 
 const APP_BASE = (process.env.NATHEE_APP_BASE_URL ?? "https://app.natheegroup2025.com").replace(/\/$/, "");
@@ -41,6 +44,31 @@ if (!APP_BASE.startsWith("https://")) {
   console.log(`APP_RUNTIME_FAIL the acceptance target must be https, got ${APP_BASE}`);
   console.log("Production acceptance over cleartext would prove nothing about a system reached over TLS.");
   process.exit(1);
+}
+
+// The hostname gate runs first and is not optional. Authenticated acceptance
+// against a name that does not resolve consistently and terminate TLS cannot
+// mean anything, and a verdict produced from it would be worse than no verdict,
+// because it would be reported as evidence.
+//
+// An IP literal is the one case where the DNS ladder does not apply: there is no
+// name to resolve. That path is announced rather than assumed, so a run that
+// skipped the gate can never look like a run that passed it.
+const TARGET_HOST = new URL(APP_BASE).hostname;
+if (isIP(TARGET_HOST)) {
+  console.log(`note: hostname gate not applicable, the target is an IP literal (${TARGET_HOST})`);
+} else {
+  const { evidence } = await probeHostname(TARGET_HOST);
+  const gate = classifyHostname(evidence);
+  if (gate.code !== "SERVING") {
+    console.log(`APP_RUNTIME_FAIL the hostname gate did not pass: APP_HOSTNAME_${gate.code}`);
+    console.log(gate.summary);
+    console.log(`next: ${gate.nextAction}`);
+    console.log("No authenticated check was attempted. Run npm run verify:hostname for the full evidence.");
+    process.exitCode = 1;
+    process.exit();
+  }
+  console.log(`hostname gate: APP_HOSTNAME_${gate.code} (${TARGET_HOST})`);
 }
 
 const results = [];
