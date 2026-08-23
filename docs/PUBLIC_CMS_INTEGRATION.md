@@ -367,6 +367,147 @@ customer giving up.
 The current page carries `aria-current="page"`, so it is announced rather than
 only coloured.
 
+## The block renderer
+
+`lib/public-cms/blocks.ts` is the vocabulary the public site renders. It exists
+because `PublicSection` — a heading with paragraphs and media under it — is not
+enough to reproduce the site that already exists.
+
+### The measurement that prompted it
+
+`mapCmsPageToPublicPage` read **seven of the fourteen** fields on Lane B's
+`CmsSection`. What it discarded:
+
+| Field | What it is |
+| --- | --- |
+| `eyebrow` | the small label above every page heading |
+| `primaryLabel` / `primaryHref` | the "ขอใบเสนอราคา" button |
+| `secondaryLabel` / `secondaryHref` | the second call to action |
+| `galleryCategorySlug` | which photographs a gallery block shows |
+| `galleryLimit` | how many |
+
+`type` was read only to find the `HERO`; after that a FAQ, a card grid and a
+gallery all became a generic `h2` with paragraphs under it. A page published
+through the CMS would therefore have rendered **worse than the static page it
+replaced**: no quotation button, no FAQ accordion, no service card grid.
+
+`CmsSectionInput` now mirrors Lane B's section in full. Declaring only the
+fields one mapper happened to read is how the other seven came to be dropped
+without anyone noticing — a field that is not in the type cannot be missed.
+
+### The twelve blocks
+
+`HERO`, `TEXT`, `IMAGE`, `GALLERY`, `SERVICE_CARDS`, `CTA`, `FAQ`, `CONTACT`,
+`STATS`, `VIDEO`, `RELATED_SERVICES`, `FEATURED_WORK`.
+
+Every one validates before it renders and is refused whole if it fails. A
+refused block is not a degraded block: the page falls back to the static release
+rather than rendering a hero with no heading or a card grid with an empty card
+in it. An **unknown** block type is refused rather than skipped, because
+skipping silently drops content an editor believes they published.
+
+Three rules are worth stating on their own.
+
+**A link must lead somewhere the site actually serves.** Same-origin, and a
+live public route or a post. Off-site is how one edited row becomes a redirect
+on a marketing page; a link into `/app/` reads to a customer as a broken site.
+A link that fails is dropped during mapping rather than rendered.
+
+**A figure cannot be published without saying where it came from.** `STATS`
+requires a `source` on every entry. The site already refuses to state
+unconfirmed capacity numbers — "เว็บไซต์ไม่แสดงตัวเลขที่ยังไม่ยืนยัน" is on the
+dealer-fleet page — and a stats block is exactly the shape that invites an
+unverified number onto the site. Making provenance a required field turns that
+rule from something a person has to remember into a property of the data.
+
+**Video is self-hosted only, and the CSP decided that.** The public policy
+declares `default-src 'self'` and states neither `frame-src` nor `media-src`, so
+both fall back to it. An embedded YouTube or Vimeo player is blocked by the
+browser and renders as an empty box; an external `<video src>` never loads.
+Accepting an embed URL would let an editor publish a video that cannot play and
+find out from a customer. Allowing one is a decision about the CSP, not about
+content, so it is refused here and recorded as a contract ask.
+
+### The outline
+
+Exactly one `HERO`, and it must be first. Both rules are checked across the set
+rather than per block, because neither defect is visible from inside one: two
+heroes are each valid alone, and so is an `h3` that happens to follow an `h1`.
+
+### What Lane B cannot express
+
+`BLOCKS_LANE_B_CANNOT_EXPRESS` records the five block types no section type
+produces — `STATS`, `VIDEO`, `RELATED_SERVICES`, `FEATURED_WORK` and `IMAGE` —
+with the reason for each. A test asserts every block type is either mapped from
+a section or recorded here, because a block the renderer supports, nothing maps
+to, and nobody wrote down is a feature that quietly never arrives. That test
+caught `IMAGE` while it was being written.
+
+A second test holds `CMS_SECTION_BLOCK_TYPES` against Lane B's own
+`CmsSectionType` union. An unrecognised section type makes the whole page fall
+back to static — the right failure direction, but it must be caught by a test
+rather than by a customer looking at a page that reverted to the static copy.
+
+## Portfolio
+
+`lib/public-cms/portfolio.ts` serves `/work/` and `/work/<slug>/`.
+
+It is the highest-risk content type on the site, and not for any reason to do
+with rendering. A portfolio entry is derived from a real job, and that job
+carries the customer's company name and telephone number, the vehicle's VIN and
+registration, the driver, the inspection and the proof of delivery.
+
+So it refuses twice. `PublicWorkItem` has no field for any of it, **and** the
+validator walks the payload refusing any object carrying a key named after one
+of those columns, at any depth.
+
+The second rule is the one that matters. The realistic failure is not somebody
+adding a `customerName` field to the type — it is `{ ...jobRow, title, summary }`
+in a mapper, which satisfies the type perfectly and ships the entire row. A type
+cannot see that; the key scan can. A test holds `FORBIDDEN_PAYLOAD_KEYS` against
+`db/schema.ts` so the list stays real column names rather than drifting into
+invented ones that catch nothing.
+
+The scan is bounded in depth and breadth and **reports** when it hits the bound
+rather than returning clean: "too deep to check" is not the same as "checked and
+clean".
+
+Categories are the gallery manifest's ids rather than a second taxonomy, so a
+photograph and the case study it belongs to filter the same way. Ordering has
+four keys — featured, the Owner's order, newest, then slug — because a portfolio
+is curated and whatever the Owner has not ordered by hand still has to fall in a
+stable sequence instead of shuffling between requests.
+
+## The CMS transport
+
+`fetchCmsJson` in `source.ts` is the loader `resolvePage` and `resolvePost`
+were always given by the caller. While it was the caller's, every transport
+failure was somebody else's problem.
+
+| Failure | Behaviour |
+| --- | --- |
+| 5xx or 4xx | refused; the status is in the reason |
+| `text/html` where JSON was expected | refused before the parser sees it |
+| no content type | refused |
+| **declared length ≠ received length** | refused as truncated |
+| over `CMS_MAX_PAYLOAD_BYTES` | refused before parsing |
+| malformed JSON | refused |
+| no answer | bounded by the same deadline |
+
+Truncation is the one that could not be caught anywhere else. A response cut off
+mid-array can still parse as valid JSON if the cut lands on a boundary, and what
+arrives is a page that is **structurally correct and missing half its content**.
+Nothing downstream can distinguish that from a page an editor deliberately
+shortened. The declared content length is the only evidence, and it is only
+available here. The comparison is in bytes rather than characters, because Thai
+is three bytes a character and a character count would report every page as
+truncated.
+
+The request carries `credentials: "omit"` and `cache: "no-store"`. A public
+marketing page has no business sending a visitor's cookies to the CMS, and a
+cached CMS response is the stale-content bug this whole module exists to
+prevent.
+
 ## Posts and news
 
 `lib/public-cms/posts.ts` is the consumer contract for editorial content. Lane B

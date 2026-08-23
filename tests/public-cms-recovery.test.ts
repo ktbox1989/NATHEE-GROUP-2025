@@ -4,6 +4,8 @@ import { PUBLIC_CMS_CONTRACT_VERSION, type PublicMedia, type PublicPage } from "
 import { postPath, type PublicPost } from "../lib/public-cms/posts.ts";
 import {
   CMS_LOAD_TIMEOUT_MS,
+  createCmsLoader,
+  fetchCmsJson,
   loadWithDeadline,
   resolvePage,
   resolvePost,
@@ -294,4 +296,162 @@ test("a weak or absent preview secret fails closed rather than signing anything"
     );
     await assert.rejects(() => verifyPreviewToken("anything", { path: "/services/" }, secret as string, now), /secret/);
   }
+});
+
+// --- the transport, which used to be somebody else's problem -----------------
+
+function respond(body: string, init: { status?: number; type?: string | null; contentLength?: string | null } = {}): typeof fetch {
+  const headers = new Map<string, string>();
+  if (init.type !== null) headers.set("content-type", init.type ?? "application/json");
+  if (init.contentLength !== null && init.contentLength !== undefined) headers.set("content-length", init.contentLength);
+  const status = init.status ?? 200;
+  return (async () => ({
+    ok: status >= 200 && status < 300,
+    status,
+    headers: { get: (name: string) => headers.get(name.toLowerCase()) ?? null },
+    text: async () => body,
+  })) as unknown as typeof fetch;
+}
+
+test("a 5xx is a failure, not content", async () => {
+  for (const status of [500, 502, 503, 504]) {
+    const result = await fetchCmsJson("https://cms.example/page", {
+      fetchImpl: respond("{}", { status }),
+    });
+    assert.equal(result.ok, false, `${status} must be refused`);
+    assert.match(result.ok === false ? result.reason : "", new RegExp(String(status)));
+  }
+});
+
+test("a 404 from the CMS is a failure too, and says so", async () => {
+  const result = await fetchCmsJson("https://cms.example/page", { fetchImpl: respond("{}", { status: 404 }) });
+  assert.equal(result.ok, false);
+  assert.match(result.ok === false ? result.reason : "", /404/);
+});
+
+test("an HTML error page is refused before it reaches the JSON parser", async () => {
+  // Otherwise this fails as "unexpected token <", which sends whoever is
+  // diagnosing it looking for a parser bug.
+  const result = await fetchCmsJson("https://cms.example/page", {
+    fetchImpl: respond("<html><body>502 Bad Gateway</body></html>", { type: "text/html; charset=utf-8" }),
+  });
+  assert.equal(result.ok, false);
+  assert.match(result.ok === false ? result.reason : "", /expected application\/json/);
+});
+
+test("a response with no content type at all is refused", async () => {
+  const result = await fetchCmsJson("https://cms.example/page", { fetchImpl: respond("{}", { type: null }) });
+  assert.equal(result.ok, false);
+  assert.match(result.ok === false ? result.reason : "", /no content type/);
+});
+
+test("a truncated response is caught, which nothing downstream could do", async () => {
+  // A response cut off mid-array can still parse as valid JSON if the cut
+  // lands on a boundary, and what arrives is a page that is structurally
+  // correct and missing half its content. The declared length is the only
+  // evidence that anything went wrong.
+  const body = JSON.stringify({ sections: [1, 2, 3] });
+  const result = await fetchCmsJson("https://cms.example/page", {
+    fetchImpl: respond(body, { contentLength: String(body.length + 4096) }),
+  });
+  assert.equal(result.ok, false);
+  assert.match(result.ok === false ? result.reason : "", /truncated/);
+});
+
+test("a response whose declared length matches is accepted", async () => {
+  const body = JSON.stringify({ ok: true });
+  const result = await fetchCmsJson("https://cms.example/page", {
+    fetchImpl: respond(body, { contentLength: String(new TextEncoder().encode(body).length) }),
+  });
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.ok && result.payload, { ok: true });
+});
+
+test("the declared length is measured in bytes, not characters", async () => {
+  // Thai content is three bytes a character, so a character count would report
+  // every page as truncated.
+  const body = JSON.stringify({ heading: "ขนส่งรถจักรยานยนต์" });
+  const bytes = new TextEncoder().encode(body).length;
+  assert.notEqual(bytes, body.length, "the fixture must actually be multi-byte");
+  const result = await fetchCmsJson("https://cms.example/page", {
+    fetchImpl: respond(body, { contentLength: String(bytes) }),
+  });
+  assert.equal(result.ok, true);
+});
+
+test("a response with no declared length is still accepted", async () => {
+  const result = await fetchCmsJson("https://cms.example/page", {
+    fetchImpl: respond(JSON.stringify({ ok: true }), { contentLength: null }),
+  });
+  assert.equal(result.ok, true);
+});
+
+test("an oversized payload is refused rather than parsed", async () => {
+  const result = await fetchCmsJson("https://cms.example/page", {
+    fetchImpl: respond(JSON.stringify({ padding: "a".repeat(5000) })),
+    maxBytes: 1024,
+  });
+  assert.equal(result.ok, false);
+  assert.match(result.ok === false ? result.reason : "", /over the 1024 limit/);
+});
+
+test("malformed JSON is refused with a reason worth reading", async () => {
+  const result = await fetchCmsJson("https://cms.example/page", { fetchImpl: respond('{"a": ') });
+  assert.equal(result.ok, false);
+  assert.match(result.ok === false ? result.reason : "", /not valid JSON/);
+});
+
+test("a CMS that never answers is bounded here too", async () => {
+  const hang = (() => new Promise(() => {})) as unknown as typeof fetch;
+  const started = Date.now();
+  const result = await fetchCmsJson("https://cms.example/page", { fetchImpl: hang, timeoutMs: 30 });
+  assert.equal(result.ok, false);
+  assert.match(result.ok === false ? result.reason : "", /did not answer/);
+  assert.ok(Date.now() - started < 2000);
+});
+
+test("a fetch that rejects outright is reported rather than thrown", async () => {
+  const broken = (async () => {
+    throw new Error("network unreachable");
+  }) as unknown as typeof fetch;
+  const result = await fetchCmsJson("https://cms.example/page", { fetchImpl: broken });
+  assert.equal(result.ok, false);
+  assert.match(result.ok === false ? result.reason : "", /network unreachable/);
+});
+
+test("the public page never carries visitor credentials to the CMS", async () => {
+  // A public marketing page has no business sending cookies to the CMS, and a
+  // cached CMS response is the stale-content bug this module exists to stop.
+  let seen: RequestInit | undefined;
+  const spy = (async (_url: string, init?: RequestInit) => {
+    seen = init;
+    return {
+      ok: true,
+      status: 200,
+      headers: { get: (name: string) => (name.toLowerCase() === "content-type" ? "application/json" : null) },
+      text: async () => "{}",
+    };
+  }) as unknown as typeof fetch;
+
+  await fetchCmsJson("https://cms.example/page", { fetchImpl: spy });
+  assert.equal(seen?.credentials, "omit");
+  assert.equal(seen?.cache, "no-store");
+});
+
+test("the loader falls the resolver back rather than surfacing a CMS error to a visitor", async () => {
+  const loader = createCmsLoader("https://cms.example/api/", {
+    fetchImpl: respond("<html>502</html>", { status: 502, type: "text/html" }),
+  });
+  const result = await resolvePage("/services/", CMS_ON, loader);
+  assert.equal(result.source, "STATIC");
+  // The reason reaches the log, and the visitor sees the static release.
+  assert.match(staticReason(result), /502/);
+});
+
+test("a working loader resolves a page end to end", async () => {
+  const loader = createCmsLoader("https://cms.example/api", {
+    fetchImpl: respond(JSON.stringify(page())),
+  });
+  const result = await resolvePage("/services/", CMS_ON, loader);
+  assert.equal(result.source, "CMS");
 });
