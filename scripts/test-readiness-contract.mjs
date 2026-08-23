@@ -50,6 +50,15 @@ async function schemaObjectsFromMigrations() {
     for (const [, name] of sql.matchAll(/CREATE TRIGGER `([a-z_0-9]+)`/g)) triggers.add(name);
     for (const [, name] of sql.matchAll(/CREATE (?:UNIQUE )?INDEX `([a-z_0-9]+)`/g)) indexes.add(name);
     for (const [, name] of sql.matchAll(/DROP TABLE (?:IF EXISTS )?`([a-z_0-9]+)`/g)) tables.delete(name);
+    // ...and finishes by renaming `__new_x` back to `x`. Without this the drop
+    // above removed the table for good, so every rebuilt table fell out of the
+    // contract. That is how `user_permissions` and `gallery_items` came to be
+    // unchecked: a runtime missing the table that resolves permissions still
+    // reported `database: true`.
+    for (const [, from, to] of sql.matchAll(/ALTER TABLE `([a-z_0-9]+)` RENAME TO `([a-z_0-9]+)`/g)) {
+      tables.delete(from);
+      if (!to.startsWith("__new")) tables.add(to);
+    }
     for (const [, name] of sql.matchAll(/DROP TRIGGER (?:IF EXISTS )?`([a-z_0-9]+)`/g)) triggers.delete(name);
     for (const [, name] of sql.matchAll(/DROP INDEX (?:IF EXISTS )?`([a-z_0-9]+)`/g)) indexes.delete(name);
   }

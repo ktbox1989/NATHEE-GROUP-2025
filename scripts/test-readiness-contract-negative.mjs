@@ -42,6 +42,24 @@ const CASES = [
       ),
   },
   {
+    // A table Drizzle rebuilds is dropped and renamed back. The derivation used
+    // to process only the drop, so every rebuilt table fell out of the contract
+    // silently. `user_permissions` is the one that resolves permissions, so a
+    // runtime without it answered `healthy` while authorisation was broken.
+    name: "a table that a migration rebuilds is dropped from the requirements",
+    apply: (directory) =>
+      edit(directory, "lib/runtime-readiness.ts", (source) =>
+        source.replace(`  "user_permissions",${String.fromCharCode(10)}`, ""),
+      ),
+  },
+  {
+    name: "the gallery table a rebuild restores is dropped from the requirements",
+    apply: (directory) =>
+      edit(directory, "lib/runtime-readiness.ts", (source) =>
+        source.replace(`  "gallery_items",${String.fromCharCode(10)}`, ""),
+      ),
+  },
+  {
     name: "the last-OWNER protection is dropped from the requirements",
     apply: (directory) =>
       edit(directory, "lib/runtime-readiness.ts", (source) =>
