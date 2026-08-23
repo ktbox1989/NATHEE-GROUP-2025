@@ -15,6 +15,42 @@ Measured against `main` at `8da1053`. Lane A work is on
 
 ---
 
+## Answered by Lane B on 2026-08-23
+
+Read-only inspection of `origin/production-readiness` at `967401f`, which is
+**not yet merged into `main`**.
+
+Lane B has shipped the posts schema — migration `0026_public_posts`,
+`lib/post-cms-content.ts`, `lib/post-cms-store.ts` and `lib/post-cms-public.ts`
+— and it answers asks 1 and 3 for posts, field for field:
+
+| Ask | How it was answered |
+| --- | --- |
+| posts schema | `PostContent` with slug, title, excerpt, category, featured image and sections |
+| `updatedAt` null until edited | taken from publication events: the first PUBLISH is `publishedAt`, a later one sets `updatedAt` |
+| excerpt distinct from body | `excerpt`, bounded separately and required |
+| category id **and** label | `PostCategory = { id, label }` |
+| `NOINDEX` expressible | `POST_ROBOTS = ["INDEX", "NOINDEX"]` |
+
+`mapStoredPostToPublicPost` calls Lane A's `validatePublicPost` on its own
+output rather than trusting it, and derives `canonicalPath` from the slug rather
+than storing it. That is the contract working the way it was meant to: one
+validator, owned by the consumer, run by the producer.
+
+Still outstanding for posts: **slug history**, so a rename becomes a 301 rather
+than a dead link, and the `POST_PUBLISHED` / `POST_UNPUBLISHED` / `POST_MOVED`
+events (ask 2) — `planInvalidation` handles all three already; only the emitter
+is missing.
+
+Posts map to `PublicSection[]`, not to blocks, which is the right split: a news
+article is prose, where a marketing page and a case study are composed.
+
+**One merge note.** `package.json` is the only file both lanes touch, and it
+will conflict again. The resolution is a union that drops nothing — Lane B's
+post tests and acceptance gates, Lane A's block, portfolio and public-CMS tests.
+
+---
+
 ## 1. Posts have no schema at all
 
 `lib/public-cms/posts.ts` is a complete consumer contract with no sender. The
