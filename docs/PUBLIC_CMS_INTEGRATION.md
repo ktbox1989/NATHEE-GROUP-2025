@@ -253,6 +253,44 @@ same length, and neither is wrong.
 Until step 6, Production keeps serving the static release, which is the
 behaviour every default in this module is chosen to preserve.
 
+## Recovery, when the CMS is not there
+
+Every way a CMS fails is decided here rather than discovered in production, and
+each one falls back to the static release with a reason.
+
+| Failure | Behaviour |
+| --- | --- |
+| loader throws, sync or async | static, reason carries the error |
+| response is not JSON | static — a proxy error page is a parse failure, not a page |
+| `null` / `undefined` | static, "CMS returned no page" |
+| schema drift | static, with the violations reported rather than swallowed |
+| newer contract version | static — refused whole, never partially rendered |
+| unpublished, hidden, scheduled, archived | static — a draft has no representation |
+| page delivered for the wrong route | static — otherwise the About copy silently serves at `/services/` |
+| private media path anywhere in the payload | static — this one is a refusal, not a degradation |
+| **no answer at all** | static after `CMS_LOAD_TIMEOUT_MS` |
+
+### The slow case is the dangerous one
+
+A CMS that is *down* was already survivable: a rejected promise falls back
+immediately. A CMS that is *slow* was not. `resolvePage` awaited the loader with
+no deadline, so a load that never settled held the request open until something
+upstream gave up — and what the visitor eventually saw was a gateway error page,
+not the static release. The one failure the fallback exists to prevent was the
+one it did not cover.
+
+`loadWithDeadline` bounds the wait and never rejects. It attaches a no-op catch
+to the abandoned promise before racing: without that, a load that times out and
+rejects a moment later becomes an unhandled rejection, which on a worker runtime
+can take down the whole isolate — the outage this is all meant to survive.
+
+### Posts have nothing to fall back to
+
+`resolvePost` applies the identical rules, but a post has no static release
+behind it. A refusal there means the URL is a 404, not that something else
+renders. The caller must treat `STATIC` as "this post is not available" —
+showing a stale or partial article would be worse than showing none.
+
 ## Posts and news
 
 `lib/public-cms/posts.ts` is the consumer contract for editorial content. Lane B
