@@ -157,6 +157,27 @@ acceptance flow below and cannot be proven by an anonymous probe.
 
 ## 5. Acceptance flow
 
+### Run the measured part first
+
+`npm run verify:acceptance` measures the runtime half of this list against the
+live application: readiness with all six checks, the real login form, the
+callback failing closed, the protected tree and private media refusing
+anonymous callers, OWNER sign-in, isolation between two customer companies, a
+QR fetched for a real record and refused anonymously, the print centre, the
+sign-in reaching the Audit trail, sign-out no longer answering the old session
+cookie, and Draft → Preview → Publish reaching the public page with no
+redeploy.
+
+`docs/OWNER_GATE_CHECKLIST.md` has the credentials and opt-ins it takes and what
+its three verdicts mean. It reports INCOMPLETE, never PASS, for anything it
+could not run.
+
+It does **not** cover everything below — Gallery permissions, quotation
+evidence, POD capture and the operational status steps are still walked by
+hand. A PASS from the runner is not a pass for this section.
+
+### Then walk the rest
+
 1. Owner signs in with the real account.
 2. Owner creates one real customer company.
 3. Owner creates one transport job and one motorcycle.

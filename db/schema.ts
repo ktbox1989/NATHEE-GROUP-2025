@@ -867,6 +867,87 @@ export const sitePagePublicationEvents = sqliteTable(
   ],
 );
 
+/**
+ * Posts back the public /news/ index that lib/public-cms/posts.ts already
+ * defines a contract for. Deliberately the same shape as site pages: content
+ * lives in append-only revisions, and what the public sees is decided by an
+ * append-only publication event rather than a mutable flag, so a post can be
+ * rolled back to an exact earlier revision without deleting anything.
+ *
+ * `publishedAt` and `updatedAt` for the public payload are derived from those
+ * events, not stored here. Storing them as well would let the two disagree.
+ */
+export const posts = sqliteTable(
+  "posts",
+  {
+    id: text("id").primaryKey(),
+    slug: text("slug").notNull(),
+    createdBy: text("created_by").notNull().references(() => users.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    uniqueIndex("uq_posts_slug").on(table.slug),
+    index("idx_posts_updated").on(table.updatedAt, table.id),
+    // The same rule lib/public-cms/posts.ts enforces: a latin slug with single
+    // internal hyphens. A Thai or percent-encoded slug is unreadable in a share
+    // and fragile in a sitemap, so it is refused here too rather than only in
+    // the application, where a direct write would slip past.
+    check(
+      "ck_posts_slug_shape",
+      sql`length(${table.slug}) BETWEEN 1 AND 80 AND ${table.slug} NOT GLOB '*[^a-z0-9-]*' AND ${table.slug} NOT LIKE '-%' AND ${table.slug} NOT LIKE '%-' AND ${table.slug} NOT LIKE '%--%'`,
+    ),
+    // Slugs that would collide with the index, its pagination or a feed.
+    check(
+      "ck_posts_slug_reserved",
+      sql`${table.slug} NOT IN ('page', 'feed', 'rss', 'atom', 'sitemap', 'index', 'all', 'category', 'tag')`,
+    ),
+  ],
+);
+
+export const postRevisions = sqliteTable(
+  "post_revisions",
+  {
+    id: text("id").primaryKey(),
+    requestKey: text("request_key").notNull(),
+    postId: text("post_id").notNull().references(() => posts.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    contentJson: text("content_json").notNull(),
+    contentHash: text("content_hash").notNull(),
+    changeNote: text("change_note"),
+    createdBy: text("created_by").notNull().references(() => users.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    uniqueIndex("uq_post_revisions_request_key").on(table.requestKey),
+    index("idx_post_revisions_post_created").on(table.postId, table.createdAt, table.id),
+    check("ck_post_revisions_json", sql`json_valid(${table.contentJson}) AND length(${table.contentJson}) BETWEEN 2 AND 50000`),
+    check("ck_post_revisions_hash", sql`length(${table.contentHash}) = 64 AND ${table.contentHash} NOT GLOB '*[^0-9a-f]*'`),
+    check("ck_post_revisions_note", sql`${table.changeNote} IS NULL OR length(${table.changeNote}) <= 500`),
+  ],
+);
+
+export const postPublicationEvents = sqliteTable(
+  "post_publication_events",
+  {
+    id: text("id").primaryKey(),
+    requestKey: text("request_key").notNull(),
+    postId: text("post_id").notNull().references(() => posts.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    revisionId: text("revision_id").references(() => postRevisions.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    action: text("action", { enum: SITE_PAGE_PUBLICATION_ACTIONS }).notNull(),
+    note: text("note"),
+    createdBy: text("created_by").notNull().references(() => users.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    uniqueIndex("uq_post_publication_request_key").on(table.requestKey),
+    index("idx_post_publication_post_created").on(table.postId, table.createdAt, table.id),
+    index("idx_post_publication_revision").on(table.revisionId),
+    check("ck_post_publication_action", sql`${table.action} IN ('PUBLISH', 'HIDE')`),
+    check("ck_post_publication_revision", sql`(${table.action} = 'PUBLISH' AND ${table.revisionId} IS NOT NULL) OR (${table.action} = 'HIDE' AND ${table.revisionId} IS NULL)`),
+    check("ck_post_publication_note", sql`${table.note} IS NULL OR length(${table.note}) <= 500`),
+  ],
+);
+
 export const proofOfDeliverySignatures = sqliteTable(
   "proof_of_delivery_signatures",
   {
