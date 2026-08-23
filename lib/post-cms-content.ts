@@ -161,5 +161,37 @@ export function serializePostContent(content: PostContent): string {
   return JSON.stringify(content);
 }
 
+/**
+ * What a new post starts as. Deliberately valid: an editor should be able to
+ * save immediately and refine afterwards, rather than meet a validation error
+ * before writing anything.
+ */
+export const DEFAULT_POST_CONTENT: PostContent = {
+  version: 1,
+  title: "หัวข้อข่าวใหม่",
+  excerpt: "สรุปสั้น ๆ ของข่าวนี้สำหรับแสดงในหน้ารวมข่าว",
+  category: null,
+  featuredImageItemId: "",
+  sections: [
+    {
+      id: "body",
+      type: "CONTENT",
+      enabled: true,
+      eyebrow: "",
+      heading: "รายละเอียด",
+      body: "",
+      imageItemId: "",
+      primaryLabel: "",
+      primaryHref: "",
+      secondaryLabel: "",
+      secondaryHref: "",
+      galleryCategorySlug: "",
+      galleryLimit: 12,
+      items: [],
+    },
+  ],
+  seo: { title: "หัวข้อข่าวใหม่", description: "คำอธิบายสำหรับผลการค้นหา ควรยาวพอสมควร", robots: "INDEX" },
+};
+
 /** Re-exported so callers validate slugs with the rule the public site enforces. */
 export { isValidPostSlug };
