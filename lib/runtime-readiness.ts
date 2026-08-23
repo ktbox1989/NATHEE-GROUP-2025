@@ -152,6 +152,10 @@ export const REQUIRED_TRIGGERS = [
   "trg_users_keep_last_active_owner_legacy_role",
   "trg_users_keep_last_active_owner_status",
   "trg_users_role_assignment_compatible_update",
+  "trg_yard_placements_company_scope",
+  "trg_yard_placements_history_immutable",
+  "trg_yard_placements_zone_active",
+  "trg_yard_placements_zone_capacity",
   "trg_yard_zones_public_id_immutable",
   "trg_yard_zones_public_id_insert",
 ] as const;
