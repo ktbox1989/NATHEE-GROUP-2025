@@ -22,8 +22,18 @@
 //   NATHEE_CUSTOMER_B_EMAIL=... NATHEE_CUSTOMER_B_PASSWORD=... \
 //     node scripts/verify-production-acceptance.mjs
 
+import { randomUUID } from "node:crypto";
+import { DEFAULT_SITE_CONTENT, SITE_PAGE_DEFINITIONS } from "../lib/site-cms-content.ts";
+
 const APP_BASE = (process.env.NATHEE_APP_BASE_URL ?? "https://app.natheegroup2025.com").replace(/\/$/, "");
 const TIMEOUT_MS = Number(process.env.NATHEE_ACCEPTANCE_TIMEOUT_MS ?? 20000);
+
+// Publishing changes what the public site shows, even briefly, so it is opted
+// into explicitly and names the page it may touch.
+const ALLOW_WRITES = process.env.NATHEE_ACCEPTANCE_ALLOW_WRITES === "1";
+const CMS_SLUG = process.env.NATHEE_ACCEPTANCE_CMS_SLUG;
+const CMS_CHECKS = ["cms-draft", "cms-preview", "cms-publish", "cms-public", "cms-restore"];
+
 
 if (!APP_BASE.startsWith("https://")) {
   console.log(`APP_RUNTIME_FAIL the acceptance target must be https, got ${APP_BASE}`);
@@ -244,18 +254,18 @@ async function signIn(email, password, label) {
 
 if (!ownerEmail || !ownerPassword) {
   skip(AUTH, "owner-login", "NATHEE_OWNER_EMAIL / NATHEE_OWNER_PASSWORD not supplied");
-  for (const name of ["owner-app", "owner-audit", "owner-cms", "sign-in-audited"]) {
+  for (const name of ["owner-app", "owner-audit", "owner-cms", "sign-in-audited", "owner-print", "owner-qr", ...CMS_CHECKS]) {
     skip(AUTH, name, "requires an authenticated OWNER session");
   }
 } else if (!results.some((entry) => entry.name === "health" && entry.status === "PASS")) {
-  for (const name of ["owner-login", "owner-app", "owner-audit", "owner-cms", "sign-in-audited"]) {
+  for (const name of ["owner-login", "owner-app", "owner-audit", "owner-cms", "sign-in-audited", "owner-print", "owner-qr", ...CMS_CHECKS]) {
     skip(AUTH, name, "the runtime is not ready; an authenticated run would prove nothing");
   }
 } else {
   const owner = await signIn(ownerEmail, ownerPassword, "OWNER");
   if (!owner.ok) {
     fail(AUTH, "owner-login", owner.detail);
-    for (const name of ["owner-app", "owner-audit", "owner-cms", "sign-in-audited"]) {
+    for (const name of ["owner-app", "owner-audit", "owner-cms", "sign-in-audited", "owner-print", "owner-qr", ...CMS_CHECKS]) {
       skip(AUTH, name, "no OWNER session");
     }
   } else {
@@ -273,6 +283,9 @@ if (!ownerEmail || !ownerPassword) {
       else pass(AUTH, name, `${label} rendered for the OWNER`);
     }
 
+    await verifyOperationalAccess(owner.jar);
+    await verifyContentLoop(owner.jar);
+
     // The sign-in just performed must appear in the trail it is supposed to
     // write. This is the check that proves the audit path works end to end.
     const audit = await request("/app/audit?view=auth", { jar: owner.jar });
@@ -285,6 +298,189 @@ if (!ownerEmail || !ownerPassword) {
       if (/>SIGN_IN</.test(html)) pass(AUTH, "sign-in-audited", "the sign-in appears in the Audit trail");
       else fail(AUTH, "sign-in-audited", "no SIGN_IN entry is visible in the authentication view");
     }
+  }
+}
+
+// The operational surfaces the Owner named: a QR that a signed-in operator can
+// actually fetch, and the print sheet it comes from. The anonymous half is
+// checked above with a well-formed identifier; this half uses a real record, so
+// a route that refused everyone would not pass both.
+async function verifyOperationalAccess(jar) {
+  const printCentre = await request("/app/print-center", { jar });
+  if (!printCentre.ok) fail(AUTH, "owner-print", `unreachable: ${printCentre.error}`);
+  else if (printCentre.response.status !== 200) fail(AUTH, "owner-print", `the print centre returned ${printCentre.response.status}`);
+  else pass(AUTH, "owner-print", "the print centre rendered for the OWNER");
+
+  const list = await request("/app/motorcycles", { jar });
+  if (!list.ok || list.response.status !== 200) {
+    skip(AUTH, "owner-qr", "the motorcycle list did not render, so no real record was available");
+    return;
+  }
+  const id = /\/app\/motorcycles\/([A-Za-z0-9_-]{6,})/.exec(await list.text())?.[1];
+  if (!id) {
+    skip(AUTH, "owner-qr", "no motorcycle exists yet; a QR cannot be fetched for a record that is not there");
+    return;
+  }
+  const label = await request(`/app/motorcycles/${id}/label`, { jar });
+  if (!label.ok || label.response.status !== 200) {
+    fail(AUTH, "owner-qr", `the label sheet for ${id} returned ${label.ok ? label.response.status : label.error}`);
+    return;
+  }
+  const qrPath = /\/api\/qr\/motorcycles\/[A-Za-z0-9_%-]+/.exec(await label.text())?.[0];
+  if (!qrPath) {
+    fail(AUTH, "owner-qr", "the label sheet renders no QR source");
+    return;
+  }
+  const authorized = await request(qrPath, { jar });
+  const anonymous = await request(qrPath);
+  if (!authorized.ok || authorized.response.status !== 200) {
+    fail(AUTH, "owner-qr", `an authorized QR fetch returned ${authorized.ok ? authorized.response.status : authorized.error}`);
+  } else if (anonymous.ok && anonymous.response.status === 200) {
+    fail(AUTH, "owner-qr", "the same QR is served to an anonymous caller");
+  } else {
+    pass(AUTH, "owner-qr", `served to the OWNER, refused anonymously with ${anonymous.ok ? anonymous.response.status : anonymous.error}`);
+  }
+}
+
+// Draft to Preview to Publish, proven on the live site and then put back exactly
+// as it was. Revisions are append-only and this never edits one, so the restore
+// republishes whichever revision was live before and no content can be lost. It
+// is opt-in because publishing changes what the public site shows, even briefly.
+
+function markedContent(slug, marker) {
+  const base = DEFAULT_SITE_CONTENT[slug];
+  const first = base.sections.findIndex((section) => section.enabled);
+  const sections = base.sections.map((section, index) =>
+    index === first ? { ...section, heading: `${section.heading.slice(0, 140)} ${marker}` } : section,
+  );
+  return JSON.stringify({ ...base, sections });
+}
+
+/** The revision the page is serving right now, so it can be served again. */
+function livePublication(html) {
+  const state = /<span class="status-pill (PUBLISH|HIDE|DRAFT)">/.exec(html)?.[1] ?? "DRAFT";
+  const liveArticle = html.split("<article").find((chunk) => chunk.includes(">LIVE<"));
+  const revisionId = liveArticle ? /[?&]revision=([A-Za-z0-9-]{8,})/.exec(liveArticle)?.[1] ?? null : null;
+  return { state, revisionId };
+}
+
+
+async function verifyContentLoop(jar) {
+  if (!ALLOW_WRITES || !CMS_SLUG) {
+    for (const name of CMS_CHECKS) {
+      skip(AUTH, name, "set NATHEE_ACCEPTANCE_ALLOW_WRITES=1 and NATHEE_ACCEPTANCE_CMS_SLUG=<page> to exercise publishing");
+    }
+    return;
+  }
+  if (!Object.hasOwn(SITE_PAGE_DEFINITIONS, CMS_SLUG)) {
+    for (const name of CMS_CHECKS) fail(AUTH, name, `NATHEE_ACCEPTANCE_CMS_SLUG=${CMS_SLUG} is not a managed page`);
+    return;
+  }
+
+  const editor = await request(`/app/site-content/${CMS_SLUG}`, { jar });
+  if (!editor.ok || editor.response.status !== 200) {
+    for (const name of CMS_CHECKS) {
+      fail(AUTH, name, `the editor for ${CMS_SLUG} returned ${editor.ok ? editor.response.status : editor.error}`);
+    }
+    return;
+  }
+  const before = livePublication(await editor.text());
+
+  const marker = `NATHEE-ACCEPTANCE-${randomUUID().slice(0, 8)}`;
+  const draft = await request(`/api/site-content/${CMS_SLUG}/revisions`, {
+    method: "POST",
+    jar,
+    body: new URLSearchParams({
+      requestKey: `acceptance-draft-${randomUUID()}`,
+      contentJson: markedContent(CMS_SLUG, marker),
+      changeNote: "Production acceptance run; restored immediately.",
+    }).toString(),
+  });
+  const savedTo = draft.ok ? draft.response.headers.get("location") ?? "" : "";
+  const revisionId = /[?&]revision=([A-Za-z0-9-]{8,})/.exec(savedTo)?.[1];
+  if (!draft.ok || !/status=(saved|already_saved)/.test(savedTo) || !revisionId) {
+    for (const name of CMS_CHECKS) {
+      fail(AUTH, name, `saving a draft failed: ${draft.ok ? savedTo || draft.response.status : draft.error}`);
+    }
+    return;
+  }
+  pass(AUTH, "cms-draft", `revision ${revisionId.slice(0, 8)} saved for ${CMS_SLUG}`);
+
+  const preview = await request(`/app/site-content/${CMS_SLUG}/preview?revision=${encodeURIComponent(revisionId)}`, { jar });
+  const previewHtml = preview.ok && preview.response.status === 200 ? await preview.text() : "";
+  if (previewHtml.includes(marker)) pass(AUTH, "cms-preview", "the preview shows the unpublished draft");
+  else fail(AUTH, "cms-preview", "the preview does not show the draft that was just saved");
+
+  // A draft that is already public is the failure this whole separation exists
+  // to prevent, so it is checked before anything is published.
+  const publicPath = SITE_PAGE_DEFINITIONS[CMS_SLUG].path;
+  const beforePublish = await request(publicPath);
+  if (beforePublish.ok && (await beforePublish.text()).includes(marker)) {
+    for (const name of ["cms-publish", "cms-public", "cms-restore"]) {
+      fail(AUTH, name, "the unpublished draft is already visible on the public page");
+    }
+    return;
+  }
+
+  if (before.state !== "PUBLISH" || !before.revisionId) {
+    for (const name of ["cms-publish", "cms-public", "cms-restore"]) {
+      skip(
+        AUTH,
+        name,
+        `${CMS_SLUG} has no published revision to return to, so publishing could not be undone exactly; publish real content first`,
+      );
+    }
+    return;
+  }
+
+  const publish = await request(`/api/site-content/${CMS_SLUG}/publish`, {
+    method: "POST",
+    jar,
+    body: new URLSearchParams({
+      action: "PUBLISH",
+      revisionId,
+      requestKey: `acceptance-publish-${randomUUID()}`,
+      note: "Production acceptance run; restored immediately.",
+    }).toString(),
+  });
+  const publishedTo = publish.ok ? publish.response.headers.get("location") ?? "" : "";
+  if (!publish.ok || !/status=(published|already_published)/.test(publishedTo)) {
+    for (const name of ["cms-publish", "cms-public", "cms-restore"]) {
+      fail(AUTH, name, `publishing failed: ${publish.ok ? publishedTo || publish.response.status : publish.error}`);
+    }
+    return;
+  }
+  pass(AUTH, "cms-publish", `${CMS_SLUG} published from inside the application`);
+
+  const live = await request(publicPath);
+  if (live.ok && live.response.status === 200 && (await live.text()).includes(marker)) {
+    pass(AUTH, "cms-public", `${publicPath} serves the published revision with no redeploy`);
+  } else {
+    fail(AUTH, "cms-public", `${publicPath} does not show the revision that was just published`);
+  }
+
+  // Whatever happened above, put the site back.
+  const restore = await request(`/api/site-content/${CMS_SLUG}/publish`, {
+    method: "POST",
+    jar,
+    body: new URLSearchParams({
+      action: "PUBLISH",
+      revisionId: before.revisionId,
+      requestKey: `acceptance-restore-${randomUUID()}`,
+      note: "Restoring the revision that was live before the acceptance run.",
+    }).toString(),
+  });
+  const restoredTo = restore.ok ? restore.response.headers.get("location") ?? "" : "";
+  const after = await request(publicPath);
+  const stillMarked = after.ok ? (await after.text()).includes(marker) : true;
+  if (!restore.ok || !/status=(published|already_published)/.test(restoredTo) || stillMarked) {
+    fail(
+      AUTH,
+      "cms-restore",
+      `the site was NOT restored. Republish revision ${before.revisionId} for ${CMS_SLUG} by hand.`,
+    );
+  } else {
+    pass(AUTH, "cms-restore", `${CMS_SLUG} is serving revision ${before.revisionId.slice(0, 8)} again`);
   }
 }
 

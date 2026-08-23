@@ -152,13 +152,45 @@ It ends in exactly one of three verdicts:
 Only the first authorises the claim. The word `APP_RUNTIME_PASS` is never
 printed by the other two, so a log may be searched for it safely.
 
-That the runner can actually reject a broken runtime is itself tested:
+### Publishing is opted into separately
+
+The Owner asked that content changes reach the public site from the CMS, with no
+SSH, no hand-edited HTML and no Git deploy. Proving that means actually
+publishing, which changes what visitors see — so it runs only when asked:
+
+```bash
+NATHEE_ACCEPTANCE_ALLOW_WRITES=1 NATHEE_ACCEPTANCE_CMS_SLUG=contact \
+  npm run verify:acceptance
+```
+
+Given both, the run saves a draft, confirms the preview shows it, confirms the
+public page does **not** yet, publishes, confirms the public page now serves it
+with no redeploy, and then republishes whichever revision was live before.
+Revisions are append-only and none is ever edited, so no content can be lost;
+the page ends on exactly the revision it started on, and the run fails loudly
+with the revision id to restore by hand if that last step does not take.
+
+It refuses to publish a page that has no published revision to return to, since
+that change could not be undone exactly. Publish real content first, then run
+this against it.
+
+Without both variables the CMS checks are SKIP, and the verdict is INCOMPLETE.
+
+### The runner is itself tested
+
 `scripts/test-production-acceptance-rejections.mjs` stands up an HTTPS server
-impersonating the application and breaks it 21 different ways — a false
+impersonating the application and breaks it 29 different ways — a false
 readiness check, a missing security header, the placeholder login page, the
 application shell rendering anonymously, private evidence served to a stranger,
-a refused OWNER, a sign-in absent from the Audit trail, one customer reading
-another's record — and requires the run to catch each one. It also proves the
-three ways the runner could lie by omission are handled: missing credentials,
-an OWNER without customers, and two customers whose records are
-indistinguishable all report INCOMPLETE rather than PASS.
+a refused OWNER, a sign-in absent from the Audit trail, a draft that goes public
+the moment it is saved, a publish that never reaches the page, a run that leaves
+the site unrestored, and one customer reading a record belonging to another —
+and requires the run to catch every one.
+
+It also proves the five ways the runner could lie by omission. Missing
+credentials, an OWNER with no customers, two customers whose records cannot be
+told apart, publishing not opted into, and a page with no published revision to
+return to all report INCOMPLETE rather than PASS.
+
+It runs in `npm run test:security` as `ACCEPTANCE_NEGATIVE_PASS`, so the
+acceptance runner cannot quietly stop working.

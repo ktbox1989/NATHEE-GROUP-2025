@@ -31,6 +31,12 @@ const CUSTOMER_A = { email: `a-${randomUUID()}@acceptance.invalid`, password: ra
 const CUSTOMER_B = { email: `b-${randomUUID()}@acceptance.invalid`, password: randomUUID(), company: "B" };
 
 const MOTORCYCLES = { A: ["mc_alpha_00000001"], B: ["mc_bravo_00000001"] };
+const QR_PUBLIC_ID = "mc_" + "a".repeat(32);
+// A managed page and its public path, matching lib/site-cms-content.ts.
+const CMS_SLUG = "contact";
+const CMS_PUBLIC_PATH = "/contact";
+const ORIGINAL_REVISION = "rev-live-original";
+const ORIGINAL_CONTENT = "เนื้อหาที่เผยแพร่อยู่เดิม";
 
 const certificateDirectory = mkdtempSync(join(tmpdir(), "nathee-acceptance-tls-"));
 const keyPath = join(certificateDirectory, "key.pem");
@@ -79,6 +85,8 @@ const CASES = [
   { name: "no credentials at all", defect: null, credentials: "none", expect: "INCOMPLETE" },
   { name: "an OWNER credential but no customers", defect: null, credentials: "owner", expect: "INCOMPLETE" },
   { name: "two customers whose records are indistinguishable", defect: "identicalCustomerData", credentials: "all", expect: "INCOMPLETE" },
+  { name: "publishing was not opted into", defect: null, credentials: "all", writes: false, expect: "INCOMPLETE" },
+  { name: "the chosen page has never been published", defect: "cmsNeverPublished", credentials: "all", expect: "INCOMPLETE" },
 
   { name: "one readiness check is false", defect: "degradedHealth", credentials: "all", expect: "FAIL" },
   { name: "a readiness check is absent from the payload", defect: "missingHealthCheck", credentials: "all", expect: "FAIL" },
@@ -101,10 +109,21 @@ const CASES = [
   { name: "the sign-in is never written to the Audit trail", defect: "noAuditSignIn", credentials: "all", expect: "FAIL" },
   { name: "the trail shows only a denied sign-in", defect: "auditDeniedOnly", credentials: "all", expect: "FAIL" },
   { name: "one customer can open a record belonging to the other", defect: "crossTenantRead", credentials: "all", expect: "FAIL" },
+  { name: "the print centre errors for the OWNER", defect: "printBroken", credentials: "all", expect: "FAIL" },
+  { name: "the label sheet renders no QR", defect: "labelNoQr", credentials: "all", expect: "FAIL" },
+  { name: "a draft cannot be saved", defect: "draftRejected", credentials: "all", expect: "FAIL" },
+  { name: "the preview does not show the draft", defect: "previewMissesDraft", credentials: "all", expect: "FAIL" },
+  { name: "saving a draft publishes it immediately", defect: "draftLeaksPublic", credentials: "all", expect: "FAIL" },
+  { name: "publishing is refused", defect: "publishRefused", credentials: "all", expect: "FAIL" },
+  { name: "publishing succeeds but the public page does not change", defect: "publishNotLive", credentials: "all", expect: "FAIL" },
+  { name: "the site is not restored after the run", defect: "restoreIgnored", credentials: "all", expect: "FAIL" },
 ];
 
 function buildHandler(defect) {
   const sessions = new Map();
+  const revisions = new Map([[ORIGINAL_REVISION, ORIGINAL_CONTENT]]);
+  let published = ORIGINAL_REVISION;
+  let nextRevision = 0;
 
   const accountFor = (email, password) => {
     for (const account of [OWNER, CUSTOMER_A, CUSTOMER_B]) {
@@ -212,6 +231,81 @@ function buildHandler(defect) {
       return send(response, 200, "<main>จัดการเว็บไซต์</main>");
     }
 
+    if (path === "/app/print-center") {
+      if (!session) return send(response, 303, "", { location: "/login" });
+      if (defect === "printBroken") return send(response, 500, "error");
+      return send(response, 200, "<main>ศูนย์พิมพ์</main>");
+    }
+
+    if (/^\/app\/motorcycles\/[^/]+\/label$/.test(path)) {
+      if (!session) return send(response, 303, "", { location: "/login" });
+      if (defect === "labelNoQr") return send(response, 200, "<main><p>ไม่มี QR</p></main>");
+      return send(response, 200, `<main><img src="/api/qr/motorcycles/${QR_PUBLIC_ID}" /></main>`);
+    }
+
+    if (path === `/app/site-content/${CMS_SLUG}`) {
+      if (!session) return send(response, 303, "", { location: "/login" });
+      if (defect === "cmsNeverPublished") {
+        return send(response, 200, '<main><span class="status-pill DRAFT">DRAFT</span></main>');
+      }
+      return send(
+        response,
+        200,
+        '<main><span class="status-pill PUBLISH">PUBLISH</span>' +
+          `<article><b>${published.slice(0, 8)}…</b><span class="status-pill PUBLISH">LIVE</span>` +
+          `<a href="/app/site-content/${CMS_SLUG}?revision=${published}">เปิดแก้จาก Revision นี้</a></article></main>`,
+      );
+    }
+
+    if (path === `/app/site-content/${CMS_SLUG}/preview`) {
+      if (!session) return send(response, 303, "", { location: "/login" });
+      const wanted = url.searchParams.get("revision") ?? "";
+      const content = defect === "previewMissesDraft" ? revisions.get(ORIGINAL_REVISION) : revisions.get(wanted);
+      if (content === undefined) return send(response, 404, "Not found");
+      return send(response, 200, `<main>${content}</main>`);
+    }
+
+    if (path === `/api/site-content/${CMS_SLUG}/revisions` && request.method === "POST") {
+      if (!session) return send(response, 303, "", { location: "/login?error=not_authorized" });
+      let body = "";
+      request.on("data", (chunk) => { body += chunk; });
+      request.on("end", () => {
+        const form = new URLSearchParams(body);
+        const contentJson = form.get("contentJson") ?? "";
+        if (defect === "draftRejected") {
+          return send(response, 303, "", { location: `/app/site-content/${CMS_SLUG}?error=invalid_content` });
+        }
+        nextRevision += 1;
+        const id = `rev-draft-${String(nextRevision).padStart(6, "0")}`;
+        revisions.set(id, contentJson);
+        if (defect === "draftLeaksPublic") published = id;
+        send(response, 303, "", { location: `/app/site-content/${CMS_SLUG}?status=saved&revision=${id}` });
+      });
+      return undefined;
+    }
+
+    if (path === `/api/site-content/${CMS_SLUG}/publish` && request.method === "POST") {
+      if (!session) return send(response, 303, "", { location: "/login?error=not_authorized" });
+      let body = "";
+      request.on("data", (chunk) => { body += chunk; });
+      request.on("end", () => {
+        const form = new URLSearchParams(body);
+        const wanted = form.get("revisionId") ?? "";
+        const restoring = wanted === ORIGINAL_REVISION;
+        if (defect === "publishRefused" && !restoring) {
+          return send(response, 303, "", { location: `/app/site-content/${CMS_SLUG}?error=publish_failed` });
+        }
+        const ignore = (defect === "publishNotLive" && !restoring) || (defect === "restoreIgnored" && restoring);
+        if (!ignore && revisions.has(wanted)) published = wanted;
+        send(response, 303, "", { location: `/app/site-content/${CMS_SLUG}?status=published` });
+      });
+      return undefined;
+    }
+
+    if (path === CMS_PUBLIC_PATH) {
+      return send(response, 200, `<main>${revisions.get(published) ?? ""}</main>`);
+    }
+
     if (path === "/app/audit") {
       if (!session && defect !== "anonymousAudit") return send(response, 303, "", { location: "/login" });
       let pill = '<span class="status-pill">SIGN_IN</span>';
@@ -283,6 +377,9 @@ async function runCase(testCase) {
         NODE_TLS_REJECT_UNAUTHORIZED: "0",
         NATHEE_APP_BASE_URL: `https://127.0.0.1:${port}`,
         NATHEE_ACCEPTANCE_TIMEOUT_MS: "10000",
+        ...(testCase.writes === false
+          ? {}
+          : { NATHEE_ACCEPTANCE_ALLOW_WRITES: "1", NATHEE_ACCEPTANCE_CMS_SLUG: CMS_SLUG }),
         ...credentialEnvironment(testCase.credentials),
       },
     });
