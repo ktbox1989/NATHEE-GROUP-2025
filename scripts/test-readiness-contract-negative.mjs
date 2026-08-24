@@ -60,6 +60,23 @@ const CASES = [
       ),
   },
   {
+    // 0029 supersedes two yard triggers by dropping and recreating them under
+    // the same name. A derivation that applied every CREATE and then every DROP
+    // would lose them, and report as absent an object the database still has.
+    name: "a trigger a later migration supersedes is dropped from the requirements",
+    apply: (directory) =>
+      edit(directory, "lib/runtime-readiness.ts", (source) =>
+        source.replace(`  ${JSON.stringify("trg_yard_placements_zone_capacity")},${String.fromCharCode(10)}`, ""),
+      ),
+  },
+  {
+    name: "the superseded placement-history guard is dropped from the requirements",
+    apply: (directory) =>
+      edit(directory, "lib/runtime-readiness.ts", (source) =>
+        source.replace(`  ${JSON.stringify("trg_yard_placements_history_immutable")},${String.fromCharCode(10)}`, ""),
+      ),
+  },
+  {
     name: "the last-OWNER protection is dropped from the requirements",
     apply: (directory) =>
       edit(directory, "lib/runtime-readiness.ts", (source) =>

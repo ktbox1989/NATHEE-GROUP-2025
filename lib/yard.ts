@@ -47,3 +47,43 @@ export function parseYardCursor(
   if (Number.isNaN(parsed.getTime())) return null;
   return { enteredAt: before, id: beforeId };
 }
+
+const positionCodePattern = /^[A-Z0-9][A-Z0-9-]{0,19}$/;
+
+/** Row and slot codes share one rule: short, upper case, printable on a label. */
+export function normalizeYardPositionCode(value: string): string | null {
+  const normalized = value.trim().toUpperCase();
+  return positionCodePattern.test(normalized) ? normalized : null;
+}
+
+/**
+ * Expands `01-20` into twenty slot codes, so a row of real parking bays is one
+ * action rather than twenty. A plain code is returned as a single slot.
+ *
+ * The bound and zero-padding come from the first code, so `01-20` produces
+ * `01..20` and not `1..20`: a label printed `1` and a label printed `01` are the
+ * same bay to a person and different codes to the database.
+ */
+export function expandSlotCodeRange(value: string, limit = 200): string[] | null {
+  const normalized = value.trim().toUpperCase();
+  const range = /^([A-Z]*)(\d+)-([A-Z]*)(\d+)$/.exec(normalized);
+  if (!range) {
+    const single = normalizeYardPositionCode(normalized);
+    return single ? [single] : null;
+  }
+  const [, prefix, fromDigits, toPrefix, toDigits] = range;
+  if (prefix !== toPrefix) return null;
+  const from = Number(fromDigits);
+  const to = Number(toDigits);
+  if (!Number.isSafeInteger(from) || !Number.isSafeInteger(to) || from < 0 || to < from) return null;
+  if (to - from + 1 > limit) return null;
+  const width = fromDigits.length;
+  const codes: string[] = [];
+  for (let value = from; value <= to; value += 1) {
+    const code = `${prefix}${String(value).padStart(width, "0")}`;
+    const normalizedCode = normalizeYardPositionCode(code);
+    if (!normalizedCode) return null;
+    codes.push(normalizedCode);
+  }
+  return codes;
+}

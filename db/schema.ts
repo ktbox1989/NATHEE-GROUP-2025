@@ -97,6 +97,8 @@ export const QUOTE_STATUSES = [
   "CANCELLED",
 ] as const;
 export const YARD_ZONE_STATUSES = ["ACTIVE", "INACTIVE"] as const;
+export const YARD_ROW_STATUSES = ["ACTIVE", "BLOCKED"] as const;
+export const YARD_SLOT_STATUSES = ["ACTIVE", "BLOCKED", "RETIRED"] as const;
 export const GALLERY_CATEGORY_STATUSES = ["ACTIVE", "HIDDEN"] as const;
 export const GALLERY_ITEM_STATUSES = ["DRAFT", "PUBLISHED", "HIDDEN", "ARCHIVED"] as const;
 export const GALLERY_VISIBILITIES = ["PUBLIC", "CUSTOMER_JOB", "INTERNAL"] as const;
@@ -554,6 +556,60 @@ export const yardZones = sqliteTable(
   ],
 );
 
+/**
+ * A yard is Zone -> Row -> Slot, where a slot is an actual parking position
+ * rather than a number someone maintains by hand.
+ *
+ * Both levels are additive: a zone with no rows keeps working exactly as it did,
+ * on its manual `capacity`. Once a zone is mapped into slots the manual number
+ * is refused, because two sources of truth for "how many fit" is how the count
+ * drifts from the yard.
+ */
+export const yardRows = sqliteTable(
+  "yard_rows",
+  {
+    id: text("id").primaryKey(),
+    yardZoneId: text("yard_zone_id").notNull().references(() => yardZones.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    code: text("code").notNull(),
+    name: text("name"),
+    status: text("status", { enum: YARD_ROW_STATUSES }).notNull().default("ACTIVE"),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdBy: text("created_by").notNull().references(() => users.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    uniqueIndex("uq_yard_rows_zone_code").on(table.yardZoneId, table.code),
+    index("idx_yard_rows_zone_order").on(table.yardZoneId, table.sortOrder, table.code),
+    check("ck_yard_rows_code", sql`length(${table.code}) BETWEEN 1 AND 20 AND ${table.code} NOT GLOB '*[^A-Z0-9-]*'`),
+    check("ck_yard_rows_status", sql`${table.status} IN ('ACTIVE', 'BLOCKED')`),
+    check("ck_yard_rows_sort", sql`${table.sortOrder} >= 0`),
+  ],
+);
+
+export const yardSlots = sqliteTable(
+  "yard_slots",
+  {
+    id: text("id").primaryKey(),
+    yardRowId: text("yard_row_id").notNull().references(() => yardRows.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    code: text("code").notNull(),
+    status: text("status", { enum: YARD_SLOT_STATUSES }).notNull().default("ACTIVE"),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdBy: text("created_by").notNull().references(() => users.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    uniqueIndex("uq_yard_slots_row_code").on(table.yardRowId, table.code),
+    index("idx_yard_slots_row_order").on(table.yardRowId, table.sortOrder, table.code),
+    check("ck_yard_slots_code", sql`length(${table.code}) BETWEEN 1 AND 20 AND ${table.code} NOT GLOB '*[^A-Z0-9-]*'`),
+    // RETIRED is kept apart from BLOCKED: blocked is temporary, retired means the
+    // position no longer exists and must never come back into rotation.
+    check("ck_yard_slots_status", sql`${table.status} IN ('ACTIVE', 'BLOCKED', 'RETIRED')`),
+    check("ck_yard_slots_sort", sql`${table.sortOrder} >= 0`),
+  ],
+);
+
 export const yardPlacements = sqliteTable(
   "yard_placements",
   {
@@ -568,6 +624,10 @@ export const yardPlacements = sqliteTable(
     yardZoneId: text("yard_zone_id")
       .notNull()
       .references(() => yardZones.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    // Null for a zone that has not been mapped into slots, so existing
+    // placements stay valid and the two models coexist.
+    yardRowId: text("yard_row_id").references(() => yardRows.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    yardSlotId: text("yard_slot_id").references(() => yardSlots.id, { onDelete: "restrict", onUpdate: "cascade" }),
     enteredAt: text("entered_at").notNull(),
     exitedAt: text("exited_at"),
     placedBy: text("placed_by")
@@ -584,6 +644,10 @@ export const yardPlacements = sqliteTable(
     index("idx_yard_placements_zone_active")
       .on(table.yardZoneId, table.enteredAt)
       .where(sql`${table.exitedAt} IS NULL`),
+    uniqueIndex("uq_yard_placements_slot_active")
+      .on(table.yardSlotId)
+      .where(sql`${table.yardSlotId} IS NOT NULL AND ${table.exitedAt} IS NULL`),
+    index("idx_yard_placements_slot_entered").on(table.yardSlotId, table.enteredAt),
     index("idx_yard_placements_company_entered").on(table.companyId, table.enteredAt),
     index("idx_yard_placements_motorcycle_entered").on(table.motorcycleId, table.enteredAt),
     check(

@@ -43,24 +43,31 @@ async function schemaObjectsFromMigrations() {
 
   for (const file of files) {
     const sql = await readFile(join(directory, file), "utf8");
-    for (const [, name] of sql.matchAll(/CREATE TABLE `([a-z_0-9]+)`/g)) {
-      // Drizzle rebuilds a table by creating `__new_x`, copying, and renaming.
-      if (!name.startsWith("__new")) tables.add(name);
+    // Statement by statement, in order. Applying every CREATE and then every
+    // DROP loses a migration that supersedes a trigger by dropping and
+    // recreating it under the same name: the drop would win regardless of where
+    // it appeared, and the object would vanish from the contract while still
+    // existing in the database.
+    for (const statement of sql.split("--> statement-breakpoint")) {
+      for (const [, name] of statement.matchAll(/CREATE TABLE `([a-z_0-9]+)`/g)) {
+        // Drizzle rebuilds a table by creating `__new_x`, copying, and renaming.
+        if (!name.startsWith("__new")) tables.add(name);
+      }
+      for (const [, name] of statement.matchAll(/CREATE TRIGGER `([a-z_0-9]+)`/g)) triggers.add(name);
+      for (const [, name] of statement.matchAll(/CREATE (?:UNIQUE )?INDEX `([a-z_0-9]+)`/g)) indexes.add(name);
+      for (const [, name] of statement.matchAll(/DROP TABLE (?:IF EXISTS )?`([a-z_0-9]+)`/g)) tables.delete(name);
+      // ...and finishes by renaming `__new_x` back to `x`. Without this the drop
+      // above removed the table for good, so every rebuilt table fell out of the
+      // contract. That is how `user_permissions` and `gallery_items` came to be
+      // unchecked: a runtime missing the table that resolves permissions still
+      // reported `database: true`.
+      for (const [, from, to] of statement.matchAll(/ALTER TABLE `([a-z_0-9]+)` RENAME TO `([a-z_0-9]+)`/g)) {
+        tables.delete(from);
+        if (!to.startsWith("__new")) tables.add(to);
+      }
+      for (const [, name] of statement.matchAll(/DROP TRIGGER (?:IF EXISTS )?`([a-z_0-9]+)`/g)) triggers.delete(name);
+      for (const [, name] of statement.matchAll(/DROP INDEX (?:IF EXISTS )?`([a-z_0-9]+)`/g)) indexes.delete(name);
     }
-    for (const [, name] of sql.matchAll(/CREATE TRIGGER `([a-z_0-9]+)`/g)) triggers.add(name);
-    for (const [, name] of sql.matchAll(/CREATE (?:UNIQUE )?INDEX `([a-z_0-9]+)`/g)) indexes.add(name);
-    for (const [, name] of sql.matchAll(/DROP TABLE (?:IF EXISTS )?`([a-z_0-9]+)`/g)) tables.delete(name);
-    // ...and finishes by renaming `__new_x` back to `x`. Without this the drop
-    // above removed the table for good, so every rebuilt table fell out of the
-    // contract. That is how `user_permissions` and `gallery_items` came to be
-    // unchecked: a runtime missing the table that resolves permissions still
-    // reported `database: true`.
-    for (const [, from, to] of sql.matchAll(/ALTER TABLE `([a-z_0-9]+)` RENAME TO `([a-z_0-9]+)`/g)) {
-      tables.delete(from);
-      if (!to.startsWith("__new")) tables.add(to);
-    }
-    for (const [, name] of sql.matchAll(/DROP TRIGGER (?:IF EXISTS )?`([a-z_0-9]+)`/g)) triggers.delete(name);
-    for (const [, name] of sql.matchAll(/DROP INDEX (?:IF EXISTS )?`([a-z_0-9]+)`/g)) indexes.delete(name);
   }
   return { files, tables, triggers, indexes };
 }

@@ -65,25 +65,31 @@ export function migrationSteps(sources: readonly MigrationSource[]): MigrationSt
   for (const { tag, sql } of sources) {
     const before = new Set(running);
 
-    for (const [, name] of sql.matchAll(/CREATE TABLE `([a-z_0-9]+)`/g)) {
-      if (isTracked(name)) running.add(`table:${name}`);
+    // Statement by statement, in order. Applying every CREATE and then every
+    // DROP loses a migration that supersedes a trigger by dropping and
+    // recreating it under the same name, and reports an object as absent while
+    // the database still has it.
+    for (const statement of sql.split("--> statement-breakpoint")) {
+      for (const [, name] of statement.matchAll(/CREATE TABLE `([a-z_0-9]+)`/g)) {
+        if (isTracked(name)) running.add(`table:${name}`);
+      }
+      for (const [, name] of statement.matchAll(/CREATE TRIGGER `([a-z_0-9]+)`/g)) {
+        if (isTracked(name)) running.add(`trigger:${name}`);
+      }
+      for (const [, name] of statement.matchAll(/CREATE (?:UNIQUE )?INDEX `([a-z_0-9]+)`/g)) {
+        if (isTracked(name)) running.add(`index:${name}`);
+      }
+      for (const [, name] of statement.matchAll(/DROP TABLE (?:IF EXISTS )?`([a-z_0-9]+)`/g)) running.delete(`table:${name}`);
+      // A table rebuild builds `__new_x`, drops `x`, then renames. Without the
+      // rename the table is recorded as dropped and never restored, so every
+      // rebuilt table would be reported as an object no migration creates.
+      for (const [, from, to] of statement.matchAll(/ALTER TABLE `([a-z_0-9]+)` RENAME TO `([a-z_0-9]+)`/g)) {
+        running.delete(`table:${from}`);
+        if (isTracked(to)) running.add(`table:${to}`);
+      }
+      for (const [, name] of statement.matchAll(/DROP TRIGGER (?:IF EXISTS )?`([a-z_0-9]+)`/g)) running.delete(`trigger:${name}`);
+      for (const [, name] of statement.matchAll(/DROP INDEX (?:IF EXISTS )?`([a-z_0-9]+)`/g)) running.delete(`index:${name}`);
     }
-    for (const [, name] of sql.matchAll(/CREATE TRIGGER `([a-z_0-9]+)`/g)) {
-      if (isTracked(name)) running.add(`trigger:${name}`);
-    }
-    for (const [, name] of sql.matchAll(/CREATE (?:UNIQUE )?INDEX `([a-z_0-9]+)`/g)) {
-      if (isTracked(name)) running.add(`index:${name}`);
-    }
-    for (const [, name] of sql.matchAll(/DROP TABLE (?:IF EXISTS )?`([a-z_0-9]+)`/g)) running.delete(`table:${name}`);
-    // A table rebuild builds `__new_x`, drops `x`, then renames. Without the
-    // rename the table is recorded as dropped and never restored, so every
-    // rebuilt table would be reported as an object no migration creates.
-    for (const [, from, to] of sql.matchAll(/ALTER TABLE `([a-z_0-9]+)` RENAME TO `([a-z_0-9]+)`/g)) {
-      running.delete(`table:${from}`);
-      if (isTracked(to)) running.add(`table:${to}`);
-    }
-    for (const [, name] of sql.matchAll(/DROP TRIGGER (?:IF EXISTS )?`([a-z_0-9]+)`/g)) running.delete(`trigger:${name}`);
-    for (const [, name] of sql.matchAll(/DROP INDEX (?:IF EXISTS )?`([a-z_0-9]+)`/g)) running.delete(`index:${name}`);
 
     const introduces = new Set([...running].filter((entry) => !before.has(entry)));
     steps.push({ tag, cumulative: new Set(running), introduces });

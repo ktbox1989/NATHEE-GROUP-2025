@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { isYardPlacementAllowed, isYardRequestKey, normalizeYardZoneCode, parseYardCapacity, parseYardCursor, YARD_PAGE_SIZE } from "../lib/yard.ts";
+import { YARD_PAGE_SIZE, expandSlotCodeRange, isYardPlacementAllowed, isYardRequestKey, normalizeYardPositionCode, normalizeYardZoneCode, parseYardCapacity, parseYardCursor } from "../lib/yard.ts";
 
 test("yard zone codes are canonical and bounded", () => {
   assert.equal(normalizeYardZoneCode(" a-01 "), "A-01");
@@ -38,4 +38,32 @@ test("yard assignment is allowed only for operationally compatible statuses", ()
   assert.equal(isYardPlacementAllowed("IN_TRANSIT"), false);
   assert.equal(isYardPlacementAllowed("DELIVERED"), false);
   assert.equal(isYardPlacementAllowed("CLOSED"), false);
+});
+
+
+// A row of parking bays is built once, so the form takes a range. The padding
+// matters: a label printed `1` and a label printed `01` are the same bay to a
+// person and two different codes to the database.
+test("a slot range expands to the exact codes that will be painted on the ground", () => {
+  assert.deepEqual(expandSlotCodeRange("01-05"), ["01", "02", "03", "04", "05"]);
+  assert.deepEqual(expandSlotCodeRange("A1-A3"), ["A1", "A2", "A3"]);
+  assert.deepEqual(expandSlotCodeRange("7"), ["7"]);
+  assert.deepEqual(expandSlotCodeRange(" b7 "), ["B7"]);
+  assert.equal(expandSlotCodeRange("001-003")?.[0], "001", "padding is taken from the first code");
+});
+
+test("a range that cannot be built is refused rather than guessed", () => {
+  assert.equal(expandSlotCodeRange("05-01"), null, "backwards");
+  assert.equal(expandSlotCodeRange("A1-B3"), null, "two different prefixes");
+  assert.equal(expandSlotCodeRange("01-999"), null, "beyond the per-row bound");
+  assert.equal(expandSlotCodeRange(""), null);
+  assert.equal(expandSlotCodeRange("ช่อง1"), null, "codes must be printable on a label");
+});
+
+test("a position code is upper case and label-sized", () => {
+  assert.equal(normalizeYardPositionCode(" r1 "), "R1");
+  assert.equal(normalizeYardPositionCode("A-01"), "A-01");
+  assert.equal(normalizeYardPositionCode(""), null);
+  assert.equal(normalizeYardPositionCode("-LEADING"), null);
+  assert.equal(normalizeYardPositionCode("X".repeat(21)), null);
 });
