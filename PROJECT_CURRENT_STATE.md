@@ -1,12 +1,28 @@
 # NATHEE GROUP 2025 — Canonical Project State
 
-Updated: 2026-08-23 (Asia/Bangkok)
+Updated: 2026-08-24 (Asia/Bangkok)
 
 ## Source checkpoint
 
 - Branch: `main`
-- Full HEAD: `1f3b9c4fedcd7617bbc5785b1c2170a99adfd663`
-- Remote `origin/main` verified equal to local HEAD.
+- Previous `main`: `8da10531108417da0600be5fc5108155f4b037c9`
+- This checkpoint is the A+B reconciliation merge. `main` fast-forwards to it,
+  so the final integration commit and `main` are the **same** commit; resolve it
+  with `git rev-parse HEAD` rather than copying a SHA from this line.
+- Remote `origin/main` verified equal to local HEAD by comparing
+  `git rev-parse HEAD` against `git ls-remote origin refs/heads/main`.
+- Reconciled inputs, as exact full SHAs:
+
+| Input | Branch | Full SHA |
+| --- | --- | --- |
+| Lane A | `lane-a/public-product-hardening-20260823` | `45e1953990cb6711674d75302545c69538b34023` |
+| Lane B | `production-readiness` | `9d80d5ece6d6e0fd44bc6792db0b6522ff7ac153` |
+| Lane B reviewed snapshot | — | `25121b1f8b15faa2f03dc4c9f67ed84371bdc893` |
+| Integration before this run | `integration/a-b-reconcile-20260823` | `d497aa30e649ab04cc3e1754ef974810c9c581cd` |
+
+- The reviewed Lane B snapshot was **verified** an ancestor of Lane B's head
+  (`git merge-base --is-ancestor`), so only the two-commit delta was reviewed
+  rather than the branch being re-reviewed from scratch.
 - Latest verified implementation milestone: Customer isolation regression guard (`6b36aca`)
 - Public website Production: **CLOSED/PASS** at `7d24518e67a562c9df45d999d8f3144fccb86f6a`. Preserved; do not rework.
 - Canonical repository: `ktbox1989/NATHEE-GROUP-2025`
@@ -47,6 +63,49 @@ the guarded Z.com deployment of `7d24518e67a562c9df45d999d8f3144fccb86f6a`.
   all unproven, and no report may claim otherwise.
 
 ## Closed local milestones
+
+### The A+B reconciliation, verified against a moving Lane B
+
+Lane B moved from the reviewed `25121b1` to `9d80d5e` between the last
+reconciliation being run and being reported. Rather than re-reviewing the
+branch, the reviewed commit was **proven** to still be an ancestor and only the
+two-commit delta was taken: `0028` single-commitment guards for trucks and
+drivers, and `0029` a real yard address of Zone/Row/Slot.
+
+`package.json` conflicted, as it will while both lanes edit the script lists.
+Resolved by union over whitespace tokens, and the resolver asserts rather than
+claims: every token present on either side is checked present in the result.
+**0 lost.** `test` 29 -> 31 files, `test:db` 26 -> 28, `test:unit` unchanged at
+49 because Lane B's 47 are a strict subset of Lane A's. All 124 distinct test
+and script files named by `package.json` were confirmed to exist on disk.
+
+No validator was widened. `lib/public-cms/` is **byte-identical** to the
+pre-merge integration tree — checked as a diff, not asserted — and the Lane B
+delta touches no CMS, posts or media file at all.
+
+Combined verification, run end to end in one tree:
+
+| Gate | Result |
+| --- | --- |
+| `npm test` | **823 tests, 0 fail** (579 unit + 244 db) |
+| `npm run lint` | clean |
+| `npx tsc --noEmit` | clean |
+| production build | 5/5 environments built |
+| `npm run test:gate` | pass, `LOGIN_REDIRECT_RELEASE_STATE=INACTIVE` |
+| readiness contract | `migrations=30 tables=44 triggers=100 indexes=141 required=285` |
+| migration inventory | `range=0000-0029 ledgerEntries=30 destructiveStatements=0` |
+| named gate lines | 37 `*_PASS`, 0 `*_FAIL` |
+| secret scan | clean — the one private-key match is a negative fixture asserting the gate rejects it |
+| conflict markers | none; no `.orig`/`.rej` |
+| LF/CRLF | 152 LF-governed files all `i/lf w/lf`, 0 CRLF |
+
+Two Lane A contract asks were re-measured against Lane B's head and are **still
+open**: no slug-history or redirect table exists, `POST_MOVED` is emitted
+nowhere outside Lane A's own planner, and `PostMediaResolver` is still a type
+with no production implementation.
+
+Production was not touched, `/login` was not activated, and no migration was
+applied. `APP_RUNTIME_PASS` remains **NOT_PROVEN**.
 
 ### The Audit trail answers the third question an Owner asks
 
