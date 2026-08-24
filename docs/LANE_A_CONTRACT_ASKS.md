@@ -15,6 +15,63 @@ Measured against `main` at `8da1053`. Lane A work is on
 
 ---
 
+## Reconciliation, 2026-08-23 — measured in a combined tree
+
+Lane A `3e75d7a` + `production-readiness` `967401f` merged onto `main` `8da1053`
+in an isolated worktree and run end to end. **Fully green**, and the six open
+asks were confirmed by executing Lane B's mapper against Lane A's validator
+rather than by reading either.
+
+| Ask | Verified how | Result |
+| --- | --- | --- |
+| posts schema | `mapStoredPostToPublicPost` → `validatePublicPost` | ACCEPTED |
+| `publishedAt` / `updatedAt` | unedited post | `updatedAt === null`, no `article:modified_time` emitted |
+| | edited post | `updatedAt` set, `article:modified_time` emitted |
+| categories | id and label survive the map | `{ id, label }` |
+| `NOINDEX` | `POST_ROBOTS = ["INDEX","NOINDEX"]` | `robots: noindex, nofollow` |
+| robots policy | NOINDEX post's sitemap entry | `includeInSitemap: false`, URLs `[]` |
+| public post mapping | canonical and path | derived from slug, canonical equals own path |
+
+Lane B re-exports Lane A's slug validator rather than writing a second one, so
+there is one slug rule rather than two that agree today.
+
+### Two gaps remain, and neither is guessed
+
+**1. Slug history / rename redirect policy — no mechanism exists.**
+
+Measured on `967401f`: zero migrations define a slug-history or redirect table,
+and `uq_posts_slug` is a unique index on `posts.slug`. A rename therefore
+overwrites in place with no record of the previous slug, so the old URL 404s and
+every inbound link to it is lost.
+
+Lane A is already built for the other side of this and is waiting:
+`resolvePostRedirect` resolves rename chains, and `planInvalidation` handles
+`POST_MOVED` by invalidating both URLs while deliberately leaving the old one
+answering with a 301. Neither can do anything without a stored previous slug.
+
+Lane B also emits no publication event yet — zero references to
+`POST_PUBLISHED`, `POST_UNPUBLISHED` or `POST_MOVED` outside Lane A's own
+planner — so a publish currently reaches no cache invalidation at all.
+
+**2. Public media delivery URL and host — undecided.**
+
+`PostMediaResolver` is a type with **no production implementation**: nothing in
+`app/` or `lib/` outside its own declaration resolves a gallery item id to a
+URL, and the post routes never pass a resolver. Lane B's tests supply fixture
+paths under `/assets/media/`.
+
+The open question is not the shape but the host. Lane A's contract requires a
+same-origin path under `/assets/`, and the static release serves
+`/assets/gallery/…` from Z.com by file copy. Where CMS-managed media is served
+from once the CMS is live — the same document root, an R2-backed route, or
+something else — decides whether that prefix can still hold, and it is a
+deployment decision rather than a schema one.
+
+Until it is decided, no resolver should be written: one that guessed a host
+would produce URLs that pass the contract and 404 for visitors.
+
+---
+
 ## Answered by Lane B on 2026-08-23
 
 Read-only inspection of `origin/production-readiness` at `967401f`, which is
