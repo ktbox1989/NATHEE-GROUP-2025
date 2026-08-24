@@ -61,12 +61,17 @@ Windows file gives you — is accepted, because the runtime accepts it too.
 
 - [ ] Back up the Production D1 database **before** applying anything.
 - [ ] Read the migration ledger; apply only what is missing.
-- [ ] Apply `drizzle/0000` … `drizzle/0025`, once each, in order.
+- [ ] Apply `drizzle/0000` … `drizzle/0029`, once each, in order.
 - [ ] Never rerun the chain blindly and never edit an applied migration.
 
-`0022`–`0025` are additive: two tables, three indexes and two `audit_logs`
-immutability triggers. None alters an existing table, row, trigger or
-constraint.
+`0022`–`0029` are additive: they add tables, indexes and `RAISE(ABORT)`
+triggers, and drop no table, row or column. `scripts/test-migration-inventory.mjs`
+reports `destructiveStatements=0` across the whole chain.
+
+The range is `0029`, not `0025`: `0026` adds public posts, `0027` the yard
+placement invariants, `0028` the truck and driver single-commitment guards, and
+`0029` the Zone/Row/Slot yard address. Gate 7 requires the objects all four
+create, so stopping at `0025` leaves readiness reporting `degraded`.
 
 ## Gate 4 — R2
 
@@ -98,8 +103,9 @@ Without both, the public quotation form stays visibly unavailable and
       all six checks `true`: `authentication`, `adminAuthentication`,
       `canonicalOrigin`, `database`, `storage`, `antiAbuse`.
 
-`database` requires **every** object the migrations create — 37 tables, 81
-triggers, 128 indexes. A runtime missing any one reports `degraded`, and
+`database` requires **every** object the migrations create — 44 tables, 100
+triggers, 141 indexes (285 objects; the count `npm run test:security` prints as
+`READINESS_CONTRACT_PASS`). A runtime missing any one reports `degraded`, and
 `missingDatabaseObjects()` names which.
 
 ## Gate 8 — Authenticated acceptance
