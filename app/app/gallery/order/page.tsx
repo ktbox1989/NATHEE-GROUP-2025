@@ -2,6 +2,7 @@ import Link from "next/link";
 import { and, asc, desc, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { GalleryOrderBoard, type GalleryOrderItem } from "@/components/gallery-order-board";
+import { GALLERY_ORDER_MAX_ITEMS } from "@/lib/gallery-order";
 import { getDb } from "@/db";
 import { galleryCategories, galleryItems } from "@/db/schema";
 import { can } from "@/lib/authorization";
@@ -21,7 +22,34 @@ export const dynamic = "force-dynamic";
  * on a CMS page additionally float featured images to the top, which is why a
  * featured item is marked rather than silently sorted differently.
  */
-const PAGE_SIZE = 60;
+// The endpoint refuses a partial order, so the screen must hold the complete
+// set for one category. One more than the bound is fetched so a category that
+// is too large is reported rather than silently ordered in part.
+const PAGE_SIZE = GALLERY_ORDER_MAX_ITEMS;
+
+/**
+ * What each refusal from `POST /api/gallery/order` means to the Owner.
+ *
+ * Printed as words rather than as the code, because every one of these is
+ * something the person in front of the screen can act on — and because a
+ * refusal that reads as a system fault invites a retry that will fail the same
+ * way.
+ */
+const ORDER_ERRORS: Record<string, string> = {
+  forbidden: "บัญชีนี้ไม่มีสิทธิ์จัดลำดับรูป",
+  invalid_request_key: "รหัสคำขอไม่ถูกต้อง กรุณาโหลดหน้าใหม่แล้วลองอีกครั้ง",
+  invalid_category: "ไม่พบหมวดนี้ กรุณาเลือกหมวดใหม่",
+  invalid_order_empty: "ไม่ได้ส่งลำดับมา กรุณาโหลดหน้าใหม่แล้วลองอีกครั้ง",
+  invalid_order_too_many: "ส่งรูปมามากเกินกว่าที่จัดลำดับได้ในครั้งเดียว",
+  invalid_order_invalid_id: "มีรหัสรูปที่ไม่ถูกต้องอยู่ในลำดับ กรุณาโหลดหน้าใหม่",
+  invalid_order_duplicate_id: "มีรูปซ้ำกันในลำดับ กรุณาโหลดหน้าใหม่",
+  unknown_item: "มีรูปที่ไม่มีอยู่แล้วอยู่ในลำดับ อาจถูกลบระหว่างที่เปิดหน้านี้ค้างไว้ กรุณาโหลดหน้าใหม่",
+  wrong_category: "มีรูปที่ไม่ได้อยู่ในหมวดนี้ กรุณาโหลดหน้าใหม่",
+  not_public: "มีรูปที่ไม่ได้เผยแพร่หรือไม่เป็นสาธารณะแล้ว กรุณาโหลดหน้าใหม่",
+  incomplete_order: "ลำดับที่ส่งไปไม่ครบทั้งหมวด ระบบจึงไม่บันทึก เพราะรูปที่ไม่ได้ส่งจะไปอยู่ข้างหน้าทั้งหมด",
+  category_too_large: "หมวดนี้มีรูปมากเกินกว่าจะจัดลำดับในครั้งเดียว",
+  gallery_order: "บันทึกลำดับไม่สำเร็จ ไม่มีรูปใดถูกย้าย กรุณาลองใหม่",
+};
 
 type Props = { searchParams: Promise<{ category?: string; status?: string; error?: string }> };
 
@@ -67,10 +95,13 @@ export default async function GalleryOrderPage({ searchParams }: Props) {
       ),
     )
     .orderBy(asc(galleryItems.sortOrder), desc(galleryItems.createdAt), desc(galleryItems.id))
-    .limit(PAGE_SIZE)
+    .limit(PAGE_SIZE + 1)
     .all();
 
   const canWrite = can(actor, "gallery:write");
+  // Reordering is per category, because only then can the complete set be sent.
+  const tooLarge = items.length > PAGE_SIZE;
+  const canReorder = canWrite && active !== null && !tooLarge && items.length > 1;
   // Two items with the same number fall back to newest-first, so the Owner is
   // told rather than left to wonder why a move did nothing.
   const tied = items.length - new Set(items.map((item) => item.sortOrder)).size;
@@ -87,8 +118,12 @@ export default async function GalleryOrderPage({ searchParams }: Props) {
       </div>
 
       {params.status === "reordered" && <div className="form-message success page-message">บันทึกลำดับใหม่แล้ว · ลำดับด้านล่างอ่านจากฐานข้อมูลจริง</div>}
-      {params.status && params.status !== "reordered" && <div className="form-message success page-message">บันทึกลำดับแล้ว</div>}
-      {params.error && <div className="form-message error page-message">ดำเนินการไม่สำเร็จ ({params.error})</div>}
+      {params.status === "already_ordered" && <div className="form-message success page-message">คำขอนี้ถูกบันทึกไปแล้ว ไม่ได้จัดลำดับซ้ำ · ลำดับด้านล่างอ่านจากฐานข้อมูลจริง</div>}
+      {params.error && (
+        <div className="form-message error page-message">
+          {ORDER_ERRORS[params.error] ?? `ดำเนินการไม่สำเร็จ (${params.error.slice(0, 60).replace(/[^a-z_]/g, "")})`} — ไม่มีรูปใดถูกย้าย
+        </div>
+      )}
 
       <nav className="public-gallery-filters" aria-label="หมวดผลงาน">
         <Link className={!active ? "active" : ""} href="/app/gallery/order">ทุกหมวด</Link>
@@ -117,10 +152,21 @@ export default async function GalleryOrderPage({ searchParams }: Props) {
           </p>
         )}
         <p>
-          ระบบยังบันทึกทีละรูป ไม่ใช่ครั้งเดียวทั้งชุด ถ้าบันทึกไม่สำเร็จกลางทาง รูปที่บันทึกไปแล้วจะยังอยู่
-          และหน้าจะโหลดลำดับจริงจากฐานข้อมูลให้ใหม่
+          บันทึกครั้งเดียวทั้งหมวดในคำสั่งเดียว ถ้าไม่สำเร็จจะไม่มีรูปใดถูกย้ายเลย และหน้าจะโหลดลำดับจริงจากฐานข้อมูลให้ใหม่เสมอ
         </p>
+        <p>จัดลำดับได้ทีละหมวดเท่านั้น เพราะระบบต้องได้รับลำดับครบทั้งหมวด ไม่รับลำดับบางส่วน</p>
       </section>
+
+      {canWrite && !active && (
+        <div className="form-message page-message" role="status">
+          เลือกหมวดก่อนจึงจะจัดลำดับได้ — มุมมอง “ทุกหมวด” แสดงรูปจากหลายหมวดปนกัน จึงส่งลำดับครบทั้งหมวดไม่ได้
+        </div>
+      )}
+      {canWrite && active && tooLarge && (
+        <div className="form-message error page-message" role="status">
+          หมวดนี้มีรูปสาธารณะมากกว่า {PAGE_SIZE} รูป ระบบจึงยังจัดลำดับให้ไม่ได้ในครั้งเดียว กรุณาแบ่งหมวดย่อยก่อน
+        </div>
+      )}
 
       <section className="detail-section">
         <div className="detail-section-head">
@@ -128,7 +174,7 @@ export default async function GalleryOrderPage({ searchParams }: Props) {
             <p>PUBLIC ORDER</p>
             <h2>{active ? active.name : "ทุกหมวด"}</h2>
           </div>
-          <span>{items.length} รูป{items.length === PAGE_SIZE ? ` (แสดงสูงสุด ${PAGE_SIZE})` : ""}</span>
+          <span>{tooLarge ? `มากกว่า ${PAGE_SIZE} รูป` : `${items.length} รูป`}</span>
         </div>
 
         {items.length === 0 ? (
@@ -140,8 +186,8 @@ export default async function GalleryOrderPage({ searchParams }: Props) {
               <Link href="/app/gallery">เปิด Media Library</Link>
             </div>
           </div>
-        ) : canWrite ? (
-          <GalleryOrderBoard items={items.map(toOrderItem)} returnTo={returnTo} />
+        ) : canReorder && active ? (
+          <GalleryOrderBoard items={items.map(toOrderItem)} categoryId={active.id} returnTo={returnTo} />
         ) : (
           <ol className="gallery-order-list">
             {items.map((item, position) => (
@@ -164,7 +210,7 @@ export default async function GalleryOrderPage({ searchParams }: Props) {
                     {item.isFeatured === 1 ? " · ภาพเด่น" : ""}
                   </small>
                 </div>
-                <span className="status-pill">ดูได้อย่างเดียว</span>
+                <span className="status-pill">{canWrite ? "จัดลำดับที่นี่ไม่ได้" : "ดูได้อย่างเดียว"}</span>
               </li>
             ))}
           </ol>
@@ -175,24 +221,17 @@ export default async function GalleryOrderPage({ searchParams }: Props) {
 }
 
 /**
- * One row, in the shape the reorder board writes back.
+ * One row, in the shape the reorder board submits.
  *
- * Every field the item update needs travels with it, because that endpoint
- * replaces the row: sending only the new position would blank the caption, the
- * location and the job reference.
+ * Only what the order endpoint needs and what the row displays. The endpoint
+ * takes ids and a category, so the caption, location and job reference that the
+ * per-item update had to carry are no longer travelling through the browser at
+ * all — one fewer place for them to be dropped.
  */
 function toOrderItem(item: {
   id: string;
   title: string;
   altText: string;
-  caption: string | null;
-  takenAt: string | null;
-  location: string | null;
-  publicJobReference: string | null;
-  categoryId: string;
-  visibility: string;
-  companyId: string | null;
-  jobId: string | null;
   sortOrder: number;
   isFeatured: number;
 }): GalleryOrderItem {
@@ -200,14 +239,6 @@ function toOrderItem(item: {
     id: item.id,
     title: item.title,
     altText: item.altText,
-    caption: item.caption ?? "",
-    takenAt: item.takenAt ?? "",
-    location: item.location ?? "",
-    publicJobReference: item.publicJobReference ?? "",
-    categoryId: item.categoryId,
-    visibility: item.visibility,
-    companyId: item.companyId ?? "",
-    jobId: item.jobId ?? "",
     sortOrder: item.sortOrder,
     isFeatured: item.isFeatured === 1,
     thumbnailSrc: `/api/gallery/images/${encodeURIComponent(item.id)}?role=thumbnail`,

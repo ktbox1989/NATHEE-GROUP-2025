@@ -112,7 +112,7 @@ export default async function WebsiteOverviewPage() {
         <div className="site-page-grid">
           <article className="app-panel">
             <h2>หน้าเว็บไซต์</h2>
-            <p>ข้อความ หัวข้อ ปุ่ม รูปประกอบ และ SEO ของแต่ละหน้า</p>
+            <p>ข้อความ หัวข้อ ปุ่ม รูปประกอบ และ SEO ของแต่ละหน้า — รวมถึงเลือกให้ค้นหาเจอหรือไม่ (INDEX / NOINDEX) รายหน้า</p>
             <small>
               {overview.unavailable
                 ? "ยังอ่านสถานะไม่ได้"
@@ -155,7 +155,7 @@ export default async function WebsiteOverviewPage() {
 
           <article className="app-panel">
             <h2>ตั้งค่าเว็บไซต์ส่วนกลาง</h2>
-            <p>ชื่อแบรนด์ โลโก้ เบอร์โทร เมนู และ Footer ที่ใช้ร่วมกันทุกหน้า</p>
+            <p>ชื่อแบรนด์ โลโก้ เมนู Footer และข้อมูลติดต่อ — เบอร์โทร อีเมล ที่อยู่ LINE ID และ QR Code ที่ใช้ร่วมกันทุกหน้า</p>
             <small>
               {overview.unavailable
                 ? "ยังอ่านสถานะไม่ได้"

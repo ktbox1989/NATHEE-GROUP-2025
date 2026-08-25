@@ -19,6 +19,10 @@ const ERROR_MESSAGES: Record<string, string> = {
   publish_failed: "เผยแพร่ไม่สำเร็จ กรุณาลองใหม่",
   unpublishable_media: "ยังเผยแพร่ไม่ได้ เพราะมีภาพหรือหมวด Gallery ที่ผู้เข้าชมจะมองไม่เห็น",
   forbidden: "บัญชีนี้ไม่มีสิทธิ์ดำเนินการนี้",
+  invalid_settings: "การตั้งค่าไม่ผ่านการตรวจ กรุณาตรวจอีเมล ที่อยู่ LINE ID และเบอร์โทรอีกครั้ง",
+  // The publish route refuses this rather than the save route, so an editor can
+  // reach it with a revision already stored. The message says what to do next.
+  home_cannot_be_noindex: "หน้าแรกตั้งเป็น NOINDEX ไม่ได้ เพราะทุกหน้าลิงก์กลับมาที่หน้าแรก กรุณาเปลี่ยนเป็น INDEX แล้วบันทึก Revision ใหม่ก่อนเผยแพร่",
 };
 
 const MISSING_REFERENCE = /^(image|category):([A-Za-z0-9_-]{1,80})$/;

@@ -3,9 +3,11 @@ import Link from "next/link";
 import { and, asc, desc, eq } from "drizzle-orm";
 import type { ReactNode } from "react";
 import { CmsPublicNav } from "@/components/cms-public-nav";
+import { PublicMediaImage } from "@/components/public-media-image";
 import { GalleryLightbox, type PublicGalleryItem } from "@/components/gallery-lightbox";
 import { galleryCategories, galleryImageVariants, galleryItems } from "@/db/schema";
 import { SITE_PAGE_DEFINITIONS, type CmsPageContent, type CmsSection, type SitePageSlug } from "@/lib/site-cms";
+import { resolveSettingsMedia } from "@/lib/site-settings-media";
 import { getPublishedSiteSettings, type SiteSettings } from "@/lib/site-settings";
 import { getPublicGalleryFallback, getPublicMediaFallback } from "@/lib/public-gallery-fallback";
 import { serializeStructuredData, siteOrganizationSchema } from "@/lib/site-structured-data";
@@ -20,6 +22,7 @@ export async function CmsPublicPage({ content, slug, preview = false, afterConte
     <PublicSiteHeader activePath={SITE_PAGE_DEFINITIONS[slug].path} settings={settings} />
     {content.sections.filter((section) => section.enabled).map((section) => <CmsSectionView key={section.id} section={section} />)}
     {afterContent}
+    {slug === "contact" && <PublicContactChannels settings={settings} />}
     <PublicSiteFooter settings={settings} />
   </main>;
 }
@@ -115,6 +118,36 @@ function Actions({ section }: { section: CmsSection }) {
   return <div className="hero-actions">{section.primaryHref && <Link className="button button-gradient" href={section.primaryHref}>{section.primaryLabel}</Link>}{section.secondaryHref && <Link className="button button-glass" href={section.secondaryHref}>{section.secondaryLabel}</Link>}</div>;
 }
 
+/**
+ * The footer, and the contact details the Owner has actually confirmed.
+ *
+ * Every optional field renders only when it is populated. There are no
+ * placeholders and no "coming soon": the repository holds no confirmed address,
+ * email or LINE id, and a plausible wrong one on a logistics site is a lost
+ * enquiry rather than a cosmetic flaw.
+ */
 export function PublicSiteFooter({ settings }: { settings: SiteSettings }) {
-  return <footer><div className="shell footer-inner"><span>{settings.footer.copyright}</span><span><a href={`tel:${settings.contact.primaryPhone}`}>{settings.contact.primaryPhone}</a>{settings.contact.secondaryPhone && <> · <a href={`tel:${settings.contact.secondaryPhone}`}>{settings.contact.secondaryPhone}</a></>}</span></div><div className="shell cms-footer-secondary">{settings.footer.secondaryText}</div></footer>;
+  const address = settings.contact.addressLines.filter((line) => line.trim());
+  return <footer><div className="shell footer-inner"><span>{settings.footer.copyright}</span><span><a href={`tel:${settings.contact.primaryPhone}`}>{settings.contact.primaryPhone}</a>{settings.contact.secondaryPhone && <> · <a href={`tel:${settings.contact.secondaryPhone}`}>{settings.contact.secondaryPhone}</a></>}{settings.contact.email && <> · <a href={`mailto:${settings.contact.email}`}>{settings.contact.email}</a></>}{settings.contact.lineId && <> · <span>LINE {settings.contact.lineId}</span></>}</span></div>{address.length > 0 && <div className="shell cms-footer-address"><address>{address.map((line, index) => <span key={index}>{line}</span>)}</address></div>}<div className="shell cms-footer-secondary">{settings.footer.secondaryText}</div></footer>;
+}
+
+/**
+ * The LINE QR, on the contact page only.
+ *
+ * Resolved through `resolveSettingsMedia`, so it appears only when it is a
+ * published, public gallery item with a raster variant — and is served from the
+ * one delivery contract rather than a URL built here. `null` renders nothing:
+ * an unreadable QR is worse than an absent one, because a visitor will try to
+ * scan it.
+ */
+export async function PublicContactChannels({ settings }: { settings: SiteSettings }) {
+  let lineQr: Awaited<ReturnType<typeof resolveSettingsMedia>>["lineQr"] = null;
+  try {
+    const { getDb } = await import("@/db");
+    ({ lineQr } = await resolveSettingsMedia(getDb(), settings));
+  } catch {
+    // No database, no QR. The rest of the contact page is unaffected.
+  }
+  if (!lineQr) return null;
+  return <section className="cms-section cms-contact-channels"><div className="shell"><div className="cms-section-heading"><span className="eyebrow">LINE</span><h2>สแกนเพื่อทักหาเราทาง LINE</h2>{settings.contact.lineId && <p>LINE ID: {settings.contact.lineId}</p>}</div><figure className="cms-contact-qr"><PublicMediaImage media={lineQr} sizes="(max-width: 600px) calc(100vw - 28px), 320px" /></figure></div></section>;
 }

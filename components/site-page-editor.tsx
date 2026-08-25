@@ -2,7 +2,9 @@
 
 import { useRef, useState, type FormEvent } from "react";
 import { browserSecureId } from "@/lib/browser-secure-id";
-import type { CmsPageContent, CmsSection, CmsSectionType } from "@/lib/site-cms";
+// From the content module: `@/lib/site-cms` resolves the D1 binding, and a
+// value imported from it pulls `cloudflare:workers` into the client bundle.
+import { CMS_ROBOTS, type CmsPageContent, type CmsRobots, type CmsSection, type CmsSectionType } from "@/lib/site-cms-content";
 
 type MediaOption = { id: string; label: string };
 type CategoryOption = { slug: string; label: string };
@@ -14,6 +16,9 @@ const types: { value: CmsSectionType; label: string }[] = [
 
 export function SitePageEditor({ slug, initial, media, categories }: { slug: string; initial: CmsPageContent; media: MediaOption[]; categories: CategoryOption[] }) {
   const [content, setContent] = useState(initial);
+  // The publish route refuses NOINDEX for home, so the control never offers it
+  // rather than letting the Owner pick something that is rejected later.
+  const isHome = slug === "home";
   const [message, setMessage] = useState("");
   const payloadRef = useRef<HTMLInputElement>(null);
   const requestRef = useRef<HTMLInputElement>(null);
@@ -52,7 +57,25 @@ export function SitePageEditor({ slug, initial, media, categories }: { slug: str
   return <form className="site-editor" action={`/api/site-content/${encodeURIComponent(slug)}/revisions`} method="post" onSubmit={submit}>
     <input ref={requestRef} type="hidden" name="requestKey" />
     <input ref={payloadRef} type="hidden" name="contentJson" />
-    <section className="app-panel site-editor-seo"><div><p>SEO</p><h2>ชื่อและคำอธิบายในผลค้นหา</h2></div><label>Page title<input value={content.seo.title} maxLength={120} required onChange={(event) => setContent((current) => ({ ...current, seo: { ...current.seo, title: event.target.value } }))} /></label><label>Meta description<textarea value={content.seo.description} minLength={20} maxLength={300} required rows={3} onChange={(event) => setContent((current) => ({ ...current, seo: { ...current.seo, description: event.target.value } }))} /></label></section>
+    <section className="app-panel site-editor-seo"><div><p>SEO</p><h2>ชื่อและคำอธิบายในผลค้นหา</h2></div><label>Page title<input value={content.seo.title} maxLength={120} required onChange={(event) => setContent((current) => ({ ...current, seo: { ...current.seo, title: event.target.value } }))} /></label><label>Meta description<textarea value={content.seo.description} minLength={20} maxLength={300} required rows={3} onChange={(event) => setContent((current) => ({ ...current, seo: { ...current.seo, description: event.target.value } }))} /></label>
+      <label>การจัดทำดัชนี
+        <select
+          value={content.seo.robots}
+          disabled={isHome}
+          onChange={(event) => setContent((current) => ({ ...current, seo: { ...current.seo, robots: event.target.value as CmsRobots } }))}
+        >
+          {CMS_ROBOTS.filter((value) => !isHome || value === "INDEX").map((value) => (
+            <option key={value} value={value}>
+              {value === "INDEX" ? "INDEX — ให้ค้นหาเจอ" : "NOINDEX — เผยแพร่แต่ไม่ให้ค้นหาเจอ"}
+            </option>
+          ))}
+        </select>
+        <small>
+          {isHome
+            ? "หน้าแรกตั้งเป็น NOINDEX ไม่ได้ เพราะทุกหน้าลิงก์กลับมาที่หน้าแรก ระบบจะปฏิเสธตอนเผยแพร่"
+            : "NOINDEX คือเผยแพร่ให้เปิดดูได้ แต่ไม่ขอให้ค้นหาเจอ · หน้าตัวอย่าง (Preview) เป็น noindex เสมออยู่แล้วไม่ว่าจะตั้งค่าใด"}
+        </small>
+      </label></section>
     <div className="site-editor-list">{content.sections.map((section, index) => <section className="app-panel site-editor-section" key={section.id}><header><div><span>SECTION {index + 1}</span><h2>{section.heading || "ยังไม่มีหัวข้อ"}</h2></div><div className="site-editor-order"><button type="button" onClick={() => move(index, -1)} disabled={index === 0} aria-label="เลื่อน Section ขึ้น">↑</button><button type="button" onClick={() => move(index, 1)} disabled={index === content.sections.length - 1} aria-label="เลื่อน Section ลง">↓</button><button type="button" onClick={() => remove(index)} disabled={content.sections.length === 1}>นำออก</button></div></header><div className="record-form">
       <label className="field">ประเภท<select value={section.type} onChange={(event) => patchSection(index, { type: event.target.value as CmsSectionType })}>{types.map((type) => <option value={type.value} key={type.value}>{type.label}</option>)}</select></label>
       <label className="field site-editor-toggle"><input type="checkbox" checked={section.enabled} onChange={(event) => patchSection(index, { enabled: event.target.checked })} /> แสดง Section นี้</label>
