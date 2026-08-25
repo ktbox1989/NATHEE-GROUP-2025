@@ -56,7 +56,11 @@ export default async function OperationsLayout({
     items.push({ href: "/app/gallery", label: "Gallery / Portfolio", icon: "🖼️" });
   }
   if (can(actor, "site:read")) {
-    items.push({ href: "/app/site-content", label: "จัดการหน้าเว็บไซต์", icon: "✦" });
+    // The overview first, then the three places it sends the Owner. /app/posts
+    // was reachable only by typing the URL until now.
+    items.push({ href: "/app/website", label: "จัดการเว็บไซต์", icon: "✦" });
+    items.push({ href: "/app/site-content", label: "หน้าเว็บไซต์", icon: "▤" });
+    items.push({ href: "/app/posts", label: "ข่าวและบทความ", icon: "📰" });
     items.push({ href: "/app/site-settings", label: "ตั้งค่าเว็บไซต์", icon: "⚙" });
   }
   if (actor.role === "OWNER") {

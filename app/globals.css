@@ -22,6 +22,11 @@ body { max-width: 100%; overflow-x: clip; background: var(--bg); color: var(--te
 img, video, canvas, svg { max-width: 100%; }
 a { color: inherit; text-decoration: none; }
 .shell { width: min(1180px, calc(100% - clamp(28px, 4vw, 64px))); margin-inline: auto; }
+/* Named by components/cms-public-nav.tsx and only ever defined in the static
+   release's stylesheet, so the mobile menu button rendered its own label as
+   visible text beside the bars. Same declaration as public-site/assets/site.css
+   so a control announces itself in one place and shows itself in neither. */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 
 .topbar { border-bottom: 1px solid var(--border); background: #050611; color: var(--muted); font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em; }
 .topbar-inner, .nav-inner, .footer-inner { display: flex; align-items: center; justify-content: space-between; }
@@ -653,6 +658,21 @@ footer { border-top: 1px solid var(--border); background: #050611; color: var(--
 .cms-faq-list details { overflow: hidden; border: 1px solid var(--border); border-radius: 18px; background: rgba(255,255,255,.035); }
 .cms-faq-list summary { min-height: 54px; padding: 17px 52px 17px 20px; color: var(--text); cursor: pointer; font-weight: 800; }
 .cms-faq-list details p { margin: 0; padding: 0 20px 20px; color: var(--muted); line-height: 1.75; }
+.website-attention-list { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; }
+.website-attention-item { display: grid; gap: 6px; padding: 18px 20px; border-color: rgba(251,191,36,.32); background: linear-gradient(140deg, rgba(251,191,36,.09), rgba(255,255,255,.02)); }
+.website-attention-item:hover { border-color: rgba(251,191,36,.6); }
+.website-attention-item b { color: #fff; font-family: var(--font-display); font-size: 16px; }
+.website-attention-item span { color: var(--muted); font-size: 13px; line-height: 1.6; }
+.gallery-order-list { display: grid; gap: 10px; }
+.gallery-order-row { display: grid; grid-template-columns: 84px minmax(0,1fr) auto; align-items: center; gap: 14px; padding: 12px 14px; }
+.gallery-order-row > img { display: block; width: 84px; height: 63px; object-fit: cover; border-radius: 10px; background: var(--bg-2); }
+.gallery-order-meta { display: grid; gap: 4px; min-width: 0; }
+.gallery-order-meta b { overflow-wrap: anywhere; color: #fff; font-size: 15px; }
+.gallery-order-meta small { color: var(--muted); font-size: 11px; }
+.gallery-order-actions { display: flex; align-items: center; gap: 6px; }
+.gallery-order-actions form { display: contents; }
+.gallery-order-actions button { min-width: 48px; min-height: 44px; border: 1px solid var(--border-strong); border-radius: 10px; background: var(--gradient-soft); color: #e6e1ff; cursor: pointer; }
+.gallery-order-actions button:disabled { opacity: .4; cursor: not-allowed; }
 .cms-news-intro { border-top: 0; padding-block: 72px 34px; }
 .cms-news-list-section { border-top: 0; padding-top: 0; }
 .cms-news-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 18px; }
@@ -919,7 +939,11 @@ footer { border-top: 1px solid var(--border); background: #050611; color: var(--
   .cms-nav { min-height: 64px; }
   .cms-hero { min-height: 0; padding-block: 68px; }
   .cms-section { padding-block: 66px; }
-  .cms-feature-grid, .cms-contact-grid, .site-page-grid, .cms-news-grid { grid-template-columns: 1fr; }
+  .cms-feature-grid, .cms-contact-grid, .site-page-grid, .cms-news-grid, .website-attention-list { grid-template-columns: 1fr; }
+  .gallery-order-row { grid-template-columns: 64px minmax(0,1fr); }
+  .gallery-order-row > img { width: 64px; height: 48px; }
+  .gallery-order-actions { grid-column: 1 / -1; }
+  .gallery-order-actions button { flex: 1; }
   .cms-news-intro { padding-block: 48px 26px; }
   .cms-news-article-head { padding-block: 38px 24px; }
   .cms-news-body { padding-block: 34px; }
