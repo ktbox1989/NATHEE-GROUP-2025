@@ -65,7 +65,7 @@ export type CmsSectionInput = {
 
 export type CmsPageInput = {
   version: number;
-  seo: { title: string; description: string };
+  seo: { title: string; description: string; robots?: "INDEX" | "NOINDEX" };
   sections: CmsSectionInput[];
 };
 
@@ -231,9 +231,13 @@ export function mapCmsPageToPublicPage(input: {
       // A page's canonical is itself. B does not store one, and deriving it is
       // safe precisely because any other value would be wrong.
       canonicalPath: path,
-      // B's managed public pages are indexable by design. NOINDEX is not
-      // expressible in its payload today; see the integration document.
-      robots: "INDEX" as const,
+      // Expressible now: `CmsPageContent.seo.robots` carries it. Absent still
+      // means INDEX, which is what every page written before the field existed
+      // meant, so a stored revision maps exactly as it did before.
+      // `resolveSeoResponse` turns NOINDEX into "noindex, nofollow" and drops
+      // the page from the sitemap; both were already built and had nothing to
+      // read.
+      robots: content.seo.robots === "NOINDEX" ? ("NOINDEX" as const) : ("INDEX" as const),
     },
     sections,
     revisionId: state.revisionId,

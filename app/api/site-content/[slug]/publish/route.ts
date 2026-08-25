@@ -38,6 +38,14 @@ export async function POST(request: NextRequest, context: { params: Promise<{ sl
     // hero and no error anywhere, because every individual step succeeded.
     const content = parseCmsPageContentJson(revision.contentJson);
     if (!content) return redirectError(request, slug, "revision_unreadable");
+    // The home page is the site. Publishing it NOINDEX de-indexes the domain
+    // from the one URL every other page links to, and search engines are slow
+    // to forgive it - so it is refused here for the same reason hiding it is
+    // refused above: it is not a content decision. Every other page may be
+    // published unlisted.
+    if (slug === "home" && content.seo.robots === "NOINDEX") {
+      return redirectError(request, slug, "home_cannot_be_noindex");
+    }
     const references = collectPageReferences(content);
     referenceCount = references.imageItemIds.length + references.galleryCategorySlugs.length;
     let problems;

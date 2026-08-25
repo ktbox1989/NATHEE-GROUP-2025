@@ -63,7 +63,13 @@ export async function getManagedPageMetadata(slug: SitePageSlug): Promise<Metada
     title: content.seo.title,
     description: content.seo.description,
     alternates: { canonical: url },
-    robots: { index: true, follow: true },
+    // Taken from the published revision rather than asserted. A page the Owner
+    // published deliberately unlisted is still served - it just does not ask to
+    // be found. Preview is unaffected: the whole protected tree declares
+    // index:false in app/app/layout.tsx, which the CMS delivery gate asserts.
+    robots: content.seo.robots === "NOINDEX"
+      ? { index: false, follow: false }
+      : { index: true, follow: true },
     openGraph: {
       title: content.seo.title,
       description: content.seo.description,

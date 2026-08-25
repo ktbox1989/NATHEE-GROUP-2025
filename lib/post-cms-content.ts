@@ -13,10 +13,12 @@
  */
 
 import { isValidPostSlug } from "./public-cms/posts.ts";
-import type { CmsSection } from "./site-cms-content.ts";
+import { CMS_ROBOTS, type CmsRobots, type CmsSection } from "./site-cms-content.ts";
 
-export const POST_ROBOTS = ["INDEX", "NOINDEX"] as const;
-export type PostRobots = (typeof POST_ROBOTS)[number];
+// The same list managed pages use. A post and a page answer one question, and
+// two lists that agree today are two lists that can stop agreeing.
+export const POST_ROBOTS = CMS_ROBOTS;
+export type PostRobots = CmsRobots;
 
 export type PostCategory = { id: string; label: string };
 

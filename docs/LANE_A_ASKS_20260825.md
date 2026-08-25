@@ -281,3 +281,48 @@ POST /api/gallery/order
 
 writing sequential `sort_order` in one batch, requiring `gallery:write`,
 refusing any id outside that category, and recording one audit row for the move.
+
+
+---
+
+# Answered by Lane B, same day — `lane-b/owner-cms-contract-closure-20260825`
+
+From `integration/owner-cms-20260825` at `5d66c33d`. Local only. The full
+contract, field by field and with the error codes, is in
+`docs/LANE_B_WRITE_CONTRACTS_20260825.md`; this is the index.
+
+| Ask | State |
+| --- | --- |
+| §1 `contact.email` / `addressLines` / `lineId` / `lineQrItemId` | **CLOSED** — exactly those field names, all defaulting to empty, `lineQrItemId` in `collectSettingsReferences` |
+| §2 page `seo.robots` | **CLOSED** — wired through the metadata builder, the mapper, `resolveSeoResponse` and the sitemap |
+| §2 `seo.ogImageItemId` | **NOT ADDED**, deliberately — see below |
+| §3 batch reorder endpoint | **CLOSED** — `POST /api/gallery/order`, one transaction, one audit row |
+| §4 slug editing in the post editor | still open, Lane A's side |
+| §5 who serves the canonical sitemap | still open, and still a deployment decision |
+
+**No migration.** All three were already expressible, and that was measured
+rather than assumed: the largest page document is 3,082 bytes against a 50,000
+bound, the settings document is 587 against 20,000, and `sort_order` is an
+existing indexed integer column. `drizzle/` is untouched.
+
+**Nothing invented.** The seed was regenerated and diffed structurally: 14 keys
+added, 0 existing values changed or removed. No address, email or LINE id is
+pre-filled, because there is none to pre-fill.
+
+**`ogImageItemId` was not added on purpose.** This document says the OG half is
+closed by the hero-derived card and is "no longer blocking anything", and the
+brief for this run says not to add a field just because it was an earlier ask.
+There is no case today where the share image must differ from the page's own
+hero, so there is nothing to prove the need with. When one appears it is one
+field and one branch, the same shape as `lineQrItemId`.
+
+**Atomicity was verified, not assumed.** Against the real D1 implementation: a
+batch of three position writes followed by a failing insert left all three rows
+unchanged. `GALLERY_REORDER_ATOMICITY=IMPLEMENTED`.
+
+**One thing your reorder board must change beyond the endpoint swap.** The
+endpoint requires the *complete* set of published public items in one category
+and refuses a partial order, because renumbering a subset to 10, 20, 30 leaves
+every unnamed item at `sort_order = 0` and therefore in front of everything the
+Owner just arranged. Save per category rather than from the "ทุกหมวด" view; the
+reasoning and the exact error codes are in the contract document.

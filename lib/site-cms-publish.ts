@@ -51,10 +51,14 @@ export function collectPageReferences(content: CmsPageContent): PublishReference
 }
 
 export function collectSettingsReferences(settings: SiteSettings): PublishReferences {
-  return {
-    imageItemIds: settings.brand.logoItemId ? [settings.brand.logoItemId] : [],
-    galleryCategorySlugs: [],
-  };
+  // The logo appears on every page and the LINE QR is the channel the contact
+  // page tells people to scan. Publishing settings that point at media a reader
+  // cannot be served would blank either one site-wide, and the QR silently -
+  // nobody sees a missing QR from inside the editor.
+  const imageItemIds = [settings.brand.logoItemId, settings.contact.lineQrItemId]
+    .filter((id): id is string => typeof id === "string" && id.length > 0)
+    .sort();
+  return { imageItemIds, galleryCategorySlugs: [] };
 }
 
 /**

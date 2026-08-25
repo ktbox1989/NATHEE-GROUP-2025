@@ -95,6 +95,7 @@ const WEBSITE_ROUTES: Array<{ path: string; capability: Permission }> = [
   { path: "app/api/posts/[slug]/revisions/route.ts", capability: "site:write" },
   { path: "app/api/posts/[slug]/publish/route.ts", capability: "site:publish" },
   { path: "app/api/posts/[slug]/rename/route.ts", capability: "site:publish" },
+  { path: "app/api/gallery/order/route.ts", capability: "gallery:write" },
 ];
 
 test("every website route asks for its capability, server-side, on a same-origin request", async () => {
@@ -134,4 +135,60 @@ test("public media delivery decides from the stored row and never from a session
   assert.equal(media.includes("getCurrentActor"), false, "a cacheable response must not vary by viewer");
   assert.equal(media.includes("requireActor"), false);
   assert.equal(media.includes('"ORIGINAL"'), false, "the untouched upload must have no public path");
+});
+
+
+// --- the write contracts closed on 2026-08-25 -------------------------------
+
+// A reorder changes what visitors see first. It is a gallery write, it is
+// same-origin, and it names every id it will touch before it touches any.
+test("the gallery reorder is authorized, scoped and validated before it writes", async () => {
+  const order = await read("app/api/gallery/order/route.ts");
+  assert.ok(order.includes('can(actor, "gallery:write")'));
+  assert.ok(order.includes("isGalleryOrderRequestKey("), "the reorder accepts an unshaped request key");
+  assert.ok(order.includes("verifyGalleryOrder("), "ids are not verified against the stored rows");
+  // Scoped to one category, and to media a visitor may already see.
+  assert.ok(order.includes("eq(galleryItems.categoryId, categoryId)"));
+  assert.ok(order.includes('eq(galleryItems.status, "PUBLISHED")'));
+  assert.ok(order.includes('eq(galleryItems.visibility, "PUBLIC")'));
+  // One transaction, and the verification happens before it.
+  assert.ok(order.includes("db.batch("), "the reorder is not one write");
+  assert.ok(
+    order.indexOf("verifyGalleryOrder(") < order.indexOf("db.batch("),
+    "the reorder writes before it has verified what it is writing",
+  );
+});
+
+// The home page is the site. De-indexing the one URL every other page links to
+// is not a content decision, for the same reason hiding it is not.
+test("the home page cannot be published as NOINDEX, and still cannot be hidden", async () => {
+  const publish = await read("app/api/site-content/[slug]/publish/route.ts");
+  assert.ok(publish.includes('slug === "home" && content.seo.robots === "NOINDEX"'));
+  assert.ok(publish.includes("home_cannot_be_noindex"));
+  // The rule it sits beside is untouched.
+  assert.ok(publish.includes('action === "HIDE" && (revisionId || slug === "home")'));
+});
+
+// Robots must come from the published revision, not be asserted by the route.
+test("published page metadata takes its robots from the revision", async () => {
+  const route = await read("lib/cms-public-route.ts");
+  assert.ok(route.includes('content.seo.robots === "NOINDEX"'), "robots is not read from the revision");
+  assert.equal(
+    /robots: \{ index: true, follow: true \},/.test(route),
+    false,
+    "an unconditional index:true survives",
+  );
+});
+
+// The QR is chosen from the same library that holds customers' job evidence, so
+// it is resolved through the public media store rather than by building a URL.
+test("the LINE QR resolves through the one public media contract", async () => {
+  const media = await read("lib/site-settings-media.ts");
+  assert.ok(media.includes("resolvePublicMedia("), "settings media does not use the public resolver");
+  assert.equal(media.includes("/api/gallery/images/"), false, "an authenticated route reached a public payload");
+  assert.equal(media.includes("storageKey"), false, "a storage key is visible to the public mapper");
+
+  // And publish refuses a revision whose QR could not be served.
+  const publish = await read("lib/site-cms-publish.ts");
+  assert.ok(publish.includes("settings.contact.lineQrItemId"), "the QR is not verified at publish time");
 });

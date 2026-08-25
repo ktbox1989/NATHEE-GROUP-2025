@@ -16,7 +16,7 @@ function withNavigation(items: Array<{ label: string; href: string }>): SiteSett
 }
 
 function withContact(primaryPhone: string, secondaryPhone = ""): SiteSettings {
-  return settings({ contact: { primaryPhone, secondaryPhone } });
+  return settings({ contact: { ...DEFAULT_SITE_SETTINGS.contact, primaryPhone, secondaryPhone } });
 }
 
 // --- what may appear in the header -----------------------------------------
