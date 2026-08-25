@@ -24,6 +24,7 @@ import type { OwnerBootstrapOutcome } from "@/lib/owner-pin-identity";
 import { ensureOwnerPinIdentity } from "@/lib/owner-pin-store";
 import { safeReturnTo } from "@/lib/safe-return-to";
 import { isSameOrigin } from "@/lib/same-origin";
+import { logOwnerPinStageFailure } from "@/lib/owner-pin-diagnostics";
 
 /**
  * The Owner's PIN door.
@@ -83,7 +84,8 @@ export async function POST(request: NextRequest) {
     reservation = await reserveAuthAttempt(
       authThrottleTargets("login", identitySubject, trustedClientAddress(request.headers)),
     );
-  } catch {
+  } catch (error) {
+    logOwnerPinStageFailure("throttle", error, request.headers);
     // A counter this route cannot reach is not a licence to guess a six-digit PIN.
     return NextResponse.redirect(new URL(`/login?error=unavailable${carriedReturnTo}`, request.url), 303);
   }
@@ -100,7 +102,8 @@ export async function POST(request: NextRequest) {
   let accepted: boolean;
   try {
     accepted = await verifyOwnerPin(pin, config.credential);
-  } catch {
+  } catch (error) {
+    logOwnerPinStageFailure("verify", error, request.headers);
     // A verifier/runtime failure is not evidence that the Owner typed the
     // wrong PIN. Fail closed, settle the reserved attempt, and return to the
     // login page with the existing operational-error code instead of exposing
@@ -121,7 +124,8 @@ export async function POST(request: NextRequest) {
   let bootstrap: OwnerBootstrapOutcome;
   try {
     bootstrap = await ensureOwnerPinIdentity(getD1());
-  } catch {
+  } catch (error) {
+    logOwnerPinStageFailure("bootstrap", error, request.headers);
     return NextResponse.redirect(new URL(`/login?error=unavailable${carriedReturnTo}`, request.url), 303);
   }
   if (!bootstrap.ok) {

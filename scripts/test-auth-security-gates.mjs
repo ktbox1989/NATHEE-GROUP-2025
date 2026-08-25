@@ -354,9 +354,15 @@ orderedBefore(ownerPinRoute, "isSixDigitPin(pin)", "verifyOwnerPin(", OWNER_PIN_
 orderedBefore(ownerPinRoute, "verifyOwnerPin(", "ensureOwnerPinIdentity(", OWNER_PIN_ROUTE);
 orderedBefore(ownerPinRoute, "ensureOwnerPinIdentity(", "createOwnerSessionToken(", OWNER_PIN_ROUTE);
 require(
-  /try\s*\{\s*accepted = await verifyOwnerPin\([\s\S]*?catch\s*\{[\s\S]*?error=unavailable/.test(ownerPinRoute),
+  /try\s*\{\s*accepted = await verifyOwnerPin\([\s\S]*?catch\s*\(error\)\s*\{\s*logOwnerPinStageFailure\("verify", error, request\.headers\);[\s\S]*?error=unavailable/.test(ownerPinRoute),
   `${OWNER_PIN_ROUTE}: a verifier runtime failure must fail closed and redirect instead of returning a raw 500`,
 );
+for (const stage of ["throttle", "verify", "bootstrap"]) {
+  require(
+    ownerPinRoute.includes(`logOwnerPinStageFailure("${stage}", error, request.headers);`),
+    `${OWNER_PIN_ROUTE}: ${stage} failures must emit the safe stage diagnostic before redirecting`,
+  );
+}
 require(
   ownerPinRoute.includes("error=owner_conflict"),
   `${OWNER_PIN_ROUTE}: a refused bootstrap must be visible rather than a session issued anyway`,

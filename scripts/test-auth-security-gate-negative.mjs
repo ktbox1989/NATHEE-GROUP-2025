@@ -263,6 +263,15 @@ const CASES = [
         .concat("\n// reserveAuthAttempt( appears only after verifyOwnerPin(\n"),
   },
   {
+    name: "the Owner PIN verifier failure loses its stage diagnostic",
+    file: "app/api/auth/owner-pin/login/route.ts",
+    edit: (source) =>
+      source.replace(
+        'logOwnerPinStageFailure("verify", error, request.headers);',
+        'logOwnerPinStageFailure("throttle", error, request.headers);',
+      ),
+  },
+  {
     name: "the account to authenticate is taken from the form",
     file: "app/api/auth/owner-pin/login/route.ts",
     edit: (source) =>
