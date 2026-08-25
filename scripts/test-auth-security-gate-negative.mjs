@@ -378,6 +378,17 @@ const CASES = [
         'process.env.OWNER_SESSION_SECRET ?? "development-secret")',
       ),
   },
+  {
+    name: "a refused PIN also drops the page the Owner was sent here for",
+    file: "app/api/auth/owner-pin/login/route.ts",
+    edit: (source) => source.replaceAll("${carriedReturnTo}", ""),
+  },
+  {
+    name: "the raw returnTo from the form is echoed straight back into the redirect",
+    file: "app/api/auth/owner-pin/login/route.ts",
+    edit: (source) =>
+      source.replace("encodeURIComponent(returnTo)", "encodeURIComponent(rawReturnTo)"),
+  },
 ];
 
 

@@ -171,18 +171,37 @@ form post; a cross-site post is answered `403`.
 There is **no** `email` field, and an `email` field would be ignored if sent.
 Sending one is a review failure, not a runtime one.
 
-**Rendering the form.** Show it when the runtime reports the Owner PIN as
-configured — `isOwnerPinConfigured()` server-side, or `auth.ownerPin` from
-`/api/health`. The input should be `type="password"`, `inputMode="numeric"`,
+**Rendering the form.** The input is `type="password"`, `inputMode="numeric"`,
 `pattern="[0-9]{6}"`, `minLength=6`, `maxLength=6`,
-`autoComplete="one-time-code"`, and carry a visible label and a hint. Client-side
-validation is a convenience only; the server is the authority.
+`autoComplete="current-password"`, and carries a visible label and a hint.
+Client-side validation is a convenience only; the server is the authority.
+
+`autoComplete="current-password"` and not `one-time-code`: this is a standing
+credential the Owner reuses at every sign-in, and `one-time-code` tells a
+password manager and a mobile keyboard to look for a code arriving by SMS or
+mail and never to offer the stored one. `pattern="[0-9]{6}"` rather than
+`\d{6}` for the same class of reason — `\d` in an HTML pattern is Unicode-aware,
+so a Thai or Arabic-Indic six would pass the field and then match nothing the
+server compares.
+
+The form is rendered unconditionally, and nothing on the screen is disabled on a
+configuration check. When `isOwnerPinConfigured()` is false the page says so in a
+notice above the field — an unconfigured server is a fact the operator should be
+told before spending a PIN entry — but the post still happens and the server
+still answers `?error=config`, because the server is the authority on its own
+configuration. `auth.ownerPin` from `/api/health` reports the same fact.
 
 **Responses.** Always `303`, always to a path on this origin. Never JSON.
 
+Every refusal also carries the sanitised `returnTo` back when the form sent one,
+so a mistyped digit does not silently relocate the Owner to the default
+destination. What is echoed is the sanitised path, never the raw form value; a
+value `safeReturnTo` had to fall back on is not carried at all, so a caller
+cannot use a refused value to overwrite the login page's own default.
+
 | Outcome | Redirect |
 |---|---|
-| Success | the validated `returnTo` (default `/app`), with the session cookie set |
+| Success | the validated `returnTo`, with the session cookie set. `safeReturnTo` falls back to `/app`; the login page always sends a value and defaults it to `/app/website`, so a direct sign-in lands in the website workspace |
 | PIN not six digits | `/login?error=pin_format` |
 | Wrong PIN | `/login?error=invalid_pin` |
 | Rate limited | `/login?error=too_many_attempts&retryAfter=<seconds>` |
@@ -201,4 +220,11 @@ neither discloses whether the Owner account exists.
 **Sign out** — `POST /api/auth/logout`, no fields, same-origin. Redirects to
 `/login?status=logged_out`.
 
-A working reference implementation of all of the above is `app/login/page.tsx`.
+A working reference implementation of all of the above is `app/login/page.tsx`,
+and `lib/owner-pin-login.ts` holds the browser half of the contract: the route
+path, the two field names, the fixed address, the PIN shape, the default
+destination, and one Thai sentence per code. `/login` renders the PIN door only.
+`POST /api/auth/login`, `/forgot-password` and `/reset-password` are untouched
+and still mounted for staff and customer accounts, and their redirect codes
+(`invalid_input`, `invalid_credentials`) still have sentences on `/login`; what
+changed is that the Owner's screen no longer shows a password form.

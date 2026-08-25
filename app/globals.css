@@ -609,12 +609,26 @@ footer { border-top: 1px solid var(--border); background: #050611; color: var(--
 .login-card h1 { margin-top: 28px; font-family: var(--font-display); font-size: 24px; font-weight: 620; }
 .login-subtitle { margin-top: 3px; color: var(--muted); font-size: 13.5px; }
 .login-notice { margin-block: 20px; padding: 13px 14px; border: 1px solid var(--border-strong); border-radius: 12px; background: var(--gradient-soft); color: #d6ccff; font-size: 12.5px; }
+/* The Owner identity: shown, never typed. Deliberately not shaped like a field,
+   so it does not read as something that could have been filled in differently. */
+.owner-identity { display: grid; gap: 4px; margin-block: 20px; padding: 13px 15px; border: 1px solid var(--border-strong); border-radius: 12px; background: var(--gradient-soft); }
+.owner-identity-label { color: var(--muted); font-size: 11.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+/* min-width: 0 plus a break rule: an address longer than a 320px card must wrap
+   inside it rather than push the card wider than the screen. */
+.owner-identity-value { min-width: 0; overflow-wrap: anywhere; color: #efeaff; font-family: var(--font-mono); font-size: 14px; font-weight: 600; }
+.owner-identity-note { color: var(--muted); font-size: 11.5px; line-height: 1.55; }
 .field { display: grid; gap: 6px; margin-bottom: 14px; }
 .field label { color: var(--muted); font-size: 12.5px; font-weight: 600; }
 .field input { width: 100%; min-height: 48px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px; outline: none; background: rgba(255,255,255,.04); color: var(--text); }
 .field input::placeholder { color: #5c628a; }
 .field input:focus { border-color: #a855f7; box-shadow: 0 0 0 3px rgba(168,85,247,.2); }
 .field input:disabled { cursor: not-allowed; opacity: .62; }
+.field-hint { color: var(--muted); font-size: 11.5px; line-height: 1.55; }
+/* Six characters, spaced so a mistyped one is visible as a position even though
+   the characters themselves are not. letter-spacing adds its space after the
+   last character too, so centred text sits half a step left of centre; the
+   text-indent is half the tracking, which is exactly that half step back. */
+.owner-pin-input { font-family: var(--font-mono); font-size: 20px; letter-spacing: .5em; text-align: center; text-indent: .25em; }
 .login-submit { width: 100%; margin-top: 4px; }
 .login-submit:disabled { cursor: not-allowed; opacity: .58; transform: none; }
 .login-pin-form { margin-top: 20px; }
@@ -622,6 +636,7 @@ footer { border-top: 1px solid var(--border); background: #050611; color: var(--
 .login-pin-form .field small { color: var(--muted); font-size: 11.5px; letter-spacing: normal; }
 .login-divider { display: flex; align-items: center; gap: 12px; margin-block: 20px; color: var(--muted); font-size: 12px; }
 .login-divider::before, .login-divider::after { flex: 1; height: 1px; background: var(--border); content: ""; }
+.login-footnote { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); color: var(--muted); font-size: 11.5px; line-height: 1.6; }
 .form-message { margin-block: 18px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px; font-size: 12.5px; }
 .form-message.error { border-color: rgba(248,113,113,.42); background: rgba(248,113,113,.08); color: #fecaca; }
 .form-message.success { border-color: rgba(52,211,153,.42); background: rgba(52,211,153,.08); color: #a7f3d0; }
@@ -1038,6 +1053,11 @@ footer { border-top: 1px solid var(--border); background: #050611; color: var(--
 @media (max-width: 520px) {
   .login-page { padding: 16px; }
   .login-card { padding: 30px 22px; }
+  .owner-identity { padding: 12px 13px; }
+  /* At 320px the card is 288px wide. Half an em of tracking per character at
+     20px is 60px of pure spacing, which is what would push the six dots past
+     the input's own edge. */
+  .owner-pin-input { font-size: 18px; letter-spacing: .34em; text-indent: .17em; }
   .system-state-card { padding: 30px 20px; }
   .system-state-card > div:not(.loading-bar) { flex-direction: column; }
 }

@@ -45,18 +45,35 @@ export async function POST(request: NextRequest) {
 
   const formData = await request.formData();
   const pin = String(formData.get("pin") ?? "");
-  const returnTo = safeReturnTo(formData.get("returnTo"));
+  const rawReturnTo = formData.get("returnTo");
+  const returnTo = safeReturnTo(rawReturnTo);
+
+  // A refusal must not also cost the Owner the page they were trying to reach.
+  // A protected route sends them here with that path, the login page renders it
+  // into the form, and dropping it on every error means one mistyped digit —
+  // which a six-digit PIN invites — silently relocates them to the default
+  // destination.
+  //
+  // Only a path the form actually sent and that survived sanitising is carried:
+  // `safeReturnTo` answers "/app" both for a genuine "/app" and for a value it
+  // refused, so echoing the fallback of a refused value would quietly overwrite
+  // the login page's own default with one the caller chose the shape of. What
+  // goes back is the sanitised path, never the raw one.
+  const carriedReturnTo =
+    typeof rawReturnTo === "string" && (returnTo !== "/app" || rawReturnTo === "/app")
+      ? `&returnTo=${encodeURIComponent(returnTo)}`
+      : "";
 
   const config = getOwnerPinAuthConfig();
   if (!config) {
-    return NextResponse.redirect(new URL("/login?error=config", request.url), 303);
+    return NextResponse.redirect(new URL(`/login?error=config${carriedReturnTo}`, request.url), 303);
   }
 
   // Exactly six ASCII digits, checked before anything is spent. A value of the
   // wrong shape cannot be the PIN, so refusing it costs the caller nothing and
   // keeps a paste of a whole password out of the verifier.
   if (!isSixDigitPin(pin)) {
-    return NextResponse.redirect(new URL("/login?error=pin_format", request.url), 303);
+    return NextResponse.redirect(new URL(`/login?error=pin_format${carriedReturnTo}`, request.url), 303);
   }
 
   const identitySubject = normalizeIdentitySubject(OWNER_EMAIL) ?? OWNER_EMAIL;
@@ -68,12 +85,12 @@ export async function POST(request: NextRequest) {
     );
   } catch {
     // A counter this route cannot reach is not a licence to guess a six-digit PIN.
-    return NextResponse.redirect(new URL("/login?error=unavailable", request.url), 303);
+    return NextResponse.redirect(new URL(`/login?error=unavailable${carriedReturnTo}`, request.url), 303);
   }
   if (!reservation.allowed) {
     return NextResponse.redirect(
       new URL(
-        `/login?error=too_many_attempts&retryAfter=${reservation.retryAfterSeconds}`,
+        `/login?error=too_many_attempts&retryAfter=${reservation.retryAfterSeconds}${carriedReturnTo}`,
         request.url,
       ),
       303,
@@ -84,7 +101,7 @@ export async function POST(request: NextRequest) {
   await settleAuthAttempt(reservation, accepted ? "success" : "failure").catch(() => {});
 
   if (!accepted) {
-    return NextResponse.redirect(new URL("/login?error=invalid_pin", request.url), 303);
+    return NextResponse.redirect(new URL(`/login?error=invalid_pin${carriedReturnTo}`, request.url), 303);
   }
 
   // The PIN is right, so the Owner account has to exist. Idempotent, and it
@@ -95,10 +112,10 @@ export async function POST(request: NextRequest) {
   try {
     bootstrap = await ensureOwnerPinIdentity(getD1());
   } catch {
-    return NextResponse.redirect(new URL("/login?error=unavailable", request.url), 303);
+    return NextResponse.redirect(new URL(`/login?error=unavailable${carriedReturnTo}`, request.url), 303);
   }
   if (!bootstrap.ok) {
-    return NextResponse.redirect(new URL("/login?error=owner_conflict", request.url), 303);
+    return NextResponse.redirect(new URL(`/login?error=owner_conflict${carriedReturnTo}`, request.url), 303);
   }
 
   // Best effort, exactly as the password login treats it: the counter above

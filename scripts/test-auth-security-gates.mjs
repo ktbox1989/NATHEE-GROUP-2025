@@ -362,6 +362,20 @@ require(
   `${OWNER_PIN_ROUTE}: an Owner sign-in must reach the Audit trail`,
 );
 
+// A refusal is not a reason to also lose the page a protected route sent the
+// Owner here for. Six digits invite a typo, and dropping returnTo on error
+// means one typo relocates the Owner to the default destination.
+require(
+  ownerPinRoute.includes("${carriedReturnTo}"),
+  `${OWNER_PIN_ROUTE}: a refusal must carry the sanitised returnTo back`,
+);
+// And what goes back is the sanitised path. Echoing the raw form value into a
+// redirect the browser will follow is an open redirect with extra steps.
+require(
+  !/returnTo=\$\{encodeURIComponent\(rawReturnTo\)\}/.test(ownerPinRoute),
+  `${OWNER_PIN_ROUTE}: only the sanitised returnTo may be echoed back, never the raw form value`,
+);
+
 // The verifier: slow, salted, and compared without leaking how much matched.
 require(
   ownerPin.includes('name: "PBKDF2"') && ownerPin.includes('hash: "SHA-256"'),
