@@ -99,6 +99,89 @@ negative test proves the gate rejects twelve specific ways the contract can be
 broken — including a public page that stops being per-request and a preview that
 stops being private.
 
+## Where the Owner works
+
+`/app/website` is the entry point and the only screen that answers "what is the
+public being served right now" without opening four editors. It reports every
+managed route with its current state, post counts split by what a reader can
+reach, the Media Library split into public, featured, waiting and not-public,
+and whether shared settings have ever been published. Four bounded queries, each
+returning a single row of counts or one row per managed page.
+
+Two of its states are worth stating precisely, because reporting them loosely
+would mislead the person responsible for the site:
+
+- **A page with no publication event is serving its source-controlled default**,
+  which passed the release gates. That is a real state and is named as one, not
+  shown as missing or as a problem to fix.
+- **A database that cannot be read says so.** It does not render zeroes.
+  "Nothing is published" is the one conclusion an Owner must not draw from an
+  outage, and the read fails closed as a whole rather than mixing real page
+  states with zeroed counts that would still look authoritative.
+
+From there: `/app/site-content` for the ten pages, `/app/posts` for articles,
+`/app/gallery` for media with `/app/gallery/order` for the public sequence, and
+`/app/site-settings` for the shared header, footer and contact details.
+
+## Publishing, from the operator's side
+
+The server has always been idempotent: every publication event carries a request
+key with a unique index behind it, and a repeat is answered `already_published`
+rather than appended. What that cannot do is tell the person in front of it that
+the first click was received, which is exactly why someone clicks again.
+
+One shared control renders every publish, republish and unpublish. It disables
+itself *after* the browser accepts the submission — disabling during the click
+would cancel the request it was meant to send — and the request key is generated
+once per page render, so both clicks of a double-click carry the same key and
+the second is recognised as the same request.
+
+Unpublishing asks first, and the question says what it does and does not do:
+nothing is deleted, the history stays, and it can be published again. Publishing
+does not ask, because it adds rather than removes. The home page is offered no
+hide control anywhere, because `trg_site_home_cannot_hide` would refuse it.
+
+Each editor states which revision it has loaded and whether that revision is the
+one the public currently has. Opening an older revision to restore it otherwise
+looks identical to opening the newest one, and the difference decides what the
+next save contains — it says as well that saving always appends, because "am I
+about to lose the current version" is the question that stops people using the
+history at all.
+
+## News and articles
+
+Posts are published to `/news/`, which the public contract has named since
+before anything served it. The index lists published posts newest-first by their
+*first* publication, so a corrected typo does not throw an old article back to
+the top, with the slug as the tie-break — the same rule `comparePostsForList`
+applies in the statically built release, so a batch published in the same second
+lists identically in both.
+
+What is live is the most recent publication event, as it is for pages. Because
+the schema's CHECK makes `revision_id` non-null exactly when the action is
+`PUBLISH`, "the latest event carries a revision" and "currently published" are
+one condition rather than two that have to agree. `publishedAt` is the first
+`PUBLISH` and `updatedAt` the most recent one, and a post published only once
+reports no edit at all rather than repeating its publication date.
+
+Both routes resolve per request. The index distinguishes an empty archive from
+an unreachable one and says which. An article that is not published answers 404
+rather than rendering, and `NOINDEX` is the editor's choice — the route honours
+it and omits the Article structured data with it.
+
+Media on a post is served through `/api/gallery/images/:id`, the same
+authorization-aware route every managed marketing page uses, which serves a
+`PUBLISHED` + `PUBLIC` item to anyone and refuses everything else. It is
+deliberately not the `/assets/` form `lib/public-cms/contract.ts` requires: that
+contract describes the statically built release served from a document root, and
+where runtime CMS media lives under `/assets/` is an open deployment decision
+recorded in `docs/LANE_A_ASKS_20260825.md`.
+
+Renaming a post is not possible from the editor, and that is deliberate until
+slug history exists: `uq_posts_slug` has no history table behind it, so a rename
+would overwrite in place and every inbound link to the old URL would be lost at
+the moment of saving.
+
 ## Production activation
 
 1. Back up D1 and record table counts/checksum evidence.

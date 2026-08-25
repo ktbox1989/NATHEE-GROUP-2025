@@ -21,7 +21,10 @@ import { fileURLToPath } from "node:url";
 const root = process.env.PUBLIC_NEWS_CONTRACT_ROOT
   ? resolve(process.env.PUBLIC_NEWS_CONTRACT_ROOT)
   : resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const read = (path) => readFile(join(root, path), "utf8");
+// .ts and .tsx are not pinned in .gitattributes, so a Windows checkout carries
+// CRLF. Every assertion below is written with "\n"; normalising here keeps the
+// gate from quietly weakening depending on where it runs.
+const read = async (path) => (await readFile(join(root, path), "utf8")).split("\r\n").join("\n");
 const failures = [];
 
 function require(condition, message) {

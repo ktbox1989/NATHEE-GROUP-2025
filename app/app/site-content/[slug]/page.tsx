@@ -33,8 +33,27 @@ export default async function SitePageEdit({ params, searchParams }: Props) {
   const canPublish = can(actor, "site:publish");
   return <><div className="app-page-head"><div><p>WEBSITE CMS</p><h1>{SITE_PAGE_DEFINITIONS[slug].label}</h1><span>{SITE_PAGE_DEFINITIONS[slug].path} · บันทึก Revision ก่อน แล้วจึงเลือกเผยแพร่</span></div><Link className="button button-glass" href="/app/site-content">← ทุกหน้า</Link></div>{query.status && <div className="form-message success page-message">ดำเนินการสำเร็จ: {query.status}</div>}{query.error && <div className="form-message error page-message">{cmsErrorMessage(query.error, query.missing)}</div>}
     <section className="app-panel cms-publication-panel"><div><span className={`status-pill ${publication?.action ?? "DRAFT"}`}>{publication?.action ?? "DRAFT"}</span><h2>สถานะเผยแพร่</h2><p>{publication?.action === "PUBLISH" ? `เผยแพร่ Revision ${publication.revisionId?.slice(0, 8)}…` : publication?.action === "HIDE" ? "ซ่อนหน้าเว็บแล้ว" : "ยังใช้หน้า Default ที่มากับระบบ"}</p></div><div>{selected && <Link className="button button-glass" href={`/app/site-content/${slug}/preview?revision=${encodeURIComponent(selected.id)}`}>ดูตัวอย่าง Revision</Link>}{canPublish && selected && publication?.revisionId !== selected.id && <PublishForm action={`/api/site-content/${slug}/publish`} fields={{ action: "PUBLISH", revisionId: selected.id, requestKey: `cms-publish-${crypto.randomUUID()}` }} label="เผยแพร่ Revision นี้" busyLabel="กำลังเผยแพร่…" />}{canPublish && slug !== "home" && publication?.action === "PUBLISH" && <PublishForm action={`/api/site-content/${slug}/publish`} fields={{ action: "HIDE", revisionId: "", requestKey: `cms-publish-${crypto.randomUUID()}` }} label="ซ่อนหน้านี้" busyLabel="กำลังซ่อน…" confirm={`ซ่อนหน้า “${SITE_PAGE_DEFINITIONS[slug].label}” ใช่หรือไม่? ผู้เข้าชมจะเปิดหน้านี้ไม่ได้จนกว่าจะเผยแพร่อีกครั้ง เนื้อหาและประวัติยังอยู่ครบ`} />}</div></section>
+    {canWrite && <EditingFrom revisionId={selected?.id ?? null} isLive={Boolean(selected && publication?.action === "PUBLISH" && publication.revisionId === selected.id)} fallback="เริ่มจากเนื้อหา Default ที่มากับระบบ · บันทึกแล้วจะได้ Revision แรกของหน้านี้" />}
     {canWrite ? <SitePageEditor slug={slug} initial={initial} media={mediaRows.map((item) => ({ id: item.id, label: item.title }))} categories={categoryRows.map((item) => ({ slug: item.slug, label: item.name }))} /> : <div className="app-panel app-empty"><h2>ดูได้อย่างเดียว</h2><p>บัญชีนี้ไม่มีสิทธิ์แก้ไขเนื้อหาเว็บไซต์</p></div>}
     <section className="detail-section"><div className="detail-section-head"><div><p>REVISION HISTORY</p><h2>ประวัติย้อนหลัง</h2></div><span>แสดงล่าสุด {revisions.length} รายการ</span></div><div className="cms-revision-list">{revisions.map((revision) => <article className="app-panel" key={revision.id}><div><b>{revision.id.slice(0, 8)}…</b>{publication?.revisionId === revision.id && publication.action === "PUBLISH" && <span className="status-pill PUBLISH">LIVE</span>}</div><p>{revision.changeNote || "ไม่มีหมายเหตุ"}</p><small>{revision.author} · {new Date(revision.createdAt).toLocaleString("th-TH")} · SHA {revision.contentHash.slice(0, 12)}…</small><div><Link href={`/app/site-content/${slug}?revision=${encodeURIComponent(revision.id)}`}>เปิดแก้จาก Revision นี้</Link><Link href={`/app/site-content/${slug}/preview?revision=${encodeURIComponent(revision.id)}`}>ดูตัวอย่าง</Link>{canPublish && publication?.revisionId !== revision.id && <PublishForm action={`/api/site-content/${slug}/publish`} fields={{ action: "PUBLISH", revisionId: revision.id, requestKey: `cms-publish-${crypto.randomUUID()}` }} label="ย้อนกลับมาเผยแพร่" busyLabel="กำลังเผยแพร่…" />}</div></article>)}</div>{!revisions.length && <div className="app-panel app-empty"><h2>ยังไม่มี Revision</h2><p>หน้าเว็บยังใช้ค่า Default ที่ตรวจผ่านใน Source</p></div>}</section>
   </>;
 }
 
+/**
+ * Which revision is in the editor, and whether it is the one the public has.
+ *
+ * Opening an older revision to restore it looks identical to opening the newest
+ * one, and the difference decides what the next save contains. Saving never
+ * overwrites either way - revisions are append-only - so this says that too,
+ * because "am I about to lose the current version" is the question that stops
+ * people using the history at all.
+ */
+function EditingFrom({ revisionId, isLive, fallback }: { revisionId: string | null; isLive: boolean; fallback: string }) {
+  if (!revisionId) return <p className="cms-editing-from">{fallback}</p>;
+  return (
+    <p className="cms-editing-from">
+      กำลังแก้จาก Revision {revisionId.slice(0, 8)}…{" "}
+      <b>{isLive ? "ฉบับที่เผยแพร่อยู่ตอนนี้" : "ยังไม่ใช่ฉบับที่เผยแพร่"}</b> · บันทึกแล้วจะได้ Revision ใหม่เสมอ ของเดิมไม่ถูกทับ
+    </p>
+  );
+}

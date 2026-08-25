@@ -13,6 +13,11 @@ Measured against `main` at `8da1053`. Lane A work is on
 `lane-a/public-product-hardening-20260823`; the earlier
 `lane-a/public-cms-hardening-20260823` is already merged into `main`.
 
+> **Later asks live in `docs/LANE_A_ASKS_20260825.md`**, measured on `main` at
+> `e69af73`. Two items below moved there: the public media host is now decided
+> for the runtime-rendered site and still open for the static release, and the
+> posts routes it blocked are built. Nothing here is withdrawn.
+
 ---
 
 ## Reconciliation, 2026-08-23 — measured in a combined tree

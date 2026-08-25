@@ -658,6 +658,8 @@ footer { border-top: 1px solid var(--border); background: #050611; color: var(--
 .cms-faq-list details { overflow: hidden; border: 1px solid var(--border); border-radius: 18px; background: rgba(255,255,255,.035); }
 .cms-faq-list summary { min-height: 54px; padding: 17px 52px 17px 20px; color: var(--text); cursor: pointer; font-weight: 800; }
 .cms-faq-list details p { margin: 0; padding: 0 20px 20px; color: var(--muted); line-height: 1.75; }
+.cms-editing-from { margin: 14px 0 -4px; padding: 11px 16px; border: 1px solid var(--border); border-radius: 12px; background: rgba(255,255,255,.03); color: var(--muted); font-size: 12.5px; line-height: 1.6; }
+.cms-editing-from b { color: #ded8ff; }
 .website-attention-list { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; }
 .website-attention-item { display: grid; gap: 6px; padding: 18px 20px; border-color: rgba(251,191,36,.32); background: linear-gradient(140deg, rgba(251,191,36,.09), rgba(255,255,255,.02)); }
 .website-attention-item:hover { border-color: rgba(251,191,36,.6); }

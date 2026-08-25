@@ -131,6 +131,18 @@ export default async function PostEditPage({ params, searchParams }: Props) {
         </div>
       </section>
 
+      {canWrite && (
+        <p className="cms-editing-from">
+          {selected ? (
+            <>
+              กำลังแก้จาก Revision {selected.id.slice(0, 8)}…{" "}
+              <b>{live === selected.id ? "ฉบับที่เผยแพร่อยู่ตอนนี้" : "ยังไม่ใช่ฉบับที่เผยแพร่"}</b> · บันทึกแล้วจะได้ Revision ใหม่เสมอ ของเดิมไม่ถูกทับ
+            </>
+          ) : (
+            "เริ่มจากแบบร่างเปล่า · บันทึกแล้วจะได้ Revision แรกของบทความนี้"
+          )}
+        </p>
+      )}
       {canWrite && <PostEditor action={`/api/posts/${slug}/revisions`} initial={initial} media={media} />}
 
       <section className="detail-section">

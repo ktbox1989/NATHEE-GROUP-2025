@@ -112,7 +112,10 @@ const CASES = [
 
 function edit(directory, file, transform) {
   const path = join(directory, file);
-  const before = readFileSync(path, "utf8");
+  // Normalise to LF first: every anchor above is written with "\n", and .ts and
+  // .tsx are not pinned in .gitattributes, so on a Windows checkout they carry
+  // CRLF and each replacement would silently become a no-op.
+  const before = readFileSync(path, "utf8").split("\r\n").join("\n");
   const after = transform(before);
   if (after === before) throw new Error(`the edit to ${file} changed nothing, so the case proves nothing`);
   writeFileSync(path, after);
