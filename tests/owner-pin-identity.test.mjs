@@ -389,15 +389,16 @@ test("no session resolves without configuration, without a cookie, or after the 
 // functions it calls, with the environment in the state that matters: a runtime
 // where no identity provider is configured at all.
 test("with Supabase absent, the Owner PIN alone resolves an actor and is not a config error", async () => {
-  const restore = { ...process.env };
+  const MANAGED = [
+    "NEXT_PUBLIC_SUPABASE_URL",
+    "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+    "SUPABASE_SECRET_KEY",
+    "OWNER_PIN_CREDENTIAL",
+    "OWNER_SESSION_SECRET",
+  ];
+  const restore = Object.fromEntries(MANAGED.map((name) => [name, process.env[name]]));
   try {
-    for (const name of [
-      "NEXT_PUBLIC_SUPABASE_URL",
-      "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
-      "SUPABASE_SECRET_KEY",
-    ]) {
-      delete process.env[name];
-    }
+    for (const name of MANAGED) delete process.env[name];
     process.env.OWNER_PIN_CREDENTIAL = await credential();
     process.env.OWNER_SESSION_SECRET = SESSION_SECRET;
 
@@ -451,8 +452,10 @@ test("with Supabase absent, the Owner PIN alone resolves an actor and is not a c
       false,
     );
   } finally {
-    for (const name of Object.keys(process.env)) delete process.env[name];
-    Object.assign(process.env, restore);
+    for (const [name, value] of Object.entries(restore)) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
   }
 });
 
