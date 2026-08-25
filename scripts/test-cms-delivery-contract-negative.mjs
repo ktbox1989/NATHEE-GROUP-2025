@@ -99,6 +99,47 @@ const CASES = [
         source.replace("ตัวอย่างฉบับร่าง — ยังไม่เผยแพร่", "ตัวอย่าง"),
       ),
   },
+  {
+    name: "a publish control goes back to a hand-rolled form with no double-submit guard",
+    apply: (directory) =>
+      edit(directory, "app/app/site-settings/page.tsx", (source) =>
+        source
+          .replace('import { PublishForm } from "@/components/publish-form";\n', "")
+          .replace(
+            /<PublishForm[\s\S]*?\/>/,
+            '<form className="cms-inline-form" action="/api/site-settings/publish" method="post"><button type="submit">เผยแพร่</button></form>',
+          ),
+      ),
+  },
+  {
+    name: "a publication stops carrying a request key, so a repeat becomes a second event",
+    apply: (directory) =>
+      edit(directory, "app/app/posts/[slug]/page.tsx", (source) => source.replaceAll("requestKey:", "note:")),
+  },
+  {
+    name: "the control stops refusing a second click",
+    apply: (directory) =>
+      edit(directory, "components/publish-form.tsx", (source) => source.replace("disabled={busy}", "disabled={false}")),
+  },
+  {
+    name: "the control disables itself before the browser accepts the submission",
+    apply: (directory) =>
+      edit(directory, "components/publish-form.tsx", (source) =>
+        source
+          .replace("    setBusy(true);\n", "")
+          .replace(
+            "  function submit(event: FormEvent<HTMLFormElement>) {",
+            "  function submit(event: FormEvent<HTMLFormElement>) {\n    setBusy(true);",
+          ),
+      ),
+  },
+  {
+    name: "unpublishing a page becomes one click with no confirmation",
+    apply: (directory) =>
+      edit(directory, "app/app/site-content/[slug]/page.tsx", (source) =>
+        source.replace(/ confirm=\{`[\s\S]*?`\}/, ""),
+      ),
+  },
 ];
 
 function edit(directory, relativePath, transform) {

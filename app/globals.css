@@ -22,6 +22,11 @@ body { max-width: 100%; overflow-x: clip; background: var(--bg); color: var(--te
 img, video, canvas, svg { max-width: 100%; }
 a { color: inherit; text-decoration: none; }
 .shell { width: min(1180px, calc(100% - clamp(28px, 4vw, 64px))); margin-inline: auto; }
+/* Named by components/cms-public-nav.tsx and only ever defined in the static
+   release's stylesheet, so the mobile menu button rendered its own label as
+   visible text beside the bars. Same declaration as public-site/assets/site.css
+   so a control announces itself in one place and shows itself in neither. */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 
 .topbar { border-bottom: 1px solid var(--border); background: #050611; color: var(--muted); font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em; }
 .topbar-inner, .nav-inner, .footer-inner { display: flex; align-items: center; justify-content: space-between; }
@@ -653,6 +658,52 @@ footer { border-top: 1px solid var(--border); background: #050611; color: var(--
 .cms-faq-list details { overflow: hidden; border: 1px solid var(--border); border-radius: 18px; background: rgba(255,255,255,.035); }
 .cms-faq-list summary { min-height: 54px; padding: 17px 52px 17px 20px; color: var(--text); cursor: pointer; font-weight: 800; }
 .cms-faq-list details p { margin: 0; padding: 0 20px 20px; color: var(--muted); line-height: 1.75; }
+.cms-editing-from { margin: 14px 0 -4px; padding: 11px 16px; border: 1px solid var(--border); border-radius: 12px; background: rgba(255,255,255,.03); color: var(--muted); font-size: 12.5px; line-height: 1.6; }
+.cms-editing-from b { color: #ded8ff; }
+.website-attention-list { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; }
+.website-attention-item { display: grid; gap: 6px; padding: 18px 20px; border-color: rgba(251,191,36,.32); background: linear-gradient(140deg, rgba(251,191,36,.09), rgba(255,255,255,.02)); }
+.website-attention-item:hover { border-color: rgba(251,191,36,.6); }
+.website-attention-item b { color: #fff; font-family: var(--font-display); font-size: 16px; }
+.website-attention-item span { color: var(--muted); font-size: 13px; line-height: 1.6; }
+.gallery-order-list { display: grid; gap: 10px; }
+.gallery-order-row { display: grid; grid-template-columns: 84px minmax(0,1fr) auto; align-items: center; gap: 14px; padding: 12px 14px; }
+.gallery-order-row > img { display: block; width: 84px; height: 63px; object-fit: cover; border-radius: 10px; background: var(--bg-2); }
+.gallery-order-meta { display: grid; gap: 4px; min-width: 0; }
+.gallery-order-meta b { overflow-wrap: anywhere; color: #fff; font-size: 15px; }
+.gallery-order-meta small { color: var(--muted); font-size: 11px; }
+.gallery-order-actions { display: flex; align-items: center; gap: 6px; }
+.gallery-order-actions form { display: contents; }
+.gallery-order-actions button { min-width: 48px; min-height: 44px; border: 1px solid var(--border-strong); border-radius: 10px; background: var(--gradient-soft); color: #e6e1ff; cursor: pointer; }
+.gallery-order-actions button:disabled { opacity: .4; cursor: not-allowed; }
+.cms-news-intro { border-top: 0; padding-block: 72px 34px; }
+.cms-news-list-section { border-top: 0; padding-top: 0; }
+.cms-news-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 18px; }
+.cms-news-card { display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--border); border-radius: 22px; background: var(--surface); transition: border-color 180ms ease, transform 180ms ease; }
+.cms-news-card:hover { border-color: var(--border-strong); transform: translateY(-3px); }
+.cms-news-card-media { display: block; aspect-ratio: 4 / 3; overflow: hidden; background: var(--bg-2); }
+.cms-news-card-media img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.cms-news-card-placeholder { display: block; width: 100%; height: 100%; background: radial-gradient(circle at 30% 20%, rgba(124,92,255,.28), rgba(6,7,18,.92)); }
+.cms-news-card-body { display: grid; align-content: start; gap: 10px; padding: 20px; }
+.cms-news-card-body h2 { font-family: var(--font-display); font-size: 20px; line-height: 1.3; }
+.cms-news-card-body h2 a:hover { color: #c4b5fd; }
+.cms-news-card-body p { color: var(--muted); line-height: 1.65; }
+.cms-news-card-body small { color: var(--muted); font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .04em; }
+.cms-news-pagination { margin-top: 30px; }
+.cms-news-pagination > div { display: flex; flex-wrap: wrap; gap: 10px; }
+.cms-news-article-head { border-top: 0; padding-block: 56px 30px; }
+.cms-news-breadcrumb { margin-bottom: 22px; font-size: 13px; }
+.cms-news-breadcrumb a { color: var(--muted); }
+.cms-news-breadcrumb a:hover { color: #fff; }
+.cms-news-dates { margin-top: 20px; color: var(--muted); font-family: var(--font-mono); font-size: 11px; letter-spacing: .05em; }
+.cms-news-cover { display: grid; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; place-items: center; margin-top: 30px; border: 1px solid var(--border); border-radius: 24px; background: var(--bg-2); }
+.cms-news-cover img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.cms-news-body { padding-block: 44px; }
+.cms-news-body .shell { max-width: 820px; margin-inline: auto; }
+.cms-news-body .cms-section-image { max-width: 820px; margin-top: 28px; }
+.cms-news-points { display: grid; gap: 12px; margin-top: 26px; }
+.cms-news-points article { padding: 20px; border: 1px solid var(--border); border-radius: 18px; background: rgba(255,255,255,.035); }
+.cms-news-points h3 { font-family: var(--font-display); font-size: 18px; }
+.cms-news-points p { margin-top: 8px; color: var(--muted); line-height: 1.7; }
 .quotation-layout { display: grid; grid-template-columns: minmax(250px,.72fr) minmax(0,1.28fr); gap: clamp(26px,5vw,72px); align-items: start; }
 .quotation-form { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; padding: clamp(20px,3vw,34px); border: 1px solid var(--border); border-radius: 26px; background: rgba(255,255,255,.035); box-shadow: var(--shadow); }
 .quotation-form > label:not(.quotation-consent):not(.quotation-honeypot) { display: grid; gap: 8px; color: var(--muted); font-size: .92rem; font-weight: 700; }
@@ -755,6 +806,7 @@ footer { border-top: 1px solid var(--border); background: #050611; color: var(--
   .hero-grid { grid-template-columns: 1fr; gap: 50px; padding-block: 72px 82px; }
   .tracking-card { max-width: 620px; }
   .service-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cms-news-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .workflow-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .about-grid { grid-template-columns: 1fr; gap: 32px; }
   .app-kpis { grid-template-columns: repeat(2, minmax(0,1fr)); }
@@ -889,7 +941,16 @@ footer { border-top: 1px solid var(--border); background: #050611; color: var(--
   .cms-nav { min-height: 64px; }
   .cms-hero { min-height: 0; padding-block: 68px; }
   .cms-section { padding-block: 66px; }
-  .cms-feature-grid, .cms-contact-grid, .site-page-grid { grid-template-columns: 1fr; }
+  .cms-feature-grid, .cms-contact-grid, .site-page-grid, .cms-news-grid, .website-attention-list { grid-template-columns: 1fr; }
+  .gallery-order-row { grid-template-columns: 64px minmax(0,1fr); }
+  .gallery-order-row > img { width: 64px; height: 48px; }
+  .gallery-order-actions { grid-column: 1 / -1; }
+  .gallery-order-actions button { flex: 1; }
+  .cms-news-intro { padding-block: 48px 26px; }
+  .cms-news-article-head { padding-block: 38px 24px; }
+  .cms-news-body { padding-block: 34px; }
+  .cms-news-cover { aspect-ratio: 4 / 3; }
+  .cms-news-pagination > div, .cms-news-pagination a { display: grid; width: 100%; }
   .quotation-layout, .quotation-form { grid-template-columns: 1fr; }
   .quotation-extras, .quotation-attachments, .quotation-notes, .quotation-consent, .quotation-turnstile, .quotation-form > button, .quotation-form > .form-error { grid-column: auto; }
   .quotation-admin-card dl { grid-template-columns: 1fr; }

@@ -45,7 +45,7 @@ export default async function PostsPage({ searchParams }: { searchParams: Promis
           <h1>ข่าวและบทความ</h1>
           <span>เผยแพร่ที่ {POSTS_INDEX_PATH} แก้ไขแบบ Revision และย้อนกลับได้เสมอ</span>
         </div>
-        <Link className="button button-glass" href="/app/site-content">จัดการหน้าเว็บไซต์</Link>
+        <Link className="button button-glass" href="/app/website">ภาพรวมเว็บไซต์</Link>
       </div>
 
       {error && <p className="form-error">{ERRORS[error] ?? "ดำเนินการไม่สำเร็จ"}</p>}
@@ -55,13 +55,31 @@ export default async function PostsPage({ searchParams }: { searchParams: Promis
           <article className="app-panel" key={summary.slug}>
             <span className={`status-pill ${summary.state}`}>{summary.state}</span>
             <h2>{summary.title ?? summary.slug}</h2>
-            <p>{POSTS_INDEX_PATH}{summary.slug}/</p>
+            {/* A published post has a URL a reader can open; an unpublished one
+                has the same path and no page behind it, so it is shown as text
+                rather than as a link that would 404. */}
+            {summary.state === "PUBLISHED" ? (
+              <p>
+                <Link href={`${POSTS_INDEX_PATH}${summary.slug}/`} target="_blank" rel="noreferrer">
+                  {POSTS_INDEX_PATH}{summary.slug}/
+                </Link>
+              </p>
+            ) : (
+              <p>
+                {POSTS_INDEX_PATH}{summary.slug}/ · {summary.state === "HIDDEN" ? "ยกเลิกการเผยแพร่แล้ว ผู้อ่านเปิดไม่ได้" : "ยังไม่เผยแพร่ ผู้อ่านเปิดไม่ได้"}
+              </p>
+            )}
             <small>
               {summary.revisionCount}{summary.revisionCount >= 20 ? "+" : ""} revisions · อัปเดต{" "}
               {new Date(summary.updatedAt).toLocaleString("th-TH")}
             </small>
             <div>
-              <Link className="button button-gradient" href={`/app/posts/${summary.slug}`}>แก้ไข</Link>
+              <Link className="button button-gradient" href={`/app/posts/${summary.slug}`}>แก้ไขและเผยแพร่</Link>
+              {summary.state === "PUBLISHED" && (
+                <Link className="button button-glass" href={`${POSTS_INDEX_PATH}${summary.slug}/`} target="_blank" rel="noreferrer">
+                  เปิดหน้าจริง
+                </Link>
+              )}
             </div>
           </article>
         ))}
