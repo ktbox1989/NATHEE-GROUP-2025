@@ -17,17 +17,33 @@ export async function CmsPublicPage({ content, slug, preview = false, afterConte
     <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeStructuredData(siteOrganizationSchema(settings)) }} />
     {faqItems.length > 0 && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeStructuredData({ "@context": "https://schema.org", "@type": "FAQPage", mainEntity: faqItems.map((item) => ({ "@type": "Question", name: item.title, acceptedAnswer: { "@type": "Answer", text: item.body } })) }) }} />}
     {preview && <div className="cms-preview-banner" role="status">ตัวอย่างฉบับร่าง — ยังไม่เผยแพร่</div>}
-    <PublicHeader active={slug} settings={settings} />
+    <PublicSiteHeader activePath={SITE_PAGE_DEFINITIONS[slug].path} settings={settings} />
     {content.sections.filter((section) => section.enabled).map((section) => <CmsSectionView key={section.id} section={section} />)}
     {afterContent}
-    <PublicFooter settings={settings} />
+    <PublicSiteFooter settings={settings} />
   </main>;
 }
 
-async function PublicHeader({ active, settings }: { active: SitePageSlug; settings: SiteSettings }) {
-  const servicePages: SitePageSlug[] = ["services", "motorcycle-transport", "international", "storage", "container-loading", "dealer-fleet", "quotation"];
-  const activePath = SITE_PAGE_DEFINITIONS[active].path;
-  const items = settings.navigation.items.map((item) => ({ ...item, active: item.href === activePath || item.href === "/services" && servicePages.includes(active) }));
+// The seven service routes share one menu entry, so that entry stays lit on all
+// of them rather than only on /services.
+const SERVICE_PATHS: string[] = (["services", "motorcycle-transport", "international", "storage", "container-loading", "dealer-fleet", "quotation"] as SitePageSlug[])
+  .map((slug) => SITE_PAGE_DEFINITIONS[slug].path);
+
+export function isActivePublicNavItem(href: string, activePath: string): boolean {
+  if (href === activePath) return true;
+  if (href === "/services") return SERVICE_PATHS.includes(activePath);
+  // Every article lives under the news index, which is also one menu entry.
+  if (href === "/news" || href === "/news/") return activePath.startsWith("/news");
+  return false;
+}
+
+/**
+ * The public header, shared by the managed marketing pages and by /news/ so
+ * there is one brand, one menu and one login label rather than two that agree
+ * until someone edits the settings.
+ */
+export async function PublicSiteHeader({ activePath, settings }: { activePath: string; settings: SiteSettings }) {
+  const items = settings.navigation.items.map((item) => ({ ...item, active: isActivePublicNavItem(item.href, activePath) }));
   return <header className="cms-site-header"><div className="shell cms-nav"><Link className="brand" href="/" aria-label={`${settings.brand.name} หน้าแรก`}><PublicBrandIdentity settings={settings} /></Link><CmsPublicNav items={items} loginLabel={settings.navigation.loginLabel} /></div></header>;
 }
 
@@ -99,6 +115,6 @@ function Actions({ section }: { section: CmsSection }) {
   return <div className="hero-actions">{section.primaryHref && <Link className="button button-gradient" href={section.primaryHref}>{section.primaryLabel}</Link>}{section.secondaryHref && <Link className="button button-glass" href={section.secondaryHref}>{section.secondaryLabel}</Link>}</div>;
 }
 
-function PublicFooter({ settings }: { settings: SiteSettings }) {
+export function PublicSiteFooter({ settings }: { settings: SiteSettings }) {
   return <footer><div className="shell footer-inner"><span>{settings.footer.copyright}</span><span><a href={`tel:${settings.contact.primaryPhone}`}>{settings.contact.primaryPhone}</a>{settings.contact.secondaryPhone && <> · <a href={`tel:${settings.contact.secondaryPhone}`}>{settings.contact.secondaryPhone}</a></>}</span></div><div className="shell cms-footer-secondary">{settings.footer.secondaryText}</div></footer>;
 }
