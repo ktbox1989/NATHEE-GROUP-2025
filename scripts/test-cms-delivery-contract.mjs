@@ -178,6 +178,57 @@ for (const path of ["app/app/site-content/[slug]/page.tsx", "app/app/posts/[slug
   );
 }
 
+// 6. One public media delivery contract, and a closed list of what has not
+//    moved to it yet.
+//
+//    `/assets/media/…` is public by the shape of its path. `/api/gallery/images/`
+//    is an authenticated route, which `lib/public-cms/contract.ts` refuses in a
+//    payload outright. Two renderers still build the authenticated form: they
+//    predate the delivery contract, they emit server-rendered HTML rather than a
+//    validated payload, so nothing is violated today — and moving them depends
+//    on every already-published gallery item having a jpeg or png display
+//    variant, which the uploader only began guaranteeing in this cycle.
+//
+//    They are listed rather than tolerated. A new public surface cannot quietly
+//    adopt the old strategy, and when the host mapping lands this list goes to
+//    empty rather than being forgotten.
+const LEGACY_AUTHENTICATED_MEDIA = [
+  "components/cms-public-page.tsx",
+  "components/gallery-lightbox.tsx",
+];
+const PUBLIC_MEDIA_SURFACES = [
+  "app/news/page.tsx",
+  "app/news/[slug]/page.tsx",
+  "components/public-media-image.tsx",
+  "lib/public-news.ts",
+  "lib/public-news-content.ts",
+  "lib/cms-public-route.ts",
+];
+
+for (const path of PUBLIC_MEDIA_SURFACES) {
+  const source = await read(path);
+  require(
+    !source.includes("/api/gallery/images/"),
+    `${path}: builds an authenticated media URL; public media is /assets/media/ and there is only one contract`,
+  );
+}
+// The share card carries the universal raster. Several crawlers decode neither
+// webp nor avif, and a card pointing at an image they cannot read is worse than
+// a card with no image at all.
+const publicRouteSource = await read("lib/cms-public-route.ts");
+require(
+  publicRouteSource.includes('variant.role === "display" && variant.format === "jpeg"'),
+  "lib/cms-public-route.ts: a share image must be the jpeg display variant, not whichever variant sorts first",
+);
+
+for (const path of LEGACY_AUTHENTICATED_MEDIA) {
+  const source = await read(path);
+  require(
+    source.includes("/api/gallery/images/"),
+    `${path}: is listed as not yet migrated to the delivery contract but no longer uses the old form — remove it from LEGACY_AUTHENTICATED_MEDIA`,
+  );
+}
+
 const renderer = await read("components/cms-public-page.tsx");
 require(
   renderer.includes("preview &&") && renderer.includes("ยังไม่เผยแพร่"),
@@ -190,5 +241,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  `CMS_DELIVERY_CONTRACT_PASS managedPublicPages=${managedPublicPages} revalidation=per-request previewIndexable=false draftsInPublicTree=0 publishSurfaces=${PUBLISH_SURFACES.length} doubleSubmitGuarded=true unpublishConfirmed=true`,
+  `CMS_DELIVERY_CONTRACT_PASS managedPublicPages=${managedPublicPages} revalidation=per-request previewIndexable=false draftsInPublicTree=0 publishSurfaces=${PUBLISH_SURFACES.length} doubleSubmitGuarded=true unpublishConfirmed=true publicMediaContract=/assets/media legacyAuthenticatedMedia=${LEGACY_AUTHENTICATED_MEDIA.length}`,
 );

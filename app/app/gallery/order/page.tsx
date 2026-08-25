@@ -1,7 +1,7 @@
 import Link from "next/link";
-/* eslint-disable @next/next/no-img-element -- private R2 thumbnails require the authorization-aware image route */
 import { and, asc, desc, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
+import { GalleryOrderBoard, type GalleryOrderItem } from "@/components/gallery-order-board";
 import { getDb } from "@/db";
 import { galleryCategories, galleryItems } from "@/db/schema";
 import { can } from "@/lib/authorization";
@@ -37,6 +37,9 @@ export default async function GalleryOrderPage({ searchParams }: Props) {
     .orderBy(galleryCategories.sortOrder, galleryCategories.name)
     .all();
   const active = categories.find((category) => category.slug === params.category) ?? null;
+  // Where the board sends the Owner after a save, so the order they see next is
+  // read back from the database rather than the one the browser was holding.
+  const returnTo = active ? `/app/gallery/order?category=${encodeURIComponent(active.slug)}` : "/app/gallery/order";
 
   const items = await db
     .select({
@@ -83,7 +86,8 @@ export default async function GalleryOrderPage({ searchParams }: Props) {
         <Link className="button button-glass" href="/app/gallery">กลับไป Media Library</Link>
       </div>
 
-      {params.status && <div className="form-message success page-message">บันทึกลำดับแล้ว</div>}
+      {params.status === "reordered" && <div className="form-message success page-message">บันทึกลำดับใหม่แล้ว · ลำดับด้านล่างอ่านจากฐานข้อมูลจริง</div>}
+      {params.status && params.status !== "reordered" && <div className="form-message success page-message">บันทึกลำดับแล้ว</div>}
       {params.error && <div className="form-message error page-message">ดำเนินการไม่สำเร็จ ({params.error})</div>}
 
       <nav className="public-gallery-filters" aria-label="หมวดผลงาน">
@@ -101,13 +105,21 @@ export default async function GalleryOrderPage({ searchParams }: Props) {
       </nav>
 
       <section className="app-panel cms-safety-note">
-        <h2>เลขลำดับทำงานอย่างไร</h2>
+        <h2>ลำดับนี้ทำงานอย่างไร</h2>
         <p>
-          เลขน้อยแสดงก่อน · รูปที่ตั้งเป็นภาพเด่นจะขึ้นก่อนเสมอเมื่อฝังใน Section ของหน้าเว็บ ·
-          ถ้าเลขซ้ำกัน ระบบจะเรียงรูปที่อัปโหลดใหม่กว่าขึ้นก่อน แนะนำให้เว้นเลขเป็น 10, 20, 30 เพื่อแทรกรูปได้ภายหลัง
+          เลขน้อยแสดงก่อน · จัดลำดับด้วยปุ่มขึ้น/ลง แล้วกดบันทึก ระบบจะให้เลขใหม่เป็น 10, 20, 30 ทั้งชุด
+          เพื่อให้แทรกรูปเพิ่มภายหลังได้ และเพื่อไม่ให้มีเลขซ้ำกันอีก
         </p>
-        {tied > 0 && <p><b>ตอนนี้มี {tied} รูปที่ใช้เลขลำดับซ้ำกับรูปอื่น</b> จึงยังจัดลำดับได้ไม่แน่นอน</p>}
-        <p>บันทึกแล้วระบบจะพากลับไปหน้า Media Library พร้อมเลื่อนไปที่รูปนั้น</p>
+        <p>รูปที่ตั้งเป็นภาพเด่นจะยังขึ้นก่อนเสมอเมื่อฝังใน Section ของหน้าเว็บ ลำดับนี้คือลำดับของหน้าผลงานสาธารณะ</p>
+        {tied > 0 && (
+          <p>
+            <b>ตอนนี้มี {tied} รูปที่ใช้เลขลำดับซ้ำกับรูปอื่น</b> ลำดับจึงยังไม่แน่นอน — กดบันทึกหนึ่งครั้งเพื่อให้เลขไม่ซ้ำกัน
+          </p>
+        )}
+        <p>
+          ระบบยังบันทึกทีละรูป ไม่ใช่ครั้งเดียวทั้งชุด ถ้าบันทึกไม่สำเร็จกลางทาง รูปที่บันทึกไปแล้วจะยังอยู่
+          และหน้าจะโหลดลำดับจริงจากฐานข้อมูลให้ใหม่
+        </p>
       </section>
 
       <section className="detail-section">
@@ -128,10 +140,13 @@ export default async function GalleryOrderPage({ searchParams }: Props) {
               <Link href="/app/gallery">เปิด Media Library</Link>
             </div>
           </div>
+        ) : canWrite ? (
+          <GalleryOrderBoard items={items.map(toOrderItem)} returnTo={returnTo} />
         ) : (
           <ol className="gallery-order-list">
             {items.map((item, position) => (
               <li className="app-panel gallery-order-row" key={item.id}>
+                {/* eslint-disable-next-line @next/next/no-img-element -- private R2 thumbnails require the authorization-aware image route */}
                 <img
                   src={`/api/gallery/images/${item.id}?role=thumbnail`}
                   alt={item.altText}
@@ -145,40 +160,11 @@ export default async function GalleryOrderPage({ searchParams }: Props) {
                     {position + 1}. {item.title}
                   </b>
                   <small>
-                    เลขลำดับปัจจุบัน {item.sortOrder}
+                    ลำดับ {item.sortOrder}
                     {item.isFeatured === 1 ? " · ภาพเด่น" : ""}
                   </small>
                 </div>
-                {canWrite ? (
-                  <form className="gallery-order-actions" action={`/api/gallery/${item.id}`} method="post">
-                    <input type="hidden" name="action" value="UPDATE" />
-                    <input type="hidden" name="title" value={item.title} />
-                    <input type="hidden" name="altText" value={item.altText} />
-                    <input type="hidden" name="caption" value={item.caption ?? ""} />
-                    <input type="hidden" name="takenAt" value={item.takenAt ?? ""} />
-                    <input type="hidden" name="location" value={item.location ?? ""} />
-                    <input type="hidden" name="publicJobReference" value={item.publicJobReference ?? ""} />
-                    <input type="hidden" name="categoryId" value={item.categoryId} />
-                    <input type="hidden" name="visibility" value={item.visibility} />
-                    <input type="hidden" name="companyId" value={item.companyId ?? ""} />
-                    <input type="hidden" name="jobId" value={item.jobId ?? ""} />
-                    <label className="sr-only" htmlFor={`order-${item.id}`}>
-                      เลขลำดับของ {item.title}
-                    </label>
-                    <input
-                      id={`order-${item.id}`}
-                      name="sortOrder"
-                      type="number"
-                      min={0}
-                      max={1000000}
-                      defaultValue={item.sortOrder}
-                      inputMode="numeric"
-                    />
-                    <button type="submit">บันทึกลำดับ</button>
-                  </form>
-                ) : (
-                  <span className="status-pill">ดูได้อย่างเดียว</span>
-                )}
+                <span className="status-pill">ดูได้อย่างเดียว</span>
               </li>
             ))}
           </ol>
@@ -186,4 +172,44 @@ export default async function GalleryOrderPage({ searchParams }: Props) {
       </section>
     </>
   );
+}
+
+/**
+ * One row, in the shape the reorder board writes back.
+ *
+ * Every field the item update needs travels with it, because that endpoint
+ * replaces the row: sending only the new position would blank the caption, the
+ * location and the job reference.
+ */
+function toOrderItem(item: {
+  id: string;
+  title: string;
+  altText: string;
+  caption: string | null;
+  takenAt: string | null;
+  location: string | null;
+  publicJobReference: string | null;
+  categoryId: string;
+  visibility: string;
+  companyId: string | null;
+  jobId: string | null;
+  sortOrder: number;
+  isFeatured: number;
+}): GalleryOrderItem {
+  return {
+    id: item.id,
+    title: item.title,
+    altText: item.altText,
+    caption: item.caption ?? "",
+    takenAt: item.takenAt ?? "",
+    location: item.location ?? "",
+    publicJobReference: item.publicJobReference ?? "",
+    categoryId: item.categoryId,
+    visibility: item.visibility,
+    companyId: item.companyId ?? "",
+    jobId: item.jobId ?? "",
+    sortOrder: item.sortOrder,
+    isFeatured: item.isFeatured === 1,
+    thumbnailSrc: `/api/gallery/images/${encodeURIComponent(item.id)}?role=thumbnail`,
+  };
 }

@@ -172,3 +172,112 @@ answered once for both rather than twice.
 5. **Slug history** → enable slug editing in the post editor and surface the
    redirect chain in the revision history, so a rename is visible as a decision
    rather than as a URL that quietly changed.
+
+---
+
+# Follow-up, same day — after the A+B integration
+
+Measured on `integration/owner-cms-20260825`. The UI/consumer side of items 1-3
+was taken as far as the existing write contracts allow. What is left needs
+`parseSiteSettings` / `parseCmsPageContent` widened, which is a write-contract
+change rather than a UI one, so it is stated here field by field instead of
+being built behind a form that would silently drop what the Owner typed.
+
+**No migration is involved in any of it.** `site_settings_revisions.settings_json`
+and `site_page_revisions.content_json` are JSON blobs with a `json_valid` check
+and a length bound. Every field below is additive: absent means empty, and every
+revision already stored keeps parsing unchanged.
+
+## 1. Site settings still cannot hold the company's contact details
+
+Unchanged and still blocking. `SiteSettings.contact` is `{ primaryPhone,
+secondaryPhone }`.
+
+```ts
+contact: {
+  primaryPhone: string;      // exists
+  secondaryPhone: string;    // exists
+  email: string;             // bounded 160, validated as an address, may be empty
+  addressLines: string[];    // at most 4, each bounded 120, may be empty
+  lineId: string;            // bounded 60, may be empty
+  lineQrItemId: string;      // gallery item id, may be empty
+}
+```
+
+`lineQrItemId` needs **no new media mechanism**: resolve it exactly as
+`brand.logoItemId` is resolved today, and add it to `collectSettingsReferences`
+in `lib/site-cms-publish.ts` beside the logo, or a published settings revision
+can point at an archived QR and the contact page loses it silently.
+
+Two things found while trying to close this in the UI, both of which change how
+the fields should be presented:
+
+**There is no Owner-confirmed address or LINE ID anywhere in the repository, and
+that is deliberate.** `public-site/contact/index.html` says so in the page text:
+it shows neither, because the repo has no verified street address or coordinates
+and does not guess a LINE ID or use a sample account. So all four fields must
+start empty, nothing may be pre-filled, and the editor should say plainly that an
+empty field means the public page shows nothing rather than a placeholder.
+
+**The app-rendered `/contact` is currently less complete than the static release
+it will replace.** The static page shows the checksum-verified QR at
+`/assets/contact/line-qr-owner-supplied.png` — `PRODUCTION_OWNER_MEDIA_PASS`
+gates it — and the app's `/contact` renders CMS sections only, which have no
+field that can carry it. Until `lineQrItemId` exists, cutting the apex over to
+the application loses the QR from the contact page. That makes this ask a
+release blocker for the cutover rather than a nice-to-have.
+
+## 2. A managed page still cannot be published-but-unlisted
+
+Still open, and unchanged:
+
+```ts
+seo: {
+  title: string;             // exists
+  description: string;       // exists
+  robots: "INDEX" | "NOINDEX";   // POST_ROBOTS already exists for posts
+}
+```
+
+`getManagedPageMetadata` emits `index: true` for all ten routes with no way to
+say otherwise. Posts already have this field and `/news/[slug]` honours it.
+
+**The OG image half of this ask is now closed and needs nothing from Lane B.**
+Rather than leave every share card text-only while waiting for a field, the card
+image is derived from the page's own content: the hero image, or the first
+enabled section carrying one, resolved through the delivery contract so it is
+the same `/assets/media/…` path the page renders and can only ever be a
+PUBLISHED + PUBLIC item. The jpeg display variant specifically, because several
+crawlers decode neither webp nor avif.
+
+An explicit `seo.ogImageItemId` override is still worth having — for a share
+image that should differ from the hero — but it is no longer blocking anything,
+so it drops below `robots` in priority.
+
+## 3. Gallery reorder is now real, and still not atomic
+
+`/app/gallery/order` is a genuine reorder: move up and down, then one save that
+renumbers the visible sequence in tens through the existing audited item update.
+Renumbering also removes the equal-`sort_order` ties that made the previous
+screen unable to express a move at all.
+
+What it cannot do is what only a batch endpoint can:
+
+- it writes **N sequential requests**, one per moved row, not one;
+- it is **not atomic** — a failure part-way leaves the earlier rows moved. The
+  screen reports exactly how many were written and reloads the true order from
+  the database rather than showing the order the browser was holding;
+- it produces **one audit row per item**, where a reorder is one decision.
+
+So the ask narrows from "there is no way to reorder" to "a reorder cannot be one
+transaction or one audit record":
+
+```
+POST /api/gallery/order
+  requestKey: gallery-order-<uuid v4>
+  categoryId: <id>
+  orderedIds: <id>[]          bounded to one admin page
+```
+
+writing sequential `sort_order` in one batch, requiring `gallery:write`,
+refusing any id outside that category, and recording one audit row for the move.

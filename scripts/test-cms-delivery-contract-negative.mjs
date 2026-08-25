@@ -140,6 +140,20 @@ const CASES = [
         source.replace(/ confirm=\{`[\s\S]*?`\}/, ""),
       ),
   },
+  {
+    name: "a public surface adopts the authenticated media URL again",
+    apply: (directory) =>
+      edit(directory, "lib/cms-public-route.ts", (source) =>
+        source.replace("const productionOrigin =", 'const legacy = "/api/gallery/images/";\nconst productionOrigin ='),
+      ),
+  },
+  {
+    name: "the share card silently drops to a format crawlers may not decode",
+    apply: (directory) =>
+      edit(directory, "lib/cms-public-route.ts", (source) =>
+        source.replace('variant.role === "display" && variant.format === "jpeg"', 'variant.role === "display"'),
+      ),
+  },
 ];
 
 function edit(directory, relativePath, transform) {
