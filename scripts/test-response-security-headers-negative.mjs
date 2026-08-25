@@ -106,14 +106,14 @@ const CASES = [
     name: "a form starts posting off-site",
     apply: (directory) =>
       edit(directory, "app/login/page.tsx", (source) =>
-        source.replace('action="/api/auth/login"', 'action="https://auth.example.test/login"'),
+        source.replace('action="/api/auth/owner-pin/login"', 'action="https://auth.example.test/login"'),
       ),
   },
   {
     name: "a form starts posting protocol-relative",
     apply: (directory) =>
       edit(directory, "app/login/page.tsx", (source) =>
-        source.replace('action="/api/auth/login"', 'action="//auth.example.test/login"'),
+        source.replace('action="/api/auth/owner-pin/login"', 'action="//auth.example.test/login"'),
       ),
   },
 ];
