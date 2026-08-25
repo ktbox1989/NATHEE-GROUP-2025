@@ -347,13 +347,59 @@ export function missingDatabaseObjects(
   return REQUIRED_DATABASE_OBJECTS.filter((object) => !found.has(`${object.type}:${object.name}`));
 }
 
-export function runtimeReadiness(checks: RuntimeChecks) {
+/**
+ * Which door the runtime can actually open, named rather than inferred.
+ *
+ * `authentication: true` used to mean exactly "Supabase is configured", and
+ * with the Owner PIN there are now two independent ways for it to be true. An
+ * operator reading a probe has to be able to tell which, because the remedies
+ * are different and because a runtime that reported a bare `true` while Supabase
+ * was absent would be claiming something about Supabase that is not so.
+ */
+export const AUTH_MODES = ["none", "owner-pin", "supabase", "owner-pin+supabase"] as const;
+export type AuthMode = (typeof AUTH_MODES)[number];
+
+export type AuthProviders = {
+  ownerPin: boolean;
+  supabase: boolean;
+  supabaseAdmin: boolean;
+};
+
+export function authMode(providers: { ownerPin: boolean; supabase: boolean }): AuthMode {
+  if (providers.ownerPin && providers.supabase) return "owner-pin+supabase";
+  if (providers.ownerPin) return "owner-pin";
+  if (providers.supabase) return "supabase";
+  return "none";
+}
+
+export function authenticationConfigured(providers: { ownerPin: boolean; supabase: boolean }): boolean {
+  return authMode(providers) !== "none";
+}
+
+/**
+ * The verdict stays all-or-nothing: a partially configured runtime is exactly
+ * the state that looks healthy and is not. `auth` describes what is configured
+ * without softening what is required, so nothing here can report Supabase — or
+ * the Owner PIN — as ready when it is absent.
+ */
+export type RuntimeReadinessPayload = {
+  status: "healthy" | "degraded";
+  checks: RuntimeChecks;
+  /** Absent when the caller had nothing to say about the mode, never invented. */
+  auth?: AuthProviders & { mode: AuthMode };
+};
+
+export function runtimeReadiness(
+  checks: RuntimeChecks,
+  auth?: AuthProviders,
+): { statusCode: number; payload: RuntimeReadinessPayload } {
   const healthy = Object.values(checks).every(Boolean);
   return {
     statusCode: healthy ? 200 : 503,
     payload: {
-      status: healthy ? "healthy" as const : "degraded" as const,
+      status: healthy ? "healthy" : "degraded",
       checks,
+      ...(auth ? { auth: { mode: authMode(auth), ...auth } } : {}),
     },
   };
 }

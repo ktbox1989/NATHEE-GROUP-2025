@@ -7,6 +7,12 @@ import {
   normalizeConfiguredAppOrigin,
   PUBLIC_WEBSITE_ORIGIN,
 } from "../lib/app-origin.ts";
+import {
+  OWNER_EMAIL,
+  parseOwnerPinCredential,
+  parseOwnerSessionSecret,
+} from "../lib/owner-pin.ts";
+import { authMode } from "../lib/runtime-readiness.ts";
 import { isSupabaseSecretKey } from "../lib/supabase/admin.ts";
 import { parseSupabaseConfig } from "../lib/supabase/config.ts";
 import { turnstileKeysReady } from "../lib/turnstile.ts";
@@ -60,27 +66,109 @@ if (!present(env.APP_ORIGIN)) {
   record("APP_ORIGIN", true, "canonical Production origin");
 }
 
+// --- Owner CMS PIN authentication -------------------------------------------
+// The Owner reaches the website editor with a PIN, and that path depends on no
+// identity provider at all. So there are two ways for this runtime to be able
+// to authenticate somebody, and requiring both would refuse a deployment that
+// is complete for what it is actually being used for.
+//
+// The rule is one complete mode, not two: whichever mode is not configured is
+// reported as a warning rather than reported as ready. Nothing here ever prints
+// a credential or a secret, only whether the value has the shape the runtime
+// parses.
+const supabase = parseSupabaseConfig(env.NEXT_PUBLIC_SUPABASE_URL, env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY);
+const supabaseAuthComplete = Boolean(supabase) && isSupabaseSecretKey(env.SUPABASE_SECRET_KEY ?? "");
+const ownerPinCredential = parseOwnerPinCredential(env.OWNER_PIN_CREDENTIAL);
+const ownerSessionSecret = parseOwnerSessionSecret(env.OWNER_SESSION_SECRET);
+const ownerPinReady = Boolean(ownerPinCredential && ownerSessionSecret);
+
+// Reported only when the Owner PIN is actually in play: either a value for it
+// was set, or Supabase is not complete and something has to be. A deployment
+// that runs entirely on Supabase is not asked about a mode it does not use.
+const ownerPinInUse =
+  present(env.OWNER_PIN_CREDENTIAL) || present(env.OWNER_SESSION_SECRET) || !supabaseAuthComplete;
+const ownerPinRequired = !supabaseAuthComplete;
+
+// Mirrored: with a complete Owner PIN mode, an absent Supabase is a warning
+// rather than a blocked activation. It is never reported as ready.
+const supabaseRequired = !ownerPinReady;
+
+if (ownerPinInUse) {
+  if (!present(env.OWNER_PIN_CREDENTIAL)) {
+    record("OWNER_PIN_CREDENTIAL", false, "not set; generate it with `npm run owner:pin`", {
+      required: ownerPinRequired,
+    });
+  } else if (!ownerPinCredential) {
+    record(
+      "OWNER_PIN_CREDENTIAL",
+      false,
+      "rejected; expected v1$pbkdf2-sha256$<iterations>$<salt>$<hash> with at least 200000 iterations, a 16-byte salt and a 32-byte hash",
+      { required: ownerPinRequired },
+    );
+  } else {
+    record(
+      "OWNER_PIN_CREDENTIAL",
+      true,
+      `pbkdf2-sha256, ${ownerPinCredential.iterations} iterations, ${ownerPinCredential.salt.length}-byte salt`,
+      { required: ownerPinRequired },
+    );
+  }
+
+  if (!present(env.OWNER_SESSION_SECRET)) {
+    record("OWNER_SESSION_SECRET", false, "not set; generate it with `npm run owner:pin`", {
+      required: ownerPinRequired,
+    });
+  } else if (!ownerSessionSecret) {
+    record(
+      "OWNER_SESSION_SECRET",
+      false,
+      "rejected; expected at least 43 base64url characters (32 bytes of key material)",
+      { required: ownerPinRequired },
+    );
+  } else {
+    record("OWNER_SESSION_SECRET", true, "session signing key shape", { required: ownerPinRequired });
+  }
+
+  // The address is a public identifier and is fixed in the server source, so
+  // naming it here tells the operator which seat the PIN opens without
+  // disclosing anything. There is no environment variable to get wrong.
+  record("OWNER_PIN_ACCOUNT", true, `${OWNER_EMAIL} (fixed in source; never read from a request)`, {
+    required: false,
+  });
+
+  // Two halves of one mode. A credential with no signing key can verify a PIN
+  // and then has no way to remember that it did.
+  if (present(env.OWNER_PIN_CREDENTIAL) !== present(env.OWNER_SESSION_SECRET)) {
+    record(
+      "OWNER_PIN_PAIR",
+      false,
+      "only one of OWNER_PIN_CREDENTIAL and OWNER_SESSION_SECRET is set; both are required together",
+      { required: ownerPinRequired },
+    );
+  }
+}
+
 // --- Supabase public configuration ------------------------------------------
 // The runtime validator takes both values together, so each is checked against
 // it with a well-formed stand-in for the other. A wrong key must not be reported
 // as a wrong URL.
 const PROBE_PUBLISHABLE_KEY = `sb_publishable_${"a".repeat(24)}`;
-const supabase = parseSupabaseConfig(env.NEXT_PUBLIC_SUPABASE_URL, env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY);
 const urlAlone = parseSupabaseConfig(env.NEXT_PUBLIC_SUPABASE_URL, PROBE_PUBLISHABLE_KEY);
 if (!present(env.NEXT_PUBLIC_SUPABASE_URL)) {
-  record("NEXT_PUBLIC_SUPABASE_URL", false, "not set");
+  record("NEXT_PUBLIC_SUPABASE_URL", false, "not set", { required: supabaseRequired });
 } else if (!urlAlone) {
   record(
     "NEXT_PUBLIC_SUPABASE_URL",
     false,
     "rejected; expected an https project URL with no path, query, fragment or credentials (https://<ref>.supabase.co)",
+    { required: supabaseRequired },
   );
 } else {
-  record("NEXT_PUBLIC_SUPABASE_URL", true, "https project URL");
+  record("NEXT_PUBLIC_SUPABASE_URL", true, "https project URL", { required: supabaseRequired });
 }
 
 if (!present(env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY)) {
-  record("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", false, "not set");
+  record("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", false, "not set", { required: supabaseRequired });
 } else if (isSupabaseSecretKey(env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY)) {
   record(
     "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
@@ -88,9 +176,9 @@ if (!present(env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY)) {
     "holds a SECRET key. This value is sent to browsers. Rotate it now, then set the sb_publishable_... value here",
   );
 } else if (!parseSupabaseConfig("https://probe.supabase.co", env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY)) {
-  record("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", false, "rejected; expected an sb_publishable_... value");
+  record("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", false, "rejected; expected an sb_publishable_... value", { required: supabaseRequired });
 } else {
-  record("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", true, "publishable key shape");
+  record("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", true, "publishable key shape", { required: supabaseRequired });
 }
 
 // Both together are what the runtime actually loads.
@@ -99,18 +187,19 @@ if (present(env.NEXT_PUBLIC_SUPABASE_URL) && present(env.NEXT_PUBLIC_SUPABASE_PU
     "SUPABASE_PUBLIC_CONFIG",
     Boolean(supabase),
     supabase ? "the runtime would load this pair" : "the pair is rejected by the runtime validator",
+    { required: supabaseRequired },
   );
 }
 
 // --- Supabase administrative configuration ----------------------------------
 if (!present(env.SUPABASE_SECRET_KEY)) {
-  record("SUPABASE_SECRET_KEY", false, "not set; Owner invitations cannot be issued without it");
+  record("SUPABASE_SECRET_KEY", false, "not set; Owner invitations cannot be issued without it", { required: supabaseRequired });
 } else if (/^sb_publishable_/.test(env.SUPABASE_SECRET_KEY.trim())) {
-  record("SUPABASE_SECRET_KEY", false, "holds the publishable key; expected the sb_secret_... value");
+  record("SUPABASE_SECRET_KEY", false, "holds the publishable key; expected the sb_secret_... value", { required: supabaseRequired });
 } else if (!isSupabaseSecretKey(env.SUPABASE_SECRET_KEY)) {
-  record("SUPABASE_SECRET_KEY", false, "rejected; expected an sb_secret_... value");
+  record("SUPABASE_SECRET_KEY", false, "rejected; expected an sb_secret_... value", { required: supabaseRequired });
 } else {
-  record("SUPABASE_SECRET_KEY", true, "secret key shape");
+  record("SUPABASE_SECRET_KEY", true, "secret key shape", { required: supabaseRequired });
 }
 
 // Only meaningful once both values exist; claiming they "differ" while both are
@@ -182,6 +271,21 @@ record(
     : `${exposed.join("; ")}. Rotate before deploying; a shipped public value cannot be recalled`,
 );
 
+// --- Which door this runtime can actually open -------------------------------
+// Named rather than inferred from the list above, because "one complete mode"
+// is the rule the required/warning split is derived from, and an operator
+// reading FAIL lines has to be able to see which mode was being judged.
+// The same function /api/health reports with, so the verifier and the running
+// probe can never disagree about which mode a deployment is in.
+const mode = authMode({ ownerPin: ownerPinReady, supabase: supabaseAuthComplete });
+record(
+  "AUTH_MODE",
+  mode !== "none",
+  mode === "none"
+    ? "no complete authentication mode; configure the Owner PIN (npm run owner:pin) or the full Supabase pair"
+    : `${mode}; the other mode is optional and is reported above as configured or not`,
+);
+
 // --- Derived values the Owner must mirror in the provider dashboard ---------
 const callback = appOrigin ? buildAuthCallbackUrl("/reset-password", undefined, env.APP_ORIGIN, "production") : null;
 
@@ -193,7 +297,9 @@ for (const check of checks) {
   console.log(`${status} ${check.name}: ${check.detail}`);
 }
 
-if (appOrigin) {
+// Only when Supabase is in play. A runtime the Owner runs on a PIN alone has
+// no provider dashboard to mirror anything into.
+if (appOrigin && (present(env.NEXT_PUBLIC_SUPABASE_URL) || present(env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY) || present(env.SUPABASE_SECRET_KEY))) {
   console.log("");
   console.log("Set these in the Supabase Auth dashboard, exactly:");
   console.log(`  Site URL:          ${appOrigin}`);
@@ -204,12 +310,12 @@ if (appOrigin) {
 console.log("");
 if (failed.length > 0) {
   console.log(
-    `PRODUCTION_ENV_VERIFY_FAIL required=${required.length} failed=${failed.length} (${failed.map((check) => check.name).join(", ")})`,
+    `PRODUCTION_ENV_VERIFY_FAIL required=${required.length} failed=${failed.length} authMode=${mode} (${failed.map((check) => check.name).join(", ")})`,
   );
   process.exit(1);
 }
 
 const warnings = checks.filter((check) => !check.required && !check.ok).length;
 console.log(
-  `PRODUCTION_ENV_VERIFY_PASS required=${required.length} warnings=${warnings} shapeOnly=true providerNotContacted=true bindingsDeclared=true`,
+  `PRODUCTION_ENV_VERIFY_PASS required=${required.length} warnings=${warnings} shapeOnly=true providerNotContacted=true bindingsDeclared=true authMode=${mode}`,
 );

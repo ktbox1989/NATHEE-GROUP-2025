@@ -72,6 +72,11 @@ const PUBLIC_SURFACES = [
     reason: "Establishes a session. Guarded by same-origin and the login attempt budgets.",
   },
   {
+    path: "app/api/auth/owner-pin/login/route.ts",
+    reason:
+      "Establishes the Owner's session from a PIN. Guarded by same-origin, the same login attempt budgets as the password door, and an account that is a server constant rather than anything the caller names.",
+  },
+  {
     path: "app/api/auth/logout/route.ts",
     reason: "Ends a session. Guarded by same-origin; ending a session it does not have is a no-op.",
   },

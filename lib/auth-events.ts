@@ -19,7 +19,12 @@ export const AUTH_EVENT_ACTIONS = ["SIGN_IN", "SIGN_IN_DENIED", "PASSWORD_CHANGE
 export type AuthEventAction = (typeof AUTH_EVENT_ACTIONS)[number];
 
 /** How the person proved they were entitled to what they just did. */
-export const AUTH_EVENT_METHODS = ["password", "recovery_link", "current_password"] as const;
+export const AUTH_EVENT_METHODS = [
+  "password",
+  "recovery_link",
+  "current_password",
+  "owner_pin",
+] as const;
 export type AuthEventMethod = (typeof AUTH_EVENT_METHODS)[number];
 
 /** Audit rows about getting in describe a session, not a business record. */

@@ -45,6 +45,16 @@ const throttledRoutes = [
     refusal: "error=too_many_attempts",
     unavailable: "error=unavailable",
   },
+  // The Owner PIN is six digits. The budget in front of it is not a hardening
+  // measure there, it is the entire reason a six-digit secret is defensible, so
+  // the same ordering is required of it as of the password door.
+  {
+    path: "app/api/auth/owner-pin/login/route.ts",
+    providerCall: "verifyOwnerPin(",
+    kind: '"login"',
+    refusal: "error=too_many_attempts",
+    unavailable: "error=unavailable",
+  },
 ];
 
 const loginRoute = await read("app/api/auth/login/route.ts");
@@ -310,6 +320,154 @@ require(
   "lib/auth-throttle-store.ts: the store must propagate failures so callers fail closed",
 );
 
+// --- The Owner PIN door ------------------------------------------------------
+//
+// A six-digit secret is defensible only while four things hold together: the
+// account is fixed rather than named by the caller, the verifier is slow and
+// salted, the budget is spent before the verifier runs (asserted above with the
+// other throttled routes), and the session it issues cannot be edited or
+// outlive the credential it was issued under.
+
+const OWNER_PIN_ROUTE = "app/api/auth/owner-pin/login/route.ts";
+const ownerPinRoute = await read(OWNER_PIN_ROUTE);
+const ownerPin = await read("lib/owner-pin.ts");
+const ownerPinSql = await read("lib/owner-pin-sql.ts");
+const ownerPinStore = await read("lib/owner-pin-store.ts");
+const currentActor = await read("lib/current-actor.ts");
+const logoutRoute = await read("app/api/auth/logout/route.ts");
+
+// The account is a server constant. An address read from the form would let a
+// caller aim the attempt at another account and spend that account's lockout.
+require(
+  !/formData\.get\(\s*["']email["']\s*\)/.test(ownerPinRoute),
+  `${OWNER_PIN_ROUTE}: the Owner address must never be read from the request`,
+);
+require(
+  ownerPinRoute.includes("normalizeIdentitySubject(OWNER_EMAIL)"),
+  `${OWNER_PIN_ROUTE}: the throttle subject must be the server constant, so PIN and password guesses share one budget`,
+);
+require(
+  ownerPinRoute.includes("isSixDigitPin(pin)"),
+  `${OWNER_PIN_ROUTE}: the PIN shape must be checked, and checked before anything is spent`,
+);
+orderedBefore(ownerPinRoute, "isSixDigitPin(pin)", "verifyOwnerPin(", OWNER_PIN_ROUTE);
+orderedBefore(ownerPinRoute, "verifyOwnerPin(", "ensureOwnerPinIdentity(", OWNER_PIN_ROUTE);
+orderedBefore(ownerPinRoute, "ensureOwnerPinIdentity(", "createOwnerSessionToken(", OWNER_PIN_ROUTE);
+require(
+  ownerPinRoute.includes("error=owner_conflict"),
+  `${OWNER_PIN_ROUTE}: a refused bootstrap must be visible rather than a session issued anyway`,
+);
+require(
+  ownerPinRoute.includes("recordSignInEvent("),
+  `${OWNER_PIN_ROUTE}: an Owner sign-in must reach the Audit trail`,
+);
+
+// The verifier: slow, salted, and compared without leaking how much matched.
+require(
+  ownerPin.includes('name: "PBKDF2"') && ownerPin.includes('hash: "SHA-256"'),
+  "lib/owner-pin.ts: the PIN must be verified with a slow KDF",
+);
+require(
+  ownerPin.includes("MIN_PBKDF2_ITERATIONS = 200_000"),
+  "lib/owner-pin.ts: the iteration floor must stay at 200k",
+);
+require(
+  ownerPin.includes("iterations < MIN_PBKDF2_ITERATIONS"),
+  "lib/owner-pin.ts: a credential below the floor must be refused, not accepted with a weaker parameter",
+);
+require(
+  ownerPin.includes("salt.length < MIN_SALT_BYTES"),
+  "lib/owner-pin.ts: a credential with a short salt must be refused",
+);
+require(
+  ownerPin.includes("constantTimeEquals(derived, parsed.hash)"),
+  "lib/owner-pin.ts: the PIN comparison must not leak a matching prefix",
+);
+
+// The session cookie: unforgeable, bounded, revoked by rotation, and never
+// standing for an address other than the canonical Owner.
+require(
+  ownerPin.includes("httpOnly: true") &&
+    ownerPin.includes("secure: true") &&
+    ownerPin.includes('sameSite: "lax"'),
+  "lib/owner-pin.ts: the session cookie must be HttpOnly, Secure and same-site",
+);
+require(
+  ownerPin.includes("constantTimeEquals(providedSignature, new Uint8Array(expected))"),
+  "lib/owner-pin.ts: the session signature must be checked, and checked in constant time",
+);
+require(
+  ownerPin.includes("payload.exp <= input.now"),
+  "lib/owner-pin.ts: a session must expire",
+);
+require(
+  ownerPin.includes("payload.exp - payload.iat > OWNER_SESSION_TTL_MS"),
+  "lib/owner-pin.ts: a session signed with a longer life than the policy must still be refused",
+);
+require(
+  ownerPin.includes("payload.fp !== input.fingerprint"),
+  "lib/owner-pin.ts: replacing the credential must invalidate every session issued under the old one",
+);
+require(
+  ownerPin.includes("payload.email !== OWNER_EMAIL"),
+  "lib/owner-pin.ts: a session naming any other address must be refused",
+);
+
+// The bootstrap may create the Owner, and may do nothing. It may never rebind
+// or promote an account it did not create.
+for (const guard of [
+  "NOT EXISTS (SELECT 1 FROM users WHERE external_auth_id = ?)",
+  "NOT EXISTS (SELECT 1 FROM users WHERE email = ?)",
+]) {
+  require(
+    ownerPinSql.includes(guard),
+    `lib/owner-pin-sql.ts: the Owner insert must be guarded by '${guard}'`,
+  );
+}
+for (const forbidden of [/\bUPDATE\s/, /\bDELETE\s/]) {
+  require(
+    !forbidden.test(ownerPinSql),
+    `lib/owner-pin-sql.ts: the bootstrap must only ever insert (${forbidden})`,
+  );
+}
+require(
+  ownerPinStore.includes("ownerBootstrapOutcome(ownerIdentityState(await readOwnerPinIdentityRows"),
+  "lib/owner-pin-store.ts: the outcome must come from a read of the database, not from what a write believed it did",
+);
+require(
+  ownerPinStore.includes("actor.userId !== payload.sub"),
+  "lib/owner-pin-store.ts: a session must name the row it was issued for",
+);
+
+// The PIN session is resolved before the provider, and an absent provider is
+// no longer a reason to tell a configured Owner that nothing is wired up.
+orderedBefore(
+  currentActor,
+  "resolveOwnerPinSession(",
+  "createSupabaseServerClient(",
+  "lib/current-actor.ts",
+);
+require(
+  currentActor.includes("authModeConfigured({"),
+  "lib/current-actor.ts: the config redirect must consider every configured door, not Supabase alone",
+);
+require(
+  !/if\s*\(!getSupabaseConfig\(\)\)\s*redirect\(/.test(currentActor),
+  "lib/current-actor.ts: an absent provider must not lock out an Owner whose PIN is configured",
+);
+
+// Signing out has to end the session that exists, whichever door opened it.
+require(
+  logoutRoute.includes("clearedOwnerSessionCookieOptions()"),
+  "app/api/auth/logout/route.ts: logout must clear the Owner PIN cookie",
+);
+orderedBefore(
+  logoutRoute,
+  "clearedOwnerSessionCookieOptions()",
+  "getSupabaseConfig()",
+  "app/api/auth/logout/route.ts",
+);
+
 // No Auth surface may carry a built-in account, and no throttle may be disabled
 // by an environment value that Production could be missing.
 const authSources = await Promise.all(
@@ -318,6 +476,7 @@ const authSources = await Promise.all(
     "app/api/auth/forgot-password/route.ts",
     "app/api/auth/logout/route.ts",
     "app/api/auth/update-password/route.ts",
+    OWNER_PIN_ROUTE,
     "app/auth/callback/route.ts",
     "lib/auth-recovery-grant.ts",
     "lib/auth-recovery-grant-sql.ts",
@@ -325,11 +484,26 @@ const authSources = await Promise.all(
     "lib/auth-throttle.ts",
     "lib/auth-throttle-sql.ts",
     "lib/auth-throttle-store.ts",
+    "lib/owner-pin.ts",
+    "lib/owner-pin-identity.ts",
+    "lib/owner-pin-sql.ts",
+    "lib/owner-pin-store.ts",
   ].map(async (path) => ({ path, source: await read(path) })),
 );
 for (const { path, source } of authSources) {
-  for (const forbidden of [/DISABLE_[A-Z_]*THROTTL/, /THROTTLE_DISABLED/, /demo@/i, /\badmin123\b/i]) {
-    require(!forbidden.test(source), `${path}: forbidden escape hatch or built-in account (${forbidden})`);
+  for (const forbidden of [
+    /DISABLE_[A-Z_]*THROTTL/,
+    /THROTTLE_DISABLED/,
+    /demo@/i,
+    /\badmin123\b/i,
+    // A PIN, a credential or a signing key with a value in the source is the
+    // same defect in three shapes: a secret that ships in the repository.
+    /\bpin\s*[:=]\s*["'][0-9]{4,}["']/i,
+    /OWNER_PIN_CREDENTIAL\s*(\?\?|\|\|)/,
+    /OWNER_SESSION_SECRET\s*(\?\?|\|\|)/,
+    /v1\$pbkdf2-sha256\$[0-9]+\$[A-Za-z0-9_-]{8,}/,
+  ]) {
+    require(!forbidden.test(source), `${path}: forbidden escape hatch or built-in credential (${forbidden})`);
   }
 }
 
@@ -339,5 +513,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  `AUTH_SECURITY_GATE_PASS throttledRoutes=${throttledRoutes.length} clientScope=cf-connecting-ip passwordChange=grant-or-current-password privilegedWrites=reauthenticated auditedEvents=sign-in,sign-in-denied,password-changed readiness=auth_attempt_counters,auth_recovery_grants`,
+  `AUTH_SECURITY_GATE_PASS throttledRoutes=${throttledRoutes.length} clientScope=cf-connecting-ip passwordChange=grant-or-current-password privilegedWrites=reauthenticated auditedEvents=sign-in,sign-in-denied,password-changed readiness=auth_attempt_counters,auth_recovery_grants ownerPin=fixed-account,pbkdf2-sha256>=200k,fingerprinted-session,insert-only-bootstrap`,
 );
