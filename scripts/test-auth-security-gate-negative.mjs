@@ -39,6 +39,12 @@ const TRACKED = [
   "lib/auth-recovery-grant-store.ts",
   "lib/client-address.ts",
   "lib/runtime-readiness.ts",
+  "app/api/auth/owner-pin/login/route.ts",
+  "lib/owner-pin.ts",
+  "lib/owner-pin-identity.ts",
+  "lib/owner-pin-sql.ts",
+  "lib/owner-pin-store.ts",
+  "lib/current-actor.ts",
 ];
 
 const CASES = [
@@ -247,6 +253,130 @@ const CASES = [
     name: "the admin page stops asking for the password",
     file: "app/app/users/page.tsx",
     edit: (source) => source.replace('name="currentPassword"', 'name="unusedField"'),
+  },
+  {
+    name: "the Owner PIN attempt is made before the budget is spent",
+    file: "app/api/auth/owner-pin/login/route.ts",
+    edit: (source) =>
+      source
+        .replace("reserveAuthAttempt(", "deferredReserveAuthAttempt(")
+        .concat("\n// reserveAuthAttempt( appears only after verifyOwnerPin(\n"),
+  },
+  {
+    name: "the account to authenticate is taken from the form",
+    file: "app/api/auth/owner-pin/login/route.ts",
+    edit: (source) =>
+      source.replace(
+        "normalizeIdentitySubject(OWNER_EMAIL)",
+        'normalizeIdentitySubject(String(formData.get("email") ?? ""))',
+      ),
+  },
+  {
+    name: "the PIN shape is no longer checked before the verifier runs",
+    file: "app/api/auth/owner-pin/login/route.ts",
+    edit: (source) => source.replace("isSixDigitPin(pin)", "pin.length > 0"),
+  },
+  {
+    name: "a refused Owner bootstrap issues a session anyway",
+    file: "app/api/auth/owner-pin/login/route.ts",
+    edit: (source) => source.replace("error=owner_conflict", "status=logged_in"),
+  },
+  {
+    name: "the Owner sign-in stops reaching the Audit trail",
+    file: "app/api/auth/owner-pin/login/route.ts",
+    edit: (source) => source.replace("recordSignInEvent(", "skipSignInEvent("),
+  },
+  {
+    name: "the PIN verifier stops being slow",
+    file: "lib/owner-pin.ts",
+    edit: (source) => source.replace("MIN_PBKDF2_ITERATIONS = 200_000", "MIN_PBKDF2_ITERATIONS = 1_000"),
+  },
+  {
+    name: "a credential below the iteration floor is accepted",
+    file: "lib/owner-pin.ts",
+    edit: (source) => source.replace("iterations < MIN_PBKDF2_ITERATIONS", "iterations < 1"),
+  },
+  {
+    name: "the PIN comparison leaks how much of it matched",
+    file: "lib/owner-pin.ts",
+    edit: (source) =>
+      source.replace(
+        "constantTimeEquals(derived, parsed.hash)",
+        "derived.join(),\n    parsed.hash.join()) === String(",
+      ),
+  },
+  {
+    name: "the Owner session cookie becomes readable by script",
+    file: "lib/owner-pin.ts",
+    edit: (source) => source.replaceAll("httpOnly: true", "httpOnly: false as true"),
+  },
+  {
+    name: "the Owner session stops expiring",
+    file: "lib/owner-pin.ts",
+    edit: (source) => source.replace("payload.exp <= input.now", "false"),
+  },
+  {
+    name: "rotating the credential no longer revokes old sessions",
+    file: "lib/owner-pin.ts",
+    edit: (source) => source.replace("payload.fp !== input.fingerprint", "false"),
+  },
+  {
+    name: "a session may name an address other than the canonical Owner",
+    file: "lib/owner-pin.ts",
+    edit: (source) => source.replace("payload.email !== OWNER_EMAIL", "false"),
+  },
+  {
+    name: "the bootstrap may rebind an address someone else already holds",
+    file: "lib/owner-pin-sql.ts",
+    edit: (source) =>
+      source.replace("NOT EXISTS (SELECT 1 FROM users WHERE email = ?)", "1 = 1"),
+  },
+  {
+    name: "the bootstrap gains the power to update an existing row",
+    file: "lib/owner-pin-sql.ts",
+    edit: (source) => `${source}\nexport const PROMOTE_SQL = \`UPDATE users SET role = 'OWNER'\`;\n`,
+  },
+  {
+    name: "a session acts as a row it was not issued for",
+    file: "lib/owner-pin-store.ts",
+    edit: (source) => source.replace("actor.userId !== payload.sub", "false"),
+  },
+  {
+    name: "the provider is consulted before the Owner's own session",
+    file: "lib/current-actor.ts",
+    edit: (source) =>
+      source
+        .replace("resolveOwnerPinSession(", "deferredResolveOwnerPinSession(")
+        .concat("\n// resolveOwnerPinSession( appears only after createSupabaseServerClient(\n"),
+  },
+  {
+    name: "an absent provider locks out an Owner whose PIN is configured",
+    file: "lib/current-actor.ts",
+    edit: (source) =>
+      source.replace(
+        /if \(!authModeConfigured\(\{[\s\S]*?\}\)\) \{\n\s*redirect\("\/login\?error=config"\);\n\s*\}/,
+        'if (!getSupabaseConfig()) redirect("/login?error=config");',
+      ),
+  },
+  {
+    name: "signing out leaves the Owner PIN cookie in place",
+    file: "app/api/auth/logout/route.ts",
+    edit: (source) => source.replace("clearedOwnerSessionCookieOptions()", "ownerSessionCookieOptions()"),
+  },
+  {
+    name: "a credential is hardcoded into the source",
+    file: "lib/owner-pin.ts",
+    edit: (source) =>
+      `${source}\nconst FALLBACK = "v1$pbkdf2-sha256$200000$AAAAAAAAAAAAAAAAAAAAAA$BBBBBBBBBBBBBBBBBBBBBB";\n`,
+  },
+  {
+    name: "the session secret gains a default",
+    file: "lib/owner-pin.ts",
+    edit: (source) =>
+      source.replace(
+        "process.env.OWNER_SESSION_SECRET)",
+        'process.env.OWNER_SESSION_SECRET ?? "development-secret")',
+      ),
   },
 ];
 

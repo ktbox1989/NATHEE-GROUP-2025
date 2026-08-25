@@ -2,6 +2,11 @@
 
 The application code is ready for managed email/password authentication. Real login remains intentionally disabled until a NATHEE-owned Supabase project is connected; no demo account or password is embedded in the source.
 
+> **The Owner does not need any of this.** The Owner reaches the website CMS
+> with a six-digit PIN, on a runtime where Supabase and Turnstile are absent —
+> see [OWNER_PIN_AUTH.md](OWNER_PIN_AUTH.md). Everything below is for staff and
+> customer accounts, and stays optional until there are any.
+
 ## 1. Create the authentication project
 
 Create a Supabase project owned by NATHEE GROUP. In Authentication URL configuration, set the production Site URL to `https://app.natheegroup2025.com` and allow these redirect paths:

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
+import { toBase64Url } from "../lib/owner-pin.ts";
 
 // The verifier exists to catch activation mistakes before a deploy, and it reads
 // real Production secrets to do it. Two things therefore have to hold: it names
@@ -23,8 +24,19 @@ const VALID = {
   TURNSTILE_SECRET_KEY: TURNSTILE_SECRET,
 };
 
+const OWNER_PIN_CREDENTIAL = `v1$pbkdf2-sha256$210000$${toBase64Url(new Uint8Array(32).fill(3))}$${toBase64Url(new Uint8Array(32).fill(4))}`;
+const OWNER_SESSION_SECRET = toBase64Url(new Uint8Array(32).fill(5));
+
+const OWNER_PIN_ONLY = {
+  APP_ORIGIN: "https://app.natheegroup2025.com",
+  OWNER_PIN_CREDENTIAL,
+  OWNER_SESSION_SECRET,
+};
+
 const MANAGED = [
   "APP_ORIGIN",
+  "OWNER_PIN_CREDENTIAL",
+  "OWNER_SESSION_SECRET",
   "NEXT_PUBLIC_SUPABASE_URL",
   "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
   "SUPABASE_SECRET_KEY",
@@ -200,4 +212,88 @@ test("a value pasted with a trailing carriage return is accepted, as the runtime
 test("leading whitespace is trimmed too, and an internal space is still refused", () => {
   assert.equal(run({ ...VALID, APP_ORIGIN: "  https://app.natheegroup2025.com  " }).status, 0);
   assert.equal(run({ ...VALID, APP_ORIGIN: "https://app .natheegroup2025.com" }).status, 1);
+});
+
+// --- Owner CMS PIN mode -----------------------------------------------------
+// The Owner reaches the website editor with a PIN and no identity provider at
+// all. Activation therefore has to accept a deployment that is complete for the
+// mode it is actually in, without ever reporting the absent mode as ready.
+
+test("the Owner PIN alone satisfies activation, and Supabase becomes a warning rather than a block", () => {
+  const { status, output } = run(OWNER_PIN_ONLY);
+  assert.equal(status, 0, output);
+  assert.match(output, /PRODUCTION_ENV_VERIFY_PASS/);
+  assert.match(output, /authMode=owner-pin$/m);
+  assert.match(output, /OK {3}OWNER_PIN_CREDENTIAL: pbkdf2-sha256, 210000 iterations, 32-byte salt/);
+  assert.match(output, /OK {3}OWNER_SESSION_SECRET: session signing key shape/);
+  assert.match(output, /OK {3}AUTH_MODE: owner-pin/);
+  // Absent, and said so as a warning. Never reported as ready.
+  for (const name of ["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "SUPABASE_SECRET_KEY"]) {
+    assert.match(output, new RegExp(`WARN ${name}: not set`), name);
+    assert.ok(!new RegExp(`OK {3}${name}`).test(output), `${name} was claimed ready while absent`);
+  }
+  // And no provider dashboard instructions for a provider that is not in use.
+  assert.ok(!/Supabase Auth dashboard/.test(output));
+});
+
+test("both modes configured is reported as both, and neither is inferred from the other", () => {
+  const { status, output } = run({ ...VALID, OWNER_PIN_CREDENTIAL, OWNER_SESSION_SECRET });
+  assert.equal(status, 0, output);
+  assert.match(output, /authMode=owner-pin\+supabase$/m);
+  assert.match(output, /OK {3}SUPABASE_PUBLIC_CONFIG/);
+  assert.match(output, /OK {3}OWNER_PIN_CREDENTIAL/);
+  assert.match(output, /Supabase Auth dashboard/);
+});
+
+test("a runtime with no complete mode is refused and told which two to choose from", () => {
+  const { status, output } = run({ APP_ORIGIN: "https://app.natheegroup2025.com" });
+  assert.equal(status, 1);
+  assert.match(output, /FAIL AUTH_MODE: no complete authentication mode/);
+  assert.match(output, /npm run owner:pin/);
+  assert.match(output, /authMode=none/);
+  assert.match(output, /FAIL OWNER_PIN_CREDENTIAL/);
+  assert.match(output, /FAIL NEXT_PUBLIC_SUPABASE_URL/);
+});
+
+test("half an Owner PIN mode is refused, and named as half", () => {
+  for (const half of [
+    { APP_ORIGIN: OWNER_PIN_ONLY.APP_ORIGIN, OWNER_PIN_CREDENTIAL },
+    { APP_ORIGIN: OWNER_PIN_ONLY.APP_ORIGIN, OWNER_SESSION_SECRET },
+  ]) {
+    const { status, output } = run(half);
+    assert.equal(status, 1, JSON.stringify(Object.keys(half)));
+    assert.match(output, /FAIL OWNER_PIN_PAIR: only one of OWNER_PIN_CREDENTIAL and OWNER_SESSION_SECRET is set/);
+    assert.match(output, /authMode=none/);
+  }
+});
+
+test("a malformed Owner PIN value is named, and never treated as a weaker credential", () => {
+  const weak = `v1$pbkdf2-sha256$1000$${toBase64Url(new Uint8Array(32).fill(3))}$${toBase64Url(new Uint8Array(32).fill(4))}`;
+  const { status, output } = run({ ...OWNER_PIN_ONLY, OWNER_PIN_CREDENTIAL: weak });
+  assert.equal(status, 1);
+  assert.match(output, /FAIL OWNER_PIN_CREDENTIAL: rejected; expected v1\$pbkdf2-sha256/);
+  assert.match(output, /at least 200000 iterations/);
+
+  const shortSecret = run({ ...OWNER_PIN_ONLY, OWNER_SESSION_SECRET: "too-short" });
+  assert.equal(shortSecret.status, 1);
+  assert.match(shortSecret.output, /FAIL OWNER_SESSION_SECRET: rejected; expected at least 43 base64url characters/);
+});
+
+test("an unusable Owner PIN value does not block a deployment that runs on Supabase", () => {
+  const { status, output } = run({ ...VALID, OWNER_PIN_CREDENTIAL: "nonsense", OWNER_SESSION_SECRET });
+  assert.equal(status, 0, output);
+  assert.match(output, /WARN OWNER_PIN_CREDENTIAL: rejected/);
+  assert.match(output, /authMode=supabase$/m);
+});
+
+test("neither Owner PIN value the verifier was given is ever printed", () => {
+  const outputs = [
+    run(OWNER_PIN_ONLY).output,
+    run({ ...OWNER_PIN_ONLY, OWNER_SESSION_SECRET: "too-short" }).output,
+    run({ ...VALID, OWNER_PIN_CREDENTIAL, OWNER_SESSION_SECRET }).output,
+  ];
+  for (const output of outputs) {
+    assert.ok(!output.includes(OWNER_PIN_CREDENTIAL), "the verifier printed the PIN credential");
+    assert.ok(!output.includes(OWNER_SESSION_SECRET), "the verifier printed the session secret");
+  }
 });

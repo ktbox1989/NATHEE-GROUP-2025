@@ -86,4 +86,5 @@ const AUTH_EVENT_METHOD_LABELS: Record<string, string> = {
   password: "ยืนยันด้วยรหัสผ่าน",
   recovery_link: "ยืนยันด้วยลิงก์ทางอีเมล",
   current_password: "ยืนยันด้วยรหัสผ่านปัจจุบัน",
+  owner_pin: "ยืนยันด้วย PIN ของเจ้าของ",
 };

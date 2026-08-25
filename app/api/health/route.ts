@@ -2,7 +2,12 @@ import { env } from "cloudflare:workers";
 import { NextResponse } from "next/server";
 import { getD1 } from "@/db";
 import { isCanonicalProductionOriginConfigured } from "@/lib/app-origin";
-import { databaseObjectsReady, runtimeReadiness } from "@/lib/runtime-readiness";
+import { isOwnerPinConfigured } from "@/lib/owner-pin";
+import {
+  authenticationConfigured,
+  databaseObjectsReady,
+  runtimeReadiness,
+} from "@/lib/runtime-readiness";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { isTurnstileConfigured } from "@/lib/turnstile";
@@ -10,9 +15,18 @@ import { isTurnstileConfigured } from "@/lib/turnstile";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  // Presence and shape only. Nothing derived from OWNER_PIN_CREDENTIAL or
+  // OWNER_SESSION_SECRET is reported: a probe is an unauthenticated surface, and
+  // even a digest of a verifier would be one more thing to have to reason about.
+  const auth = {
+    ownerPin: isOwnerPinConfigured(),
+    supabase: isSupabaseConfigured(),
+    supabaseAdmin: isSupabaseAdminConfigured(),
+  };
+
   const checks = {
-    authentication: isSupabaseConfigured(),
-    adminAuthentication: isSupabaseAdminConfigured(),
+    authentication: authenticationConfigured(auth),
+    adminAuthentication: auth.supabaseAdmin,
     canonicalOrigin: isCanonicalProductionOriginConfigured(),
     database: false,
     storage: false,
@@ -38,7 +52,7 @@ export async function GET() {
     checks.storage = false;
   }
 
-  const readiness = runtimeReadiness(checks);
+  const readiness = runtimeReadiness(checks, auth);
   return NextResponse.json(
     readiness.payload,
     {
