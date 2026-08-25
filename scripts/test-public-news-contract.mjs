@@ -36,14 +36,16 @@ const ARTICLE_ROUTE = "app/news/[slug]/page.tsx";
 const READER = "lib/public-news.ts";
 const CONTENT = "lib/public-news-content.ts";
 const SQL = "lib/public-news-sql.ts";
+const MEDIA_COMPONENT = "components/public-media-image.tsx";
 const DYNAMIC_DIRECTIVE = 'export const dynamic = "force-dynamic"';
 
-const [indexRoute, articleRoute, reader, content, sql] = await Promise.all([
+const [indexRoute, articleRoute, reader, content, sql, mediaComponent] = await Promise.all([
   read(INDEX_ROUTE),
   read(ARTICLE_ROUTE),
   read(READER),
   read(CONTENT),
   read(SQL),
+  read(MEDIA_COMPONENT),
 ]);
 
 // 1. Both public news surfaces resolve per request.
@@ -71,8 +73,14 @@ for (const [path, source] of [[INDEX_ROUTE, indexRoute], [ARTICLE_ROUTE, article
 
 // 3. What is live is the most recent publication event, and a HIDE wins.
 require(
-  sql.includes("ORDER BY created_at DESC, id DESC"),
+  sql.includes("ORDER BY created_at DESC, rowid DESC"),
   `${SQL}: the live revision must be the most recent publication event`,
+);
+// The same tie-break lib/post-cms-store.ts uses. A random-UUID tie-break here
+// would let the index and the article disagree about a same-second revert.
+require(
+  !sql.includes("ORDER BY created_at DESC, id DESC"),
+  `${SQL}: a same-second tie must break on insertion order, not on a random id`,
 );
 // Both the listing and the count must agree on it. A count that still
 // includes hidden posts paginates readers into empty pages.
@@ -133,22 +141,36 @@ for (const field of ["modifiedTime", "dateModified"]) {
   }
 }
 
-// 6. Media reaches a reader only through the route that checks whether it may
-//    be seen. A storage key or a bare bucket path here is a privacy incident,
-//    not a broken image.
+// 6. There is ONE public media contract, and posts use it.
+//
+//    `/assets/media/…` is public by the shape of its path. `/api/…` is an
+//    authenticated route that the public contract refuses outright, so a post
+//    building its own `/api/` URLs would be a second delivery strategy that
+//    could never satisfy the contract it is meant to satisfy — and two
+//    strategies is exactly one more than a public site can have.
 require(
-  content.includes("/api/gallery/images/") && content.includes("encodeURIComponent(id)"),
-  `${CONTENT}: media must be served through the authorization-aware image route`,
+  reader.includes("resolvePublicMedia("),
+  `${READER}: media must be resolved by the canonical public media store, not by a second resolver`,
 );
-for (const [path, source] of [[INDEX_ROUTE, indexRoute], [ARTICLE_ROUTE, articleRoute], [READER, reader], [CONTENT, content]]) {
+require(
+  mediaComponent.includes("buildMediaRenderModel("),
+  `${MEDIA_COMPONENT}: media must be rendered through the shared render model`,
+);
+for (const [path, source] of [
+  [INDEX_ROUTE, indexRoute],
+  [ARTICLE_ROUTE, articleRoute],
+  [READER, reader],
+  [CONTENT, content],
+  [MEDIA_COMPONENT, mediaComponent],
+]) {
+  require(
+    !source.includes("/api/gallery/images/"),
+    `${path}: builds an authenticated media URL, which the public contract refuses and which would be a second delivery strategy`,
+  );
   for (const forbidden of ["storageKey", "storage_key", "env.FILES"]) {
     require(!source.includes(forbidden), `${path}: references ${forbidden}, which is private storage the public must not address`);
   }
 }
-require(
-  reader.includes('eq(galleryItems.status, "PUBLISHED")') && reader.includes('eq(galleryItems.visibility, "PUBLIC")'),
-  `${READER}: only a published, public gallery item may appear on a post`,
-);
 
 // 7. The index is bounded. An unbounded page number becomes an unbounded
 //    OFFSET, and an unbounded page size becomes a full scan per request.
@@ -159,15 +181,26 @@ require(
 );
 require(sql.includes("LIMIT ? OFFSET ?"), `${SQL}: the index must be paginated in SQL rather than in memory`);
 
-// 8. Every image the site renders carries the two attributes that keep the page
-//    from reflowing as photographs arrive, and the alt text the gallery stored.
-for (const [path, source] of [[INDEX_ROUTE, indexRoute], [ARTICLE_ROUTE, articleRoute]]) {
-  for (const match of source.matchAll(/<img\b[\s\S]*?\/>/g)) {
-    for (const attribute of ["alt=", "width=", "height=", "sizes="]) {
-      require(match[0].includes(attribute), `${path}: an image is missing ${attribute}`);
-    }
+// 8. Every image carries the attributes that keep the page from reflowing as
+//    photographs arrive, and the alt text the gallery stored. There is one
+//    <img> on the public side now, so there is one place to check it.
+for (const match of mediaComponent.matchAll(/<img\b[\s\S]*?\/>/g)) {
+  for (const attribute of ["alt=", "width=", "height=", "sizes=", "srcSet=", "loading="]) {
+    require(match[0].includes(attribute), `${MEDIA_COMPONENT}: an image is missing ${attribute}`);
   }
 }
+
+// 9. A renamed post keeps its old URL working. Without this, the rename Lane B
+//    made possible would still throw away every inbound link — the history row
+//    would exist and nothing would read it.
+require(
+  articleRoute.includes("resolveRenamedNewsPath(") && articleRoute.includes("permanentRedirect("),
+  `${ARTICLE_ROUTE}: a slug that moved must redirect permanently rather than answer 404`,
+);
+require(
+  reader.includes("listPostRedirects(") && reader.includes("resolvePostRedirect("),
+  `${READER}: rename chains and loops must be resolved by the contract rather than re-implemented`,
+);
 
 if (failures.length > 0) {
   for (const failure of failures) console.error(`PUBLIC_NEWS_CONTRACT_FAIL ${failure}`);
@@ -175,5 +208,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  "PUBLIC_NEWS_CONTRACT_PASS routes=2 revalidation=per-request draftsInPublicTree=0 robots=editor-controlled media=authorization-aware",
+  "PUBLIC_NEWS_CONTRACT_PASS routes=2 revalidation=per-request draftsInPublicTree=0 robots=editor-controlled media=/assets/media renamedSlugs=redirected",
 );

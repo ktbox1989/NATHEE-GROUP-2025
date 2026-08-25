@@ -1,20 +1,31 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { validateMedia, validateMediaSrc, type PublicMedia } from "../lib/public-cms/contract.ts";
 import { POSTS_INDEX_PATH, isPostPath, isValidPostSlug } from "../lib/public-cms/posts.ts";
+import { buildPublicMediaPath } from "../lib/public-media-delivery.ts";
 import {
   MAX_NEWS_PAGE,
   clampNewsPage,
   formatThaiDate,
-  newsImageSrc,
   referencedIndexImageIds,
   toNewsCard,
   toPublicationIso,
   type NewsIndexRow,
-  type PublicNewsImage,
 } from "../lib/public-news-content.ts";
 
-const image: PublicNewsImage = { id: "photo-1", altText: "รถบรรทุกกำลังโหลดรถจักรยานยนต์", width: 1600, height: 1200 };
-const images = new Map<string, PublicNewsImage>([[image.id, image]]);
+// Built through the delivery contract rather than by hand, so the fixture
+// cannot drift from the paths the route actually serves.
+const image: PublicMedia = {
+  id: "photo-1",
+  altText: "รถบรรทุกกำลังโหลดรถจักรยานยนต์",
+  caption: null,
+  variants: [
+    { src: buildPublicMediaPath({ itemId: "photo-1", role: "display", format: "jpeg" })!, width: 1600, height: 1200, format: "jpeg", role: "display" },
+    { src: buildPublicMediaPath({ itemId: "photo-1", role: "display", format: "webp" })!, width: 1600, height: 1200, format: "webp", role: "display" },
+    { src: buildPublicMediaPath({ itemId: "photo-1", role: "thumbnail", format: "jpeg" })!, width: 640, height: 480, format: "jpeg", role: "thumbnail" },
+  ],
+};
+const images = new Map<string, PublicMedia>([[image.id, image]]);
 
 function content(overrides: Record<string, unknown> = {}) {
   return JSON.stringify({
@@ -124,11 +135,22 @@ test("a publication date is shown in Bangkok time and Buddhist era", () => {
   assert.equal(formatThaiDate("not a date"), "");
 });
 
-test("an image is served from the route that checks whether it may be seen", () => {
-  assert.equal(newsImageSrc("photo-1", "display"), "/api/gallery/images/photo-1?role=display");
-  assert.equal(newsImageSrc("photo-1", "thumbnail"), "/api/gallery/images/photo-1?role=thumbnail");
-  // An id is escaped rather than concatenated, so it cannot alter the query.
-  assert.equal(newsImageSrc("a/b?role=x", "display"), "/api/gallery/images/a%2Fb%3Frole%3Dx?role=display");
+test("a post carries the same public media a page does, from the same contract", () => {
+  // The single delivery contract: every source is a path under /assets/media/,
+  // and the authenticated routes are refused outright. A news payload built the
+  // old way — /api/gallery/images/<id> — could never satisfy this.
+  assert.deepEqual(validateMedia(image, "featuredImage"), []);
+  for (const variant of image.variants) {
+    assert.ok(variant.src.startsWith("/assets/media/"), variant.src);
+    assert.deepEqual(validateMediaSrc(variant.src, "src"), []);
+  }
+  assert.equal(image.variants[0].src, "/assets/media/photo-1/display.jpg");
+
+  // The shape the contract refuses, stated so the reason is not lost.
+  assert.equal(
+    validateMediaSrc("/api/gallery/images/photo-1?role=display", "src")[0]?.reason,
+    "references authenticated media and must never be public",
+  );
 });
 
 test("one page of rows asks for each image once", () => {

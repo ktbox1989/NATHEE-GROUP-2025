@@ -15,7 +15,16 @@
  * publication rather than by the latest event keeps a corrected typo from
  * throwing an old article back to the top of the news page.
  *
- * The tie-break is the slug, matching `comparePostsForList` in
+ * Which publication is the latest one is decided the same way
+ * `lib/post-cms-store.ts` decides it for a single post: `created_at` has
+ * one-second resolution by the timestamp contract, so two publications inside
+ * the same second tie, and the tie-break is `rowid` — insertion order, never
+ * reused because deletion is refused by trigger — rather than a random UUID.
+ * The index and the article must not be able to disagree about which revision
+ * is live: publishing and reverting inside one second would otherwise let the
+ * index list a post the article answers 404 for.
+ *
+ * The listing tie-break is the slug, matching `comparePostsForList` in
  * `lib/public-cms/posts.ts`, so the runtime index and the statically built one
  * order a same-timestamp batch identically rather than each being internally
  * consistent and disagreeing with the other.
@@ -49,7 +58,7 @@ export const PUBLISHED_POSTS_INDEX_SQL = `
     ON latest.id = (
       SELECT id FROM post_publication_events
       WHERE post_id = p.id
-      ORDER BY created_at DESC, id DESC
+      ORDER BY created_at DESC, rowid DESC
       LIMIT 1
     )
   JOIN post_revisions r
@@ -67,7 +76,7 @@ export const PUBLISHED_POSTS_COUNT_SQL = `
     ON latest.id = (
       SELECT id FROM post_publication_events
       WHERE post_id = p.id
-      ORDER BY created_at DESC, id DESC
+      ORDER BY created_at DESC, rowid DESC
       LIMIT 1
     )
   WHERE latest.action = 'PUBLISH'

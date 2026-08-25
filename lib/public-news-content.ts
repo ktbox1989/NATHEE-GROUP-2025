@@ -6,17 +6,18 @@
  * looks like once it is allowed to be rendered is a property of the content,
  * and what is currently published is a property of the database.
  *
- * This is not a second copy of `lib/public-cms/posts.ts`. That module is the
- * contract for the statically built release, where media is served from a
- * document root under `/assets/` and a whole archive is held in memory to be
- * paginated. This one is the runtime-rendered site, where media comes from the
- * authorization-aware image route and pagination happens in SQL. The two share
- * what can be shared — the slug rule, the path, the page size, the empty state
- * copy — and the ordering tie-break is deliberately identical so a batch
- * published in the same second lists the same way on both.
+ * This is not a second copy of `lib/public-cms/posts.ts`. That module holds a
+ * whole archive in memory to paginate it, which suits the statically built
+ * release and not a runtime index; here pagination happens in SQL. Everything
+ * else is shared rather than restated — the slug rule, the path, the page size,
+ * the empty-state copy, and now the media contract, so a photograph on a post
+ * and a photograph on a marketing page are the same kind of object served from
+ * the same place. The ordering tie-break is deliberately identical too, so a
+ * batch published in the same second lists the same way on both.
  */
 
 import { parsePostContentJson, type PostRobots } from "./post-cms-content.ts";
+import type { PublicMedia } from "./public-cms/contract.ts";
 import { postPath } from "./public-cms/posts.ts";
 import type { CmsFeature } from "./site-cms-content.ts";
 import { timestampInstant } from "./timestamps.ts";
@@ -26,13 +27,6 @@ import { timestampInstant } from "./timestamps.ts";
  * database to skip a million rows.
  */
 export const MAX_NEWS_PAGE = 50;
-
-export type PublicNewsImage = {
-  id: string;
-  altText: string;
-  width: number | null;
-  height: number | null;
-};
 
 export type PublicNewsCard = {
   slug: string;
@@ -44,7 +38,7 @@ export type PublicNewsCard = {
   publishedAt: string;
   /** ISO-8601 of the most recent republish, null when published only once. */
   updatedAt: string | null;
-  image: PublicNewsImage | null;
+  image: PublicMedia | null;
 };
 
 export type PublicNewsSection = {
@@ -53,7 +47,7 @@ export type PublicNewsSection = {
   eyebrow: string;
   body: string;
   items: CmsFeature[];
-  image: PublicNewsImage | null;
+  image: PublicMedia | null;
   primaryLabel: string;
   primaryHref: string;
   secondaryLabel: string;
@@ -90,20 +84,20 @@ export type NewsIndexRow = {
   publish_count: unknown;
 };
 
-/**
- * The route a reader is served this image from.
+/*
+ * Media on a post is `PublicMedia`, resolved by `lib/public-media-store.ts` and
+ * served from `/assets/media/…`.
  *
- * `/api/gallery/images/:id` serves a PUBLISHED + PUBLIC item to anyone and
- * refuses everything else, which is the same route every managed marketing page
- * already uses. It is deliberately not the `/assets/` form
- * `lib/public-cms/contract.ts` requires: that prefix belongs to the statically
- * built release served from a document root, and where runtime CMS media lives
- * under `/assets/` is a deployment decision that has not been made. See
- * `docs/LANE_A_CONTRACT_ASKS.md`.
+ * This module used to build authenticated gallery-image URLs itself, reasoning
+ * that the runtime-rendered site and the statically built release were
+ * different delivery targets with different media mechanisms. That reasoning is
+ * obsolete now the delivery contract exists: `/assets/media/…` is public by the
+ * shape of its path rather than by what a route checks, and
+ * `lib/public-cms/contract.ts` refuses every `/api/` source outright — so a news
+ * payload built the old way could never have satisfied the contract it is meant
+ * to satisfy. One delivery contract, used by the pages and by the posts, was
+ * the point of asking for it.
  */
-export function newsImageSrc(id: string, role: "display" | "thumbnail"): string {
-  return `/api/gallery/images/${encodeURIComponent(id)}?role=${role}`;
-}
 
 /** A `?page=` value from a stranger, reduced to a page number this site has. */
 export function clampNewsPage(value: string | undefined): number {
@@ -149,7 +143,7 @@ export function toPublicationIso(recorded: unknown): string | null {
  * missing headline, so it is dropped from the list rather than patched with
  * placeholders.
  */
-export function toNewsCard(row: NewsIndexRow, images: ReadonlyMap<string, PublicNewsImage>): PublicNewsCard | null {
+export function toNewsCard(row: NewsIndexRow, images: ReadonlyMap<string, PublicMedia>): PublicNewsCard | null {
   if (typeof row.slug !== "string" || typeof row.content_json !== "string") return null;
   const content = parsePostContentJson(row.content_json);
   const publishedAt = toPublicationIso(row.first_published);

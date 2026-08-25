@@ -1,14 +1,14 @@
-/* eslint-disable @next/next/no-img-element -- public CMS media is served through the authorization-aware R2 image route */
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { PublicSiteFooter, PublicSiteHeader } from "@/components/cms-public-page";
+import { PublicMediaImage } from "@/components/public-media-image";
 import { CANONICAL_ORIGIN } from "@/lib/public-cms/contract";
 import { POSTS_INDEX_PATH, isValidPostSlug } from "@/lib/public-cms/posts";
 import {
   formatThaiDate,
-  newsImageSrc,
   readPublishedNewsArticle,
+  resolveRenamedNewsPath,
   type PublicNewsArticle,
   type PublicNewsSection,
 } from "@/lib/public-news";
@@ -59,7 +59,13 @@ export default async function NewsArticlePage({ params }: Props) {
   const { slug } = await params;
   if (!isValidPostSlug(slug)) notFound();
   const article = await readPublishedNewsArticle(slug);
-  if (!article) notFound();
+  if (!article) {
+    // A slug that is not live may have moved. The old URL keeps its inbound
+    // links by answering a permanent redirect rather than a dead end.
+    const moved = await resolveRenamedNewsPath(slug);
+    if (moved) permanentRedirect(moved);
+    notFound();
+  }
   const settings = await getPublishedSiteSettings();
 
   return (
@@ -92,12 +98,9 @@ export default async function NewsArticlePage({ params }: Props) {
             </p>
             {article.image && (
               <figure className="cms-news-cover">
-                <img
-                  src={newsImageSrc(article.image.id, "display")}
-                  alt={article.image.altText}
-                  width={article.image.width ?? 1600}
-                  height={article.image.height ?? 1200}
-                  decoding="async"
+                <PublicMediaImage
+                  media={article.image}
+                  priority
                   sizes="(max-width: 940px) calc(100vw - 40px), 1100px"
                 />
               </figure>
@@ -140,17 +143,12 @@ function NewsSection({ section }: { section: PublicNewsSection }) {
           {section.body && <p>{section.body}</p>}
         </div>
         {section.image && (
-          <figure className="cms-section-image" data-orientation={orientationOf(section.image.width, section.image.height)}>
-            <img
-              src={newsImageSrc(section.image.id, "display")}
-              alt={section.image.altText}
-              width={section.image.width ?? 1600}
-              height={section.image.height ?? 1200}
-              loading="lazy"
-              decoding="async"
-              sizes="(max-width: 940px) calc(100vw - 40px), 720px"
-            />
-          </figure>
+          <PublicMediaImage
+            media={section.image}
+            className="cms-section-image"
+            withOrientation
+            sizes="(max-width: 940px) calc(100vw - 40px), 720px"
+          />
         )}
         {section.items.length > 0 && (
           <div className="cms-news-points">
@@ -177,10 +175,16 @@ function NewsSection({ section }: { section: PublicNewsSection }) {
   );
 }
 
-function orientationOf(width: number | null, height: number | null): "landscape" | "portrait" | "square" {
-  if (!width || !height) return "landscape";
-  const ratio = width / height;
-  return ratio > 1.12 ? "landscape" : ratio < 0.88 ? "portrait" : "square";
+/**
+ * The absolute URL of the share image, or null.
+ *
+ * Taken from the display variant the delivery contract already built, so the
+ * URL in the structured data is the same one the page renders rather than a
+ * second guess at the same path.
+ */
+function articleImageUrl(article: PublicNewsArticle): string | null {
+  const display = article.image?.variants.find((variant) => variant.role === "display");
+  return display ? `${CANONICAL_ORIGIN}${display.src}` : null;
 }
 
 function articleSchema(article: PublicNewsArticle, brandName: string) {
@@ -195,7 +199,7 @@ function articleSchema(article: PublicNewsArticle, brandName: string) {
     ...(article.updatedAt ? { dateModified: article.updatedAt } : {}),
     mainEntityOfPage: `${CANONICAL_ORIGIN}${article.path}`,
     ...(article.category ? { articleSection: article.category.label } : {}),
-    ...(article.image ? { image: `${CANONICAL_ORIGIN}${newsImageSrc(article.image.id, "display")}` } : {}),
+    ...(articleImageUrl(article) ? { image: articleImageUrl(article) } : {}),
     author: { "@type": "Organization", name: brandName },
     publisher: { "@type": "Organization", name: brandName },
   };

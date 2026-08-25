@@ -1,13 +1,12 @@
-/* eslint-disable @next/next/no-img-element -- public CMS media is served through the authorization-aware R2 image route */
 import type { Metadata } from "next";
 import Link from "next/link";
 import { PublicSiteFooter, PublicSiteHeader } from "@/components/cms-public-page";
+import { PublicMediaImage } from "@/components/public-media-image";
 import { CANONICAL_ORIGIN } from "@/lib/public-cms/contract";
 import { POSTS_EMPTY_STATE, POSTS_INDEX_PATH } from "@/lib/public-cms/posts";
 import {
   clampNewsPage,
   formatThaiDate,
-  newsImageSrc,
   readPublishedNewsIndex,
   type PublicNewsCard,
 } from "@/lib/public-news";
@@ -113,13 +112,9 @@ function NewsCard({ post, priority }: { post: PublicNewsCard; priority: boolean 
     <article className="cms-news-card">
       <Link href={post.path} className="cms-news-card-media" aria-hidden={post.image ? undefined : true} tabIndex={post.image ? undefined : -1}>
         {post.image ? (
-          <img
-            src={newsImageSrc(post.image.id, "thumbnail")}
-            alt={post.image.altText}
-            width={post.image.width ?? 640}
-            height={post.image.height ?? 480}
-            loading={priority ? "eager" : "lazy"}
-            decoding="async"
+          <PublicMediaImage
+            media={post.image}
+            priority={priority}
             sizes="(max-width: 600px) calc(100vw - 28px), (max-width: 940px) 48vw, 32vw"
           />
         ) : (

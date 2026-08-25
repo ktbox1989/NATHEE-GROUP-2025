@@ -172,3 +172,32 @@ test("posts published in the same second are ordered by slug, not by insertion",
   // one comparePostsForList already uses for the static release.
   assert.deepEqual(index(db).map((row) => row.slug), ["alpha-post", "bravo-post", "charlie-post"]);
 });
+
+test("a publish and a revert inside the same second resolve to the revert", () => {
+  const db = createDatabase();
+  addPost(db, "post-1", "first-post");
+  addRevision(db, "rev-1", "post-1", "First");
+  // created_at has one-second resolution by the timestamp contract, so these
+  // tie. The tie-break must be insertion order, not the random UUID primary
+  // key: with an id tie-break the outcome depends on which uuid sorted higher,
+  // and half the time the index would keep listing a post the Owner just took
+  // down - and which /news/<slug>/ already answers 404 for, because
+  // lib/post-cms-store.ts breaks the same tie on rowid.
+  publish(db, "evt-aaaa", "post-1", "rev-1", "2026-08-01 09:00:00");
+  hide(db, "evt-0000", "post-1", "2026-08-01 09:00:00");
+
+  assert.deepEqual(index(db), []);
+  assert.equal(total(db), 0);
+});
+
+test("a revert and a re-publish inside the same second resolve to the re-publish", () => {
+  const db = createDatabase();
+  addPost(db, "post-1", "first-post");
+  addRevision(db, "rev-1", "post-1", "First");
+  publish(db, "evt-zzzz", "post-1", "rev-1", "2026-08-01 09:00:00");
+  hide(db, "evt-yyyy", "post-1", "2026-08-01 09:00:00");
+  publish(db, "evt-0001", "post-1", "rev-1", "2026-08-01 09:00:00");
+
+  assert.equal(index(db).length, 1);
+  assert.equal(total(db), 1);
+});

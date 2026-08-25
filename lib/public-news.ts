@@ -19,11 +19,12 @@
  * stack trace on a URL a search engine holds.
  */
 
-import { and, eq, inArray } from "drizzle-orm";
 import { getD1, getDb } from "@/db";
-import { galleryImageVariants, galleryItems } from "@/db/schema";
 import { getPublishedPost } from "@/lib/post-cms-store";
-import { POSTS_PAGE_SIZE } from "@/lib/public-cms/posts";
+import type { PublicMedia } from "@/lib/public-cms/contract";
+import { POSTS_PAGE_SIZE, postPath, resolvePostRedirect } from "@/lib/public-cms/posts";
+import { listPostRedirects } from "@/lib/post-slug-history";
+import { resolvePublicMedia } from "@/lib/public-media-store";
 import {
   MAX_NEWS_PAGE,
   referencedIndexImageIds,
@@ -31,7 +32,6 @@ import {
   type NewsIndexRow,
   type PublicNewsArticle,
   type PublicNewsCard,
-  type PublicNewsImage,
   type PublicNewsIndex,
 } from "@/lib/public-news-content";
 import {
@@ -39,69 +39,27 @@ import {
   PUBLISHED_POSTS_INDEX_SQL,
   publishedPostsIndexParams,
 } from "@/lib/public-news-sql";
-import { postPath } from "@/lib/public-cms/posts";
 
 export * from "@/lib/public-news-content";
 
 /**
- * Resolves gallery ids to renderable media in one query.
+ * Resolves gallery ids to the media a public payload may carry.
  *
- * Only PUBLISHED + PUBLIC items resolve. An id that does not — archived after
- * the post was published, or never public — is dropped rather than rendered as
- * a broken image, which is what `mapStoredPostToPublicPost` does for the same
- * case. Publishing already refuses a revision whose media cannot be served, so
- * reaching here means the item changed after the post went live.
+ * This is `resolvePublicMedia` and nothing of its own. It is the production
+ * `PostMediaResolver` the contract was waiting for, it selects only PUBLISHED
+ * and PUBLIC rows in the query, it builds every source through the delivery
+ * contract so a storage key never leaves the server, and it re-checks its own
+ * output with `validateMedia` before returning it. A second resolver here would
+ * be a second set of rules that agree until one of them is edited.
+ *
+ * An id that does not resolve — archived after the post was published, made
+ * private, or without a raster fallback a browser is required to decode — is
+ * dropped rather than rendered as a broken image, which is what
+ * `mapStoredPostToPublicPost` does for the same case.
  */
-async function resolveImages(ids: readonly string[]): Promise<Map<string, PublicNewsImage>> {
-  const unique = [...new Set(ids.filter(Boolean))].slice(0, 60);
-  const resolved = new Map<string, PublicNewsImage>();
-  if (unique.length === 0) return resolved;
-
-  const db = getDb();
-  const items = await db
-    .select({ id: galleryItems.id, altText: galleryItems.altText })
-    .from(galleryItems)
-    .where(
-      and(
-        inArray(galleryItems.id, unique),
-        eq(galleryItems.status, "PUBLISHED"),
-        eq(galleryItems.visibility, "PUBLIC"),
-      ),
-    )
-    .all();
-  if (items.length === 0) return resolved;
-
-  // Intrinsic dimensions come from the DISPLAY variant so the space is reserved
-  // before the photograph arrives; without them the article reflows as it loads.
-  const variants = await db
-    .select({
-      galleryItemId: galleryImageVariants.galleryItemId,
-      width: galleryImageVariants.width,
-      height: galleryImageVariants.height,
-    })
-    .from(galleryImageVariants)
-    .where(
-      and(
-        inArray(
-          galleryImageVariants.galleryItemId,
-          items.map((item) => item.id),
-        ),
-        eq(galleryImageVariants.role, "DISPLAY"),
-      ),
-    )
-    .all();
-  const dimensions = new Map(variants.map((variant) => [variant.galleryItemId, variant]));
-
-  for (const item of items) {
-    const variant = dimensions.get(item.id);
-    resolved.set(item.id, {
-      id: item.id,
-      altText: item.altText,
-      width: variant?.width ?? null,
-      height: variant?.height ?? null,
-    });
-  }
-  return resolved;
+async function resolveImages(ids: readonly string[]): Promise<Map<string, PublicMedia>> {
+  const { media } = await resolvePublicMedia(getDb(), ids.filter(Boolean));
+  return media;
 }
 
 /** The published archive, one page at a time. Never throws. */
@@ -131,6 +89,26 @@ export async function readPublishedNewsIndex(page: number): Promise<PublicNewsIn
     };
   } catch {
     return { posts: [], page: requested, pageCount: 1, total: 0, unavailable: true };
+  }
+}
+
+/**
+ * Where a slug moved to, or null if it did not move.
+ *
+ * Asked only after the article itself is not found, so a live post never pays
+ * for it. `listPostRedirects` excludes a previous slug that belongs to a live
+ * post again, and `resolvePostRedirect` follows rename chains and refuses loops
+ * — both rules live on their own side of the contract and neither is repeated
+ * here.
+ */
+export async function resolveRenamedNewsPath(slug: string): Promise<string | null> {
+  try {
+    const redirects = await listPostRedirects(getDb());
+    return resolvePostRedirect(postPath(slug), redirects)?.to ?? null;
+  } catch {
+    // No redirect table, no redirect: the reader gets the 404 they would have
+    // got anyway rather than an error page.
+    return null;
   }
 }
 

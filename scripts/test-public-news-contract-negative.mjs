@@ -18,6 +18,7 @@ const ARTICLE_ROUTE = "app/news/[slug]/page.tsx";
 const READER = "lib/public-news.ts";
 const CONTENT = "lib/public-news-content.ts";
 const SQL = "lib/public-news-sql.ts";
+const MEDIA_COMPONENT = "components/public-media-image.tsx";
 
 const CASES = [
   {
@@ -47,7 +48,14 @@ const CASES = [
   {
     name: "the live revision stops being the most recent publication event",
     apply: (directory) =>
-      edit(directory, SQL, (source) => source.replaceAll("ORDER BY created_at DESC, id DESC", "ORDER BY created_at ASC, id ASC")),
+      edit(directory, SQL, (source) => source.replaceAll("ORDER BY created_at DESC, rowid DESC", "ORDER BY created_at ASC, rowid ASC")),
+  },
+  {
+    name: "a same-second revert breaks on a random id, so the index and the article can disagree",
+    apply: (directory) =>
+      edit(directory, SQL, (source) =>
+        source.replaceAll("ORDER BY created_at DESC, rowid DESC", "ORDER BY created_at DESC, id DESC"),
+      ),
   },
   {
     name: "publishedAt becomes the latest publication, re-dating corrected articles",
@@ -79,21 +87,31 @@ const CASES = [
       ),
   },
   {
-    name: "media starts being addressed by its private storage key",
+    name: "posts go back to a second media delivery strategy the public contract refuses",
     apply: (directory) =>
-      edit(directory, CONTENT, (source) =>
-        source.replace("return `/api/gallery/images/${encodeURIComponent(id)}?role=${role}`;", "return `/files/${id}?storageKey=${role}`;"),
+      edit(directory, READER, (source) =>
+        source.replace(
+          "const { media } = await resolvePublicMedia(getDb(), ids.filter(Boolean));",
+          "const media = new Map(ids.map((id) => [id, `/api/gallery/images/${id}?role=display`]));",
+        ),
       ),
   },
   {
-    name: "a post starts showing gallery items that were never made public",
+    name: "media stops being rendered through the shared render model",
     apply: (directory) =>
-      edit(directory, READER, (source) => source.replace('eq(galleryItems.visibility, "PUBLIC"),', "")),
+      edit(directory, MEDIA_COMPONENT, (source) =>
+        source.replace("buildMediaRenderModel(media, { sizes, priority, lightbox: false })", "{ ok: true, model: media }"),
+      ),
   },
   {
-    name: "a post starts showing gallery items that were never published",
+    name: "a renamed post stops redirecting and throws away its inbound links again",
     apply: (directory) =>
-      edit(directory, READER, (source) => source.replace('eq(galleryItems.status, "PUBLISHED"),', "")),
+      edit(directory, ARTICLE_ROUTE, (source) => source.replace("    if (moved) permanentRedirect(moved);\n", "")),
+  },
+  {
+    name: "rename chains stop being resolved by the contract",
+    apply: (directory) =>
+      edit(directory, READER, (source) => source.replace("resolvePostRedirect(postPath(slug), redirects)?.to ?? null", "null")),
   },
   {
     name: "the index stops paginating in SQL and reads the whole archive per request",
@@ -106,7 +124,7 @@ const CASES = [
   {
     name: "an image loses the dimensions that keep the article from reflowing",
     apply: (directory) =>
-      edit(directory, INDEX_ROUTE, (source) => source.replace("            height={post.image.height ?? 480}\n", "")),
+      edit(directory, MEDIA_COMPONENT, (source) => source.replace("        height={img.height}\n", "")),
   },
 ];
 
