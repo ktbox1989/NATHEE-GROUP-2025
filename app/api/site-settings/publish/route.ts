@@ -5,6 +5,7 @@ import { auditLogs, siteSettingsPublicationEvents, siteSettingsRevisions } from 
 import { makeAuditRecord } from "@/lib/audit";
 import { can } from "@/lib/authorization";
 import { getCurrentActor } from "@/lib/current-actor";
+import { decidePublication, siteSettingsPublishEvent } from "@/lib/publication-events";
 import { isSameOrigin } from "@/lib/same-origin";
 import { collectSettingsReferences, firstUnpublishableLabel, unpublishableReferences } from "@/lib/site-cms-publish";
 import { resolvePublishReferences } from "@/lib/site-cms-publish-store";
@@ -41,12 +42,18 @@ export async function POST(request: NextRequest) {
     const label = firstUnpublishableLabel(problems);
     return NextResponse.redirect(new URL(`/app/site-settings?error=unpublishable_media${label ? `&missing=${encodeURIComponent(label)}` : ""}`, request.url), 303);
   }
+  // Brand, navigation and the footer are rendered into every public page, so a
+  // settings publication invalidates all of them plus robots.txt. The contract
+  // owns that fan-out; this route only records what it decided.
+  const delivery = decidePublication(siteSettingsPublishEvent(revisionId));
+  if (!delivery.ok) return redirectError(request, "publish_rejected");
+
   const eventId = crypto.randomUUID();
   const createdAt = recordTimestamp();
   try {
     await db.batch([
       db.insert(siteSettingsPublicationEvents).values({ id: eventId, requestKey, revisionId, note, createdBy: actor.userId, createdAt }),
-      db.insert(auditLogs).values(makeAuditRecord({ actor, action: "PUBLISH_SITE_SETTINGS", entityType: "site_settings_publication", entityId: eventId, after: { revisionId, note, verifiedReferences: references.imageItemIds.length } })),
+      db.insert(auditLogs).values(makeAuditRecord({ actor, action: "PUBLISH_SITE_SETTINGS", entityType: "site_settings_publication", entityId: eventId, after: { revisionId, note, verifiedReferences: references.imageItemIds.length, invalidation: delivery.invalidation } })),
     ]);
   } catch {
     const concurrent = await db.select({ id: siteSettingsPublicationEvents.id }).from(siteSettingsPublicationEvents).where(eq(siteSettingsPublicationEvents.requestKey, requestKey)).get();

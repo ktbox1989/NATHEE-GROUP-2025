@@ -23,8 +23,18 @@ function require(condition, message) {
   if (!condition) failures.push(message);
 }
 
-/** Directories whose every server surface must be authorized. */
-const PROTECTED_TREES = ["app/api", "app/app", "app/portal"];
+/**
+ * Directories whose every server surface must be authorized.
+ *
+ * `app/assets` is here even though the name says otherwise. Public CMS media is
+ * served from a path under `/assets/` rather than under `/api/`, because Lane
+ * A's public contract refuses authenticated prefixes outright — so the one
+ * route that hands out object bytes without a session lives outside the three
+ * trees this gate used to scan. Leaving it unscanned would have made "every
+ * server surface is authorized" true only of the surfaces the gate happened to
+ * look at.
+ */
+const PROTECTED_TREES = ["app/api", "app/app", "app/portal", "app/assets"];
 
 /** Resolving the acting user from the session. */
 const RESOLVES_ACTOR = /\b(requireActor|getCurrentActor)\s*\(/;
@@ -83,6 +93,11 @@ const PUBLIC_SURFACES = [
     path: "app/api/quotation/route.ts",
     reason:
       "Public quotation intake. Guarded by same-origin, Turnstile, bounded multipart and append-only storage.",
+  },
+  {
+    path: "app/assets/media/[itemId]/[variant]/route.ts",
+    reason:
+      "Public CMS media delivery. A visitor cannot sign in for a marketing photograph; what stands in place of a session is that only PUBLISHED and PUBLIC gallery rows match the query, the served identity is one the delivery contract can produce, and the untouched original has no public role. Asserted in scripts/test-private-media-contract.mjs.",
   },
 ];
 

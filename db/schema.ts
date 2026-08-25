@@ -1012,6 +1012,58 @@ export const postPublicationEvents = sqliteTable(
   ],
 );
 
+/**
+ * Where a post used to live.
+ *
+ * `posts.slug` is unique, so a rename overwrote it in place: the old URL began
+ * returning 404 and every inbound link to it — a share, a search result, a
+ * printed quotation — was lost with no record that it had ever existed. The
+ * public site has always been able to serve a 301 from a previous slug;
+ * `resolvePostRedirect` resolves whole rename chains. It had nothing to read.
+ *
+ * Append-only, like every other publication record here, because a redirect
+ * that can be edited is a redirect that can be pointed somewhere else after the
+ * links have been made.
+ *
+ * Two triggers make a dishonest row impossible rather than merely unlikely.
+ * `to_slug` must be the slug the post actually has now, which forces the rename
+ * to happen before the record of it and stops a row that claims a move that did
+ * not occur. `from_slug` must belong to no live post, so a redirect can never
+ * shadow a real URL.
+ */
+export const postSlugHistory = sqliteTable(
+  "post_slug_history",
+  {
+    id: text("id").primaryKey(),
+    requestKey: text("request_key").notNull(),
+    postId: text("post_id").notNull().references(() => posts.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    fromSlug: text("from_slug").notNull(),
+    toSlug: text("to_slug").notNull(),
+    createdBy: text("created_by").notNull().references(() => users.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    uniqueIndex("uq_post_slug_history_request_key").on(table.requestKey),
+    // Deliberately not unique. A slug can be abandoned, reclaimed and abandoned
+    // again, and a post can even be renamed back to where it started; a unique
+    // index would let an Owner reach a slug they could never rename away from
+    // afterwards. Ambiguity is resolved by recency instead — the newest row for
+    // a `from_slug` wins, which is the last post to have occupied that URL — so
+    // the answer is deterministic without forbidding a legitimate history.
+    index("idx_post_slug_history_from_created").on(table.fromSlug, table.createdAt, table.id),
+    index("idx_post_slug_history_post_created").on(table.postId, table.createdAt, table.id),
+    check(
+      "ck_post_slug_history_from_shape",
+      sql`length(${table.fromSlug}) BETWEEN 1 AND 80 AND ${table.fromSlug} NOT GLOB '*[^a-z0-9-]*' AND ${table.fromSlug} NOT LIKE '-%' AND ${table.fromSlug} NOT LIKE '%-' AND ${table.fromSlug} NOT LIKE '%--%'`,
+    ),
+    check(
+      "ck_post_slug_history_to_shape",
+      sql`length(${table.toSlug}) BETWEEN 1 AND 80 AND ${table.toSlug} NOT GLOB '*[^a-z0-9-]*' AND ${table.toSlug} NOT LIKE '-%' AND ${table.toSlug} NOT LIKE '%-' AND ${table.toSlug} NOT LIKE '%--%'`,
+    ),
+    check("ck_post_slug_history_distinct", sql`${table.fromSlug} <> ${table.toSlug}`),
+  ],
+);
+
 export const proofOfDeliverySignatures = sqliteTable(
   "proof_of_delivery_signatures",
   {

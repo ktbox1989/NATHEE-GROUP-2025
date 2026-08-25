@@ -211,6 +211,13 @@
       "when": 1787497917584,
       "tag": "0029_yard_rows_and_slots",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "6",
+      "when": 1787649300000,
+      "tag": "0030_post_slug_history",
+      "breakpoints": true
     }
   ]
 }

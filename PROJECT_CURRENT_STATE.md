@@ -64,6 +64,89 @@ the guarded Z.com deployment of `7d24518e67a562c9df45d999d8f3144fccb86f6a`.
 
 ## Closed local milestones
 
+### The Owner can move a post's URL, and publishing now says what it invalidated (`lane-b/owner-cms-backend-20260825`)
+
+Local only, from `main` at `e69af731ea43d2ac885080558f3c42d2bd951dcf`. Production
+was not touched, `/login` was not activated, and migration `0030` was **not**
+applied anywhere.
+
+Three things the CMS was documented as doing and did not do, each measured
+before it was written rather than assumed:
+
+- **`planInvalidation` had zero production callers.** Publishing wrote a durable
+  event and stopped. The promise that an Owner can publish without a deployment
+  was carried by no code at all. `lib/publication-events.ts` is the emitter;
+  page publish, post publish, settings publish and the new rename all compute
+  the plan and store it in the audit row for that publication. A plan the
+  contract **rejects** now refuses the publication instead of being recorded as
+  a success — hiding the home page is stopped by the contract, not only by a
+  string comparison in the route.
+- **A post could not be renamed at all**, and there was nowhere to record a
+  previous slug: six independent measurements — no migration, no schema table,
+  `uq_posts_slug` still unique, no route touching `posts.slug`, nothing feeding
+  `resolvePostRedirect`, no `POST_MOVED` emitter — before proposing
+  `0030_post_slug_history`. `POST /api/posts/[slug]/rename` requires
+  `site:publish` rather than `site:write`, because a rename changes which URLs
+  the public site answers.
+- **`PostMediaResolver` was a type with no implementation**, because the host
+  had never been decided. It is decided now as a *path*, not a hostname:
+  `/assets/media/<itemId>/<role>.<ext>`, served by a session-blind route that
+  matches only `PUBLISHED` and `PUBLIC` rows in the query. The Production gate —
+  the apex must forward `/assets/media/*` to the application origin — is stated
+  in `docs/PUBLIC_MEDIA_DELIVERY.md` rather than papered over with an invented
+  hostname. It cannot be a cross-origin link instead: the worker sets
+  `Cross-Origin-Resource-Policy: same-origin`, so a browser would block it.
+
+Two real defects found on the way, neither of them the thing being built:
+
+- **CMS-uploaded photographs could never have rendered.** The gallery uploader
+  stored WebP and AVIF only, and `buildMediaRenderModel` refuses media with no
+  `jpeg`/`png` display variant, so an Owner could upload, publish, and get an
+  empty box with every step reporting success. The static release was unaffected
+  because its files come from `optimize-public-gallery.mjs`. Fixed at the
+  uploader, refused at the upload route (`missing_public_fallback`), and
+  fail-closed in the resolver so an item that predates the fix cannot render as
+  nothing.
+- **Which revision is live could be decided by a coin flip.** `created_at` has
+  one-second resolution by the timestamp contract, and the tie-break was the row
+  id — a random UUID. Publishing and then reverting inside one second would
+  leave whichever id sorted higher as the live revision, possibly the one just
+  replaced. Now broken by `rowid`, which is insertion order and is never reused
+  because deletion is refused by trigger. Applies to pages, posts and settings.
+
+A test harness was added rather than more source scans: `tests/support/d1-over-sqlite.mjs`
+runs the **real** Drizzle queries against a real migrated SQLite database, so
+what is proven is the query that runs in Production rather than a second copy of
+it written in an assertion. `tests/cms-publish-lifecycle.test.mjs` is the local
+acceptance run through it — draft invisible, preview shows the draft, the public
+reader still returns the previous revision, publish moves it, revert restores it,
+hide withdraws it, and every step leaves a record.
+
+| Gate | Result |
+| --- | --- |
+| `npm run test:unit` | **606 pass, 0 fail** (579 before) |
+| `npm run test:db` | **265 pass, 0 fail** (228 before) |
+| `npm run test:security` | 21 gates, all `*_PASS` |
+| `npm run test:public` | pass |
+| `npm run test:gate` | pass, `LOGIN_REDIRECT_RELEASE_STATE=INACTIVE` |
+| `npm run lint` | clean |
+| `npx tsc --noEmit` | clean |
+| `npm run build` | pass; `/assets/media/:itemId/:variant` registered |
+| readiness contract | `migrations=31 tables=45 triggers=104 indexes=144 required=293` |
+| migration inventory | `range=0000-0030 ledgerEntries=31 destructiveStatements=0` |
+| private media contract | `declaredPublicReaders=1 sharedCacheOnPrivateBytes=0`, 18 negative rejections |
+| authorization coverage | `surfaces=96 authorized=89 public=7` — the gate now scans `app/assets` too |
+
+`0030` is proven three ways and applied to none of them for real: from a virgin
+database, as an upgrade on top of a tree that stops at `0029` with existing post
+rows intact, and rolled back mid-rename to show the post stays where it was.
+
+**Not done, and not claimed:** no CDN purge is wired, because no cache binding
+exists; the apex host mapping for `/assets/media/*` is a Production gate; and no
+authenticated HTTP end-to-end run was possible, because the local runtime has no
+Supabase configuration and a blanket 401 would prove nothing.
+
+
 ### The A+B reconciliation, verified against a moving Lane B
 
 Lane B moved from the reviewed `25121b1` to `9d80d5e` between the last

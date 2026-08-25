@@ -42,6 +42,9 @@ there is one slug rule rather than two that agree today.
 
 ### Two gaps remain, and neither is guessed
 
+> **Superseded 2026-08-25.** Both are closed; see the section below. Kept because
+> it is the measurement the work was done against.
+
 **1. Slug history / rename redirect policy — no mechanism exists.**
 
 Measured on `967401f`: zero migrations define a slug-history or redirect table,
@@ -74,6 +77,96 @@ deployment decision rather than a schema one.
 
 Until it is decided, no resolver should be written: one that guessed a host
 would produce URLs that pass the contract and 404 for visitors.
+
+---
+
+## Answered by Lane B on 2026-08-25 — both remaining gaps are closed
+
+Branch `lane-b/owner-cms-backend-20260825`, from `main` at `e69af73`. Nothing
+was applied to Production and nothing was merged.
+
+### 1. Slug history — built, and it needed a migration
+
+The gap was measured six ways before anything was written: zero migrations
+define a slug-history or redirect table, zero schema tables, `uq_posts_slug` is
+still unique, **no route changes a post slug at all**, nothing supplies
+`resolvePostRedirect`, and there were zero `POST_MOVED` emitters outside your
+planner. There was nowhere to record a previous slug, so this is the one place a
+new migration was genuinely required rather than convenient.
+
+`0030_post_slug_history` — additive, one table, no data touched:
+
+| What | Why |
+| --- | --- |
+| `post_slug_history(post_id, from_slug, to_slug, ...)` | the previous URL and where it went |
+| append-only triggers | a redirect that can be edited can be re-pointed after the links are made |
+| `to_slug` must be the post's **current** slug | forces the rename to happen before the record of it, so a row claiming a move that did not occur cannot exist |
+| `from_slug` must belong to **no live post** | a redirect can never shadow a URL that answers with real content |
+| `from_slug` index is **not** unique | a slug can be abandoned, reclaimed and abandoned again; recency decides, so an Owner can always rename again |
+
+`POST /api/posts/[slug]/rename` performs it. It requires `site:publish`, not
+`site:write`: a rename changes which URLs the public site answers, which is a
+publication decision rather than an edit.
+
+`listPostRedirects()` in `lib/post-slug-history.ts` is what feeds
+`resolvePostRedirect`. It excludes any previous slug that is a live post again —
+which happens honestly, when a post is renamed back or a new post takes the
+freed slug — and resolves a slug abandoned twice to the most recent move.
+
+Chains work end to end: `tests/publication-events.test.ts` runs Lane B's rename
+events through **your** `resolvePostRedirect` with nothing mocked on either
+side, and `a -> b -> c` resolves in 2 hops.
+
+### 2. Publication events — emitted
+
+`planInvalidation` had **zero production callers**. It has them now.
+`lib/publication-events.ts` maps what was published to a `PublishEvent`, asks
+your contract for the plan, and the four write routes record the plan in the
+audit row for that publication:
+
+| Route | Event |
+| --- | --- |
+| `POST /api/site-content/[slug]/publish` | `PAGE_PUBLISHED` / `PAGE_UNPUBLISHED` |
+| `POST /api/posts/[slug]/publish` | `POST_PUBLISHED` / `POST_UNPUBLISHED` |
+| `POST /api/posts/[slug]/rename` | `POST_MOVED`, carrying both paths |
+| `POST /api/site-settings/publish` | `SETTINGS_PUBLISHED` |
+
+A `REJECTED` plan now **refuses the publication** rather than being recorded as
+a success — hiding the home page is stopped by your contract, not only by a
+string comparison in the route.
+
+What this does not yet do is purge a CDN, because which cache sits in front of
+the public site is a deployment fact. The plan is computed and stored on every
+publication, so when that binding exists it is a consumer of an existing record
+rather than a new mechanism.
+
+### 3. `PostMediaResolver` — implemented, with the host decided as a path
+
+`lib/public-media-store.ts` is the production resolver. Sources are
+`/assets/media/<itemId>/<role>.<ext>`, which satisfies your `/assets/` rule, and
+the full contract is in `docs/PUBLIC_MEDIA_DELIVERY.md`.
+
+The host is **not** invented. The path is host-relative, and the Production gate
+is stated rather than assumed: the apex must forward `/assets/media/*` to the
+application origin. It cannot be a cross-origin link instead, because the worker
+sets `Cross-Origin-Resource-Policy: same-origin` and a browser would block the
+image.
+
+Two things you should know:
+
+- **A defect this found.** The gallery uploader stored WebP and AVIF only, so
+  managed media had no `jpeg`/`png` fallback and your `buildMediaRenderModel`
+  would have refused every CMS-uploaded photograph. Fixed at the uploader, at
+  the upload route, and fail-closed in the resolver.
+- **The static manifest is not resolvable through it.** Its items have no D1 row
+  and its `width`/`height` are the source dimensions, not each variant's, so
+  emitting them as intrinsic dimensions would be publishing an unmeasured
+  number. Managed content references D1 gallery items only.
+
+### Still not answered
+
+Asks 5, 6, 7 and 10 are untouched by this run: the quotation form's origin, the
+new/used column, the fourth gallery visibility, and the portfolio schema.
 
 ---
 

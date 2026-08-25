@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import { siteSettingsPublicationEvents, siteSettingsRevisions } from "@/db/schema";
 import {
   DEFAULT_SITE_SETTINGS,
@@ -14,7 +14,9 @@ export async function getPublishedSiteSettings(): Promise<SiteSettings> {
     const db = getDb();
     const publication = await db.select({ revisionId: siteSettingsPublicationEvents.revisionId })
       .from(siteSettingsPublicationEvents)
-      .orderBy(desc(siteSettingsPublicationEvents.createdAt), desc(siteSettingsPublicationEvents.id))
+      // See lib/site-cms.ts: one-second timestamps tie, and `rowid` is the
+      // insertion order that a random UUID is not.
+      .orderBy(desc(siteSettingsPublicationEvents.createdAt), desc(sql`rowid`))
       .limit(1).get();
     if (!publication) return DEFAULT_SITE_SETTINGS;
     const revision = await db.select({ settingsJson: siteSettingsRevisions.settingsJson })

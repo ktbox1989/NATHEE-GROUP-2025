@@ -7,6 +7,7 @@ import { can } from "@/lib/authorization";
 import { getCurrentActor } from "@/lib/current-actor";
 import { isValidPostSlug, parsePostContentJson } from "@/lib/post-cms-content";
 import { collectPostReferences } from "@/lib/post-cms-store";
+import { decidePublication, postPublishEvent } from "@/lib/publication-events";
 import { isSameOrigin } from "@/lib/same-origin";
 import { firstUnpublishableLabel, unpublishableReferences } from "@/lib/site-cms-publish";
 import { resolvePublishReferences } from "@/lib/site-cms-publish-store";
@@ -91,6 +92,12 @@ export async function POST(request: NextRequest, context: { params: Promise<{ sl
     }
   }
 
+  // The post's own URL and the index that lists it both change. Asking the
+  // revalidation contract here is what turns a stored publication event into a
+  // statement about which public URLs stopped being true.
+  const delivery = decidePublication(postPublishEvent(slug, action as "PUBLISH" | "HIDE", action === "PUBLISH" ? revisionId : null));
+  if (!delivery.ok) return redirectError(request, slug, "publish_rejected");
+
   const eventId = crypto.randomUUID();
   try {
     await db.batch([
@@ -109,7 +116,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ sl
           action,
           entityType: "post_publication",
           entityId: eventId,
-          after: { slug, revisionId: action === "PUBLISH" ? revisionId : null, note, verifiedReferences: referenceCount },
+          after: { slug, revisionId: action === "PUBLISH" ? revisionId : null, note, verifiedReferences: referenceCount, invalidation: delivery.invalidation },
         }),
       ),
     ]);
