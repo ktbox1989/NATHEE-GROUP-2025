@@ -2,6 +2,7 @@ import Link from "next/link";
 import { and, desc, eq } from "drizzle-orm";
 import { notFound, redirect } from "next/navigation";
 import { PostEditor } from "@/components/post-editor";
+import { PublishForm } from "@/components/publish-form";
 import { getDb } from "@/db";
 import { galleryItems } from "@/db/schema";
 import { can } from "@/lib/authorization";
@@ -111,10 +112,21 @@ export default async function PostEditPage({ params, searchParams }: Props) {
             </Link>
           )}
           {canPublish && selected && live !== selected.id && (
-            <PublishForm slug={slug} action="PUBLISH" revisionId={selected.id} label="เผยแพร่ Revision นี้" />
+            <PublishForm
+              action={`/api/posts/${slug}/publish`}
+              fields={{ action: "PUBLISH", revisionId: selected.id, requestKey: `post-publish-${crypto.randomUUID()}` }}
+              label="เผยแพร่ Revision นี้"
+              busyLabel="กำลังเผยแพร่…"
+            />
           )}
           {canPublish && state.publication?.action === "PUBLISH" && (
-            <PublishForm slug={slug} action="HIDE" revisionId="" label="ยกเลิกการเผยแพร่" />
+            <PublishForm
+              action={`/api/posts/${slug}/publish`}
+              fields={{ action: "HIDE", revisionId: "", requestKey: `post-publish-${crypto.randomUUID()}` }}
+              label="ยกเลิกการเผยแพร่"
+              busyLabel="กำลังยกเลิก…"
+              confirm={`ยกเลิกการเผยแพร่บทความนี้ใช่หรือไม่? ผู้อ่านจะเปิด ${POSTS_INDEX_PATH}${slug}/ ไม่ได้ เนื้อหาและประวัติยังอยู่ครบและกลับมาเผยแพร่ได้`}
+            />
           )}
         </div>
       </section>
@@ -145,7 +157,12 @@ export default async function PostEditPage({ params, searchParams }: Props) {
                 <Link href={`/app/posts/${slug}?revision=${encodeURIComponent(revision.id)}`}>เปิดแก้จาก Revision นี้</Link>
                 <Link href={`/app/posts/${slug}/preview?revision=${encodeURIComponent(revision.id)}`}>ดูตัวอย่าง</Link>
                 {canPublish && live !== revision.id && (
-                  <PublishForm slug={slug} action="PUBLISH" revisionId={revision.id} label="ย้อนกลับมาเผยแพร่" />
+                  <PublishForm
+                    action={`/api/posts/${slug}/publish`}
+                    fields={{ action: "PUBLISH", revisionId: revision.id, requestKey: `post-publish-${crypto.randomUUID()}` }}
+                    label="ย้อนกลับมาเผยแพร่"
+                    busyLabel="กำลังเผยแพร่…"
+                  />
                 )}
               </div>
             </article>
@@ -161,13 +178,3 @@ export default async function PostEditPage({ params, searchParams }: Props) {
   );
 }
 
-function PublishForm({ slug, action, revisionId, label }: { slug: string; action: "PUBLISH" | "HIDE"; revisionId: string; label: string }) {
-  return (
-    <form className="cms-inline-form" action={`/api/posts/${slug}/publish`} method="post">
-      <input type="hidden" name="action" value={action} />
-      <input type="hidden" name="revisionId" value={revisionId} />
-      <input type="hidden" name="requestKey" value={`post-publish-${crypto.randomUUID()}`} />
-      <button type="submit">{label}</button>
-    </form>
-  );
-}

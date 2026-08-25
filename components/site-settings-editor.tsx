@@ -7,9 +7,12 @@ import { SITE_PAGE_DEFINITIONS } from "@/lib/site-cms-content";
 import type { SiteNavigationItem, SiteSettings } from "@/lib/site-settings";
 
 type MediaOption = { id: string; label: string };
+// Only routes this site actually serves. A menu entry pointing at a path with
+// no page behind it is a 404 the Owner cannot see from the editor.
 const publicNavigationPaths = [
   ...Object.values(SITE_PAGE_DEFINITIONS).map((definition) => ({ label: definition.label, href: definition.path })),
   { label: "ผลงาน", href: "/gallery" },
+  { label: "ข่าวสาร", href: "/news" },
 ];
 
 export function SiteSettingsEditor({ initial, media }: { initial: SiteSettings; media: MediaOption[] }) {

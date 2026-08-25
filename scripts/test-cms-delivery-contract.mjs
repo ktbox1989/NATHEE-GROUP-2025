@@ -125,6 +125,59 @@ require(
   `${PREVIEW_ROUTE}: a revision must be scoped to its own page, or one page can preview another's draft`,
 );
 
+// 5. The controls that change what the public sees are idempotent and
+//    deliberate. The server already refuses a repeated request key; what a
+//    hand-rolled form loses is the other half — an operator being told the
+//    first click was received. A button that looks inert is why people click
+//    twice, and a one-click unpublish takes a page away from every visitor
+//    with no moment to reconsider.
+const PUBLISH_SURFACES = [
+  "app/app/site-content/[slug]/page.tsx",
+  "app/app/site-settings/page.tsx",
+  "app/app/posts/[slug]/page.tsx",
+];
+const PUBLISH_CONTROL = "components/publish-form.tsx";
+
+for (const path of PUBLISH_SURFACES) {
+  const source = await read(path);
+  require(
+    source.includes('from "@/components/publish-form"'),
+    `${path}: publication must go through the shared control rather than a hand-rolled form`,
+  );
+  require(
+    !/<form[^>]*publish/.test(source),
+    `${path}: a hand-rolled publish form bypasses the double-submit guard`,
+  );
+  require(
+    source.includes("requestKey:"),
+    `${path}: every publication must carry a request key, or a repeat becomes a second event`,
+  );
+}
+
+const publishControl = await read(PUBLISH_CONTROL);
+require(
+  publishControl.includes("disabled={busy}"),
+  `${PUBLISH_CONTROL}: the control must refuse a second click before the first is answered`,
+);
+require(
+  publishControl.includes("setBusy(true)"),
+  `${PUBLISH_CONTROL}: the control must record that a submission is in flight`,
+);
+require(
+  publishControl.indexOf("event.preventDefault()") < publishControl.indexOf("setBusy(true)"),
+  `${PUBLISH_CONTROL}: disabling before the browser accepts the submission would cancel the request it was meant to send`,
+);
+
+// Unpublishing is explicit. Publishing is too, but it adds rather than removes.
+for (const path of ["app/app/site-content/[slug]/page.tsx", "app/app/posts/[slug]/page.tsx"]) {
+  const source = await read(path);
+  const hide = source.indexOf('action: "HIDE"');
+  require(
+    hide >= 0 && source.slice(hide, hide + 900).includes("confirm="),
+    `${path}: unpublishing must be confirmed rather than one click away`,
+  );
+}
+
 const renderer = await read("components/cms-public-page.tsx");
 require(
   renderer.includes("preview &&") && renderer.includes("ยังไม่เผยแพร่"),
@@ -137,5 +190,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  `CMS_DELIVERY_CONTRACT_PASS managedPublicPages=${managedPublicPages} revalidation=per-request previewIndexable=false draftsInPublicTree=0`,
+  `CMS_DELIVERY_CONTRACT_PASS managedPublicPages=${managedPublicPages} revalidation=per-request previewIndexable=false draftsInPublicTree=0 publishSurfaces=${PUBLISH_SURFACES.length} doubleSubmitGuarded=true unpublishConfirmed=true`,
 );
