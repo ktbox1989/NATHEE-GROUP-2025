@@ -98,6 +98,12 @@ test("a credential encodes the parameters it was derived with, and parses back t
   assert.ok(parseOwnerPinCredential(`  ${encoded}\r\n`));
 });
 
+test("the production 210k verifier uses the standard PBKDF2-SHA256 result", async () => {
+  const salt = new Uint8Array(32).fill(3);
+  const derived = await deriveOwnerPinHash(PIN, salt, 210_000);
+  assert.equal(toBase64Url(derived), "-BtgYw21fr4dtIy_Qe8DRA8DnLE8WcmqpE2uR8JK5c8");
+});
+
 test("a malformed credential is the absence of a credential, never a weaker one", async () => {
   const salt = toBase64Url(new Uint8Array(32).fill(3));
   const hash = toBase64Url(new Uint8Array(32).fill(4));

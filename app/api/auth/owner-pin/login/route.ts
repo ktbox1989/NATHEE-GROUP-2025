@@ -97,7 +97,17 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const accepted = await verifyOwnerPin(pin, config.credential);
+  let accepted: boolean;
+  try {
+    accepted = await verifyOwnerPin(pin, config.credential);
+  } catch {
+    // A verifier/runtime failure is not evidence that the Owner typed the
+    // wrong PIN. Fail closed, settle the reserved attempt, and return to the
+    // login page with the existing operational-error code instead of exposing
+    // a blank 500 response at the POST endpoint.
+    await settleAuthAttempt(reservation, "failure").catch(() => {});
+    return NextResponse.redirect(new URL(`/login?error=unavailable${carriedReturnTo}`, request.url), 303);
+  }
   await settleAuthAttempt(reservation, accepted ? "success" : "failure").catch(() => {});
 
   if (!accepted) {

@@ -354,6 +354,10 @@ orderedBefore(ownerPinRoute, "isSixDigitPin(pin)", "verifyOwnerPin(", OWNER_PIN_
 orderedBefore(ownerPinRoute, "verifyOwnerPin(", "ensureOwnerPinIdentity(", OWNER_PIN_ROUTE);
 orderedBefore(ownerPinRoute, "ensureOwnerPinIdentity(", "createOwnerSessionToken(", OWNER_PIN_ROUTE);
 require(
+  /try\s*\{\s*accepted = await verifyOwnerPin\([\s\S]*?catch\s*\{[\s\S]*?error=unavailable/.test(ownerPinRoute),
+  `${OWNER_PIN_ROUTE}: a verifier runtime failure must fail closed and redirect instead of returning a raw 500`,
+);
+require(
   ownerPinRoute.includes("error=owner_conflict"),
   `${OWNER_PIN_ROUTE}: a refused bootstrap must be visible rather than a session issued anyway`,
 );
@@ -378,8 +382,9 @@ require(
 
 // The verifier: slow, salted, and compared without leaking how much matched.
 require(
-  ownerPin.includes('name: "PBKDF2"') && ownerPin.includes('hash: "SHA-256"'),
-  "lib/owner-pin.ts: the PIN must be verified with a slow KDF",
+  ownerPin.includes('import { pbkdf2 } from "node:crypto"') &&
+    ownerPin.includes('pbkdf2(pin, salt, iterations, HASH_BYTES, "sha256"'),
+  "lib/owner-pin.ts: the PIN must use the node:crypto PBKDF2 path supported by the Worker at 200k+ iterations",
 );
 require(
   ownerPin.includes("MIN_PBKDF2_ITERATIONS = 200_000"),
