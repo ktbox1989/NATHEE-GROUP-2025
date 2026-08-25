@@ -70,6 +70,7 @@ test("fresh migrations create every phase-one table", () => {
     "notifications",
     "post_publication_events",
     "post_revisions",
+    "post_slug_history",
     "posts",
     "proof_of_delivery_records",
     "proof_of_delivery_signatures",

@@ -43,6 +43,10 @@ export function GalleryBulkUploadForm({ categories, jobs }: { categories: Catego
           decoded.close?.();
           throw new Error("ความละเอียดภาพสูงเกินขีดจำกัด กรุณาลดขนาดภาพก่อนอัปโหลด");
         }
+        // JPEG first, and not optional: it is the fallback the public renderer
+        // requires, so an image without one cannot be published.
+        const displayJpeg = await resize(decoded, 1800, "image/jpeg", 0.82);
+        const thumbnailJpeg = await resize(decoded, 640, "image/jpeg", 0.8);
         const display = await resize(decoded, 1800, "image/webp", 0.84);
         const thumbnail = await resize(decoded, 640, "image/webp", 0.8);
         const displayAvif = await resize(decoded, 1800, "image/avif", 0.78, true);
@@ -52,7 +56,7 @@ export function GalleryBulkUploadForm({ categories, jobs }: { categories: Catego
         for (const [key, value] of source.entries()) if (!["sourceImages", "jobSelection", "sortStart"].includes(key)) body.append(key, value);
         const start = Number(source.get("sortStart") ?? 0);
         body.set("requestKey", item.requestKey); body.set("title", item.title.trim()); body.set("altText", item.alt.trim()); body.set("sortOrder", String(Number.isSafeInteger(start) && start >= 0 ? start + index : index));
-        body.set("original", item.file, item.file.name); addVariant(body, "displayWebp", display); addVariant(body, "thumbnailWebp", thumbnail);
+        body.set("original", item.file, item.file.name); addVariant(body, "displayJpeg", displayJpeg); addVariant(body, "thumbnailJpeg", thumbnailJpeg); addVariant(body, "displayWebp", display); addVariant(body, "thumbnailWebp", thumbnail);
         if (displayAvif) addVariant(body, "displayAvif", displayAvif); if (thumbnailAvif) addVariant(body, "thumbnailAvif", thumbnailAvif);
         await upload(body, setCurrentProgress, (xhr) => { xhrRef.current = xhr; }); patch(item.id, { status: "DONE" });
       } catch (error) {
@@ -80,8 +84,9 @@ type Variant = { blob: Blob; width: number; height: number };
 async function decodeImage(file: File): Promise<DecodedImage> { try { return await createImageBitmap(file, { imageOrientation: "from-image" }); } catch { throw new Error("เปิดภาพไม่ได้ กรุณาแปลงเป็น JPEG, PNG หรือ WebP"); } }
 function resize(image: DecodedImage, maxWidth: number, type: string, quality: number, optional?: false): Promise<Variant>;
 function resize(image: DecodedImage, maxWidth: number, type: string, quality: number, optional: true): Promise<Variant | null>;
-async function resize(image: DecodedImage, maxWidth: number, type: string, quality: number, optional = false): Promise<Variant | null> { const scale = Math.min(1, maxWidth / image.width); const width = Math.max(1, Math.round(image.width * scale)); const height = Math.max(1, Math.round(image.height * scale)); const canvas = document.createElement("canvas"); canvas.width = width; canvas.height = height; canvas.getContext("2d", { alpha: false })?.drawImage(image, 0, 0, width, height); const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, type, quality)); if (!blob || blob.type !== type) { if (optional) return null; throw new Error("เบราว์เซอร์สร้าง WebP ไม่ได้ กรุณาใช้ Chrome, Edge หรือ Safari รุ่นใหม่"); } return { blob, width, height }; }
-function addVariant(body: FormData, field: string, variant: Variant) { body.set(field, variant.blob, `${field}.${variant.blob.type === "image/avif" ? "avif" : "webp"}`); body.set(`${field}Width`, String(variant.width)); body.set(`${field}Height`, String(variant.height)); }
+async function resize(image: DecodedImage, maxWidth: number, type: string, quality: number, optional = false): Promise<Variant | null> { const scale = Math.min(1, maxWidth / image.width); const width = Math.max(1, Math.round(image.width * scale)); const height = Math.max(1, Math.round(image.height * scale)); const canvas = document.createElement("canvas"); canvas.width = width; canvas.height = height; canvas.getContext("2d", { alpha: false })?.drawImage(image, 0, 0, width, height); const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, type, quality)); if (!blob || blob.type !== type) { if (optional) return null; throw new Error(`เบราว์เซอร์สร้างภาพ ${type.replace("image/", "").toUpperCase()} ไม่ได้ กรุณาใช้ Chrome, Edge หรือ Safari รุ่นใหม่`); } return { blob, width, height }; }
+const VARIANT_EXTENSIONS: Readonly<Record<string, string>> = { "image/avif": "avif", "image/webp": "webp", "image/jpeg": "jpg", "image/png": "png" };
+function addVariant(body: FormData, field: string, variant: Variant) { body.set(field, variant.blob, `${field}.${VARIANT_EXTENSIONS[variant.blob.type] ?? "bin"}`); body.set(`${field}Width`, String(variant.width)); body.set(`${field}Height`, String(variant.height)); }
 function upload(body: FormData, onProgress: (value: number) => void, register: (xhr: XMLHttpRequest) => void): Promise<void> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();

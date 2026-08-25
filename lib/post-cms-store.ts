@@ -1,9 +1,9 @@
 import { and, desc, eq, sql } from "drizzle-orm";
-import { getDb } from "@/db";
-import { postPublicationEvents, postRevisions, posts, users } from "@/db/schema";
-import { parsePostContentJson, type PostContent } from "@/lib/post-cms-content";
-import type { PublishReferences } from "@/lib/site-cms-publish";
-import type { StoredPost } from "@/lib/post-cms-public";
+import { postPublicationEvents, postRevisions, posts, users } from "../db/schema.ts";
+import type { CmsDatabase } from "./cms-database.ts";
+import { parsePostContentJson, type PostContent } from "./post-cms-content.ts";
+import type { PublishReferences } from "./site-cms-publish.ts";
+import type { StoredPost } from "./post-cms-public.ts";
 
 /**
  * Reads for the post editor and for the public payload.
@@ -14,6 +14,22 @@ import type { StoredPost } from "@/lib/post-cms-public";
  */
 
 const REVISION_PAGE = 20;
+
+/**
+ * The database handle, taken as an argument when one is given.
+ *
+ * `getDb()` resolves the Cloudflare D1 binding, so importing it eagerly makes
+ * this module unloadable outside the worker runtime - including in a test. The
+ * import stays dynamic and the handle stays overridable, which is what lets the
+ * publish lifecycle below be proven against a real database rather than
+ * described by a source scan. Production passes nothing and gets the binding.
+ */
+async function resolveDb(database?: CmsDatabase): Promise<CmsDatabase> {
+  if (database) return database;
+  const { getDb } = await import("@/db");
+  return getDb() as CmsDatabase;
+}
+
 
 export type PostPublicationState = {
   action: "PUBLISH" | "HIDE";
@@ -40,13 +56,26 @@ function toIso(recorded: string | null): string | null {
   return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
 }
 
-async function publicationState(postId: string): Promise<PostPublicationState | null> {
-  const db = getDb();
+/**
+ * Which publication is the latest one.
+ *
+ * `created_at` is `YYYY-MM-DD HH:MM:SS` - one-second resolution, by the
+ * timestamp contract, so that a defaulted write and an explicit one sort
+ * together. Two publications inside the same second therefore tie, and the
+ * tie-break used to be the row id, which is a random UUID: publishing and then
+ * reverting within a second would leave whichever id happened to sort higher
+ * as the live revision, and that could be the one the Owner just replaced.
+ *
+ * SQLite assigns `rowid` in insertion order, and every one of these tables
+ * forbids deletion by trigger, so no rowid is ever reused. Ordering by it
+ * breaks the tie by what actually happened rather than by a coin flip.
+ */
+async function publicationState(db: CmsDatabase, postId: string): Promise<PostPublicationState | null> {
   const latest = await db
     .select({ action: postPublicationEvents.action, revisionId: postPublicationEvents.revisionId })
     .from(postPublicationEvents)
     .where(eq(postPublicationEvents.postId, postId))
-    .orderBy(desc(postPublicationEvents.createdAt), desc(postPublicationEvents.id))
+    .orderBy(desc(postPublicationEvents.createdAt), desc(sql`rowid`))
     .limit(1)
     .get();
   if (!latest) return null;
@@ -71,8 +100,8 @@ async function publicationState(postId: string): Promise<PostPublicationState | 
   };
 }
 
-export async function listPosts(): Promise<PostSummary[]> {
-  const db = getDb();
+export async function listPosts(database?: CmsDatabase): Promise<PostSummary[]> {
+  const db = await resolveDb(database);
   const rows = await db
     .select({ id: posts.id, slug: posts.slug, updatedAt: posts.updatedAt })
     .from(posts)
@@ -89,7 +118,7 @@ export async function listPosts(): Promise<PostSummary[]> {
       .orderBy(desc(postRevisions.createdAt), desc(postRevisions.id))
       .limit(REVISION_PAGE)
       .all();
-    const publication = await publicationState(row.id);
+    const publication = await publicationState(db, row.id);
     const latest = revisions[0] ? parsePostContentJson(revisions[0].contentJson) : null;
     summaries.push({
       slug: row.slug,
@@ -116,8 +145,11 @@ export type PostEditorState = {
   }>;
 };
 
-export async function getPostEditorState(slug: string): Promise<PostEditorState | null> {
-  const db = getDb();
+export async function getPostEditorState(
+  slug: string,
+  database?: CmsDatabase,
+): Promise<PostEditorState | null> {
+  const db = await resolveDb(database);
   const post = await db.select({ id: posts.id, slug: posts.slug }).from(posts).where(eq(posts.slug, slug)).get();
   if (!post) return null;
 
@@ -140,7 +172,7 @@ export async function getPostEditorState(slug: string): Promise<PostEditorState 
   return {
     postId: post.id,
     slug: post.slug,
-    publication: await publicationState(post.id),
+    publication: await publicationState(db, post.id),
     revisions: revisions.map((revision) => ({
       id: revision.id,
       contentHash: revision.contentHash,
@@ -152,8 +184,13 @@ export async function getPostEditorState(slug: string): Promise<PostEditorState 
   };
 }
 
-export async function getRevisionContent(postId: string, revisionId: string): Promise<PostContent | null> {
-  const row = await getDb()
+export async function getRevisionContent(
+  postId: string,
+  revisionId: string,
+  database?: CmsDatabase,
+): Promise<PostContent | null> {
+  const db = await resolveDb(database);
+  const row = await db
     .select({ contentJson: postRevisions.contentJson })
     .from(postRevisions)
     .where(and(eq(postRevisions.id, revisionId), eq(postRevisions.postId, postId)))
@@ -165,17 +202,17 @@ export async function getRevisionContent(postId: string, revisionId: string): Pr
  * What the public site may serve. Returns null unless the most recent event is
  * a PUBLISH, so a hidden post has no representation here at all.
  */
-export async function getPublishedPost(slug: string): Promise<StoredPost | null> {
-  const db = getDb();
+export async function getPublishedPost(slug: string, database?: CmsDatabase): Promise<StoredPost | null> {
+  const db = await resolveDb(database);
   const post = await db.select({ id: posts.id, slug: posts.slug }).from(posts).where(eq(posts.slug, slug)).get();
   if (!post) return null;
 
-  const publication = await publicationState(post.id);
+  const publication = await publicationState(db, post.id);
   if (!publication || publication.action !== "PUBLISH" || !publication.revisionId || !publication.publishedAt) {
     return null;
   }
 
-  const content = await getRevisionContent(post.id, publication.revisionId);
+  const content = await getRevisionContent(post.id, publication.revisionId, db);
   if (!content) return null;
 
   return {

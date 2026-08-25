@@ -12,7 +12,7 @@ import { fileURLToPath } from "node:url";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const gate = join(root, "scripts/test-authorization-coverage.mjs");
 
-const TRACKED_TREES = ["app/api", "app/app", "app/portal"];
+const TRACKED_TREES = ["app/api", "app/app", "app/portal", "app/assets"];
 const TRACKED_FILES = ["lib/operational-qr-route.ts"];
 
 const ADDED_ROUTE = "app/api/companies/exports/route.ts";

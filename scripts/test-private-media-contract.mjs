@@ -61,6 +61,49 @@ const PUBLIC_WRITERS = [
   },
 ];
 
+/**
+ * The one place an object may leave without a session: CMS media the Owner has
+ * deliberately published to the public website.
+ *
+ * A public website cannot ask a visitor to sign in for its photographs, so this
+ * is a real requirement rather than a convenience. It is declared here instead
+ * of being allowed to satisfy the generic rule by accident, because the generic
+ * rule is the opposite one - private bytes, never shareable - and a route that
+ * is exempt from it has to earn the exemption in writing.
+ *
+ * What stands in place of an authorization check is asserted, not described:
+ * the decision is made in the query against the stored row, the identity served
+ * is one the delivery contract can produce, and no session is consulted at all,
+ * so the response cannot vary by viewer and is honestly cacheable.
+ */
+const PUBLIC_READERS = [
+  {
+    path: "app/assets/media/[itemId]/[variant]/route.ts",
+    reason:
+      "public CMS media delivery; serves only PUBLISHED and PUBLIC gallery rows, decided in the query, with no session consulted",
+    guards: [
+      ["parsePublicMediaPath(", "delivery-contract path parse"],
+      ['eq(galleryItems.status, "PUBLISHED")', "published state decided in the query"],
+      ['eq(galleryItems.visibility, "PUBLIC")', "public visibility decided in the query"],
+    ],
+    /**
+     * A shareable response must not depend on who is asking. Resolving an actor
+     * here would make one, and a shared cache would then hand the first
+     * viewer's answer to everyone behind it.
+     */
+    forbidden: [
+      ["getCurrentActor", "a session reader"],
+      ["requireActor", "a session reader"],
+    ],
+    /**
+     * `ORIGINAL` is the untouched upload, with whatever the camera recorded in
+     * it. The delivery contract gives it no public role, and this proves the
+     * route never reaches for it by name either.
+     */
+    mustNotServeOriginal: true,
+  },
+];
+
 async function walk(directory) {
   const absolute = join(root, directory);
   let entries;
@@ -86,6 +129,7 @@ require(sources.length > 0, "no sources were found; the scan is misconfigured");
 
 let readers = 0;
 let writers = 0;
+let publicReaders = 0;
 let probeSeen = false;
 
 for (const path of sources) {
@@ -102,6 +146,27 @@ for (const path of sources) {
       !reads && !writes,
       `${PROBE.path}: the readiness probe may only head a key, never read or write an object`,
     );
+    continue;
+  }
+
+  const publicReader = PUBLIC_READERS.find((entry) => entry.path === path);
+  if (publicReader) {
+    require(Boolean(publicReader.reason.trim()), `${path}: the public-reader exemption has no stated reason`);
+    for (const [needle, label] of publicReader.guards) {
+      require(source.includes(needle), `${path}: public read is missing its ${label} guard`);
+    }
+    for (const [needle, label] of publicReader.forbidden) {
+      require(!source.includes(needle), `${path}: a cacheable public response must not consult ${label}`);
+    }
+    require(
+      !publicReader.mustNotServeOriginal || !source.includes('"ORIGINAL"'),
+      `${path}: the untouched original upload must have no public delivery path`,
+    );
+    require(
+      !source.includes("env.FILES.put(") && !source.includes("env.FILES.delete("),
+      `${path}: a public delivery route must never write or remove an object`,
+    );
+    publicReaders += 1;
     continue;
   }
 
@@ -150,6 +215,13 @@ for (const path of sources) {
 }
 
 require(probeSeen, `${PROBE.path}: the readiness probe no longer touches storage; the exemption is stale`);
+for (const entry of PUBLIC_READERS) {
+  const source = await read(entry.path).catch(() => "");
+  require(
+    source.includes("env.FILES.get("),
+    `${entry.path}: declared as a public reader but no longer reads storage; the exemption is stale`,
+  );
+}
 for (const entry of PUBLIC_WRITERS) {
   const source = await read(entry.path).catch(() => "");
   require(
@@ -188,5 +260,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  `PRIVATE_MEDIA_CONTRACT_PASS readRoutes=${readers} writeRoutes=${writers} probeExempt=1 declaredPublicWriters=${PUBLIC_WRITERS.length} sharedCacheOnPrivateBytes=0`,
+  `PRIVATE_MEDIA_CONTRACT_PASS readRoutes=${readers} writeRoutes=${writers} probeExempt=1 declaredPublicWriters=${PUBLIC_WRITERS.length} declaredPublicReaders=${publicReaders} sharedCacheOnPrivateBytes=0`,
 );

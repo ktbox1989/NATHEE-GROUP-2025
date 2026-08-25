@@ -112,6 +112,57 @@ const CASES = [
       ),
   },
   {
+    name: "public media delivery stops requiring a published item",
+    apply: (directory) =>
+      edit(directory, "app/assets/media/[itemId]/[variant]/route.ts", (source) =>
+        source.replace('eq(galleryItems.status, "PUBLISHED"),', ""),
+      ),
+  },
+  {
+    name: "public media delivery stops requiring public visibility",
+    apply: (directory) =>
+      edit(directory, "app/assets/media/[itemId]/[variant]/route.ts", (source) =>
+        source.replace('eq(galleryItems.visibility, "PUBLIC"),', ""),
+      ),
+  },
+  {
+    name: "public media delivery starts varying by viewer",
+    apply: (directory) =>
+      edit(directory, "app/assets/media/[itemId]/[variant]/route.ts", (source) =>
+        source.replace(
+          "  const db = getDb();",
+          "  const actor = await getCurrentActor();" + String.fromCharCode(10) + "  const db = getDb();",
+        ),
+      ),
+  },
+  {
+    name: "public media delivery gains a path to the untouched original",
+    apply: (directory) =>
+      edit(directory, "app/assets/media/[itemId]/[variant]/route.ts", (source) =>
+        source.replace(
+          'locator.role === "display" ? "DISPLAY" : "THUMBNAIL"',
+          'locator.role === "display" ? "ORIGINAL" : "THUMBNAIL"',
+        ),
+      ),
+  },
+  {
+    name: "public media delivery stops parsing the path through the delivery contract",
+    apply: (directory) =>
+      edit(directory, "app/assets/media/[itemId]/[variant]/route.ts", (source) =>
+        source.replace("parsePublicMediaPath(request.nextUrl.pathname)", "guessLocator(request.nextUrl.pathname)"),
+      ),
+  },
+  {
+    name: "public media delivery starts writing to storage",
+    apply: (directory) =>
+      edit(directory, "app/assets/media/[itemId]/[variant]/route.ts", (source) =>
+        source.replace(
+          "  const object = await env.FILES.get(variant.storageKey);",
+          "  await env.FILES.put(variant.storageKey, new Uint8Array());" + String.fromCharCode(10) + "  const object = await env.FILES.get(variant.storageKey);",
+        ),
+      ),
+  },
+  {
     name: "the private bucket binding is renamed away",
     apply: (directory) =>
       edit(directory, ".openai/hosting.json", (source) => source.replace('"FILES"', '"PUBLIC_FILES"')),

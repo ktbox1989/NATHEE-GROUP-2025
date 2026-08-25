@@ -5,6 +5,7 @@ import { auditLogs, sitePagePublicationEvents, sitePageRevisions, sitePages } fr
 import { makeAuditRecord } from "@/lib/audit";
 import { can } from "@/lib/authorization";
 import { getCurrentActor } from "@/lib/current-actor";
+import { decidePublication, sitePagePublishEvent } from "@/lib/publication-events";
 import { isSameOrigin } from "@/lib/same-origin";
 import { isSitePageSlug, parseCmsPageContentJson } from "@/lib/site-cms";
 import { collectPageReferences, firstUnpublishableLabel, unpublishableReferences } from "@/lib/site-cms-publish";
@@ -50,11 +51,18 @@ export async function POST(request: NextRequest, context: { params: Promise<{ sl
       return NextResponse.redirect(new URL(`/app/site-content/${encodeURIComponent(slug)}?error=unpublishable_media${label ? `&missing=${encodeURIComponent(label)}` : ""}`, request.url), 303);
     }
   }
+  // What this publication makes untrue on the public site, decided by the
+  // revalidation contract rather than by this route. A refusal is a refusal:
+  // recording the publication anyway would tell an editor a change is live
+  // that the public site can never reach.
+  const delivery = decidePublication(sitePagePublishEvent(slug, action as "PUBLISH" | "HIDE", action === "PUBLISH" ? revisionId : null));
+  if (!delivery.ok) return redirectError(request, slug, "publish_rejected");
+
   const eventId = crypto.randomUUID();
   try {
     await db.batch([
       db.insert(sitePagePublicationEvents).values({ id: eventId, requestKey, pageId: page.id, revisionId: action === "PUBLISH" ? revisionId : null, action: action as "PUBLISH" | "HIDE", note, createdBy: actor.userId }),
-      db.insert(auditLogs).values(makeAuditRecord({ actor, action, entityType: "site_page_publication", entityId: eventId, after: { slug, revisionId: action === "PUBLISH" ? revisionId : null, note, verifiedReferences: referenceCount } })),
+      db.insert(auditLogs).values(makeAuditRecord({ actor, action, entityType: "site_page_publication", entityId: eventId, after: { slug, revisionId: action === "PUBLISH" ? revisionId : null, note, verifiedReferences: referenceCount, invalidation: delivery.invalidation } })),
     ]);
   } catch {
     const concurrent = await db.select({ id: sitePagePublicationEvents.id }).from(sitePagePublicationEvents).where(eq(sitePagePublicationEvents.requestKey, requestKey)).get();

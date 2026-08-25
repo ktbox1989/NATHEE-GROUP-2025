@@ -13,6 +13,9 @@ import { hasExpectedImageSignature, imageDimensionsMatchClaim, readImageDimensio
 import { isSameOrigin } from "@/lib/same-origin";
 import { recordTimestamp } from "@/lib/timestamps";
 
+/** Raster formats every browser can decode, so a `<picture>` always resolves. */
+const PUBLIC_FALLBACK_IMAGE_TYPES = new Set(["image/jpeg", "image/png"]);
+
 type PreparedVariant = { id: string; role: GalleryVariantRole; file: File; bytes: Uint8Array; checksum: string; width: number | null; height: number | null; storageKey: string };
 const MAX_REQUEST_BYTES = 42 * 1024 * 1024;
 
@@ -54,8 +57,10 @@ export async function POST(request: NextRequest) {
   const variants: PreparedVariant[] = [];
   for (const spec of [
     { field: "original", role: "ORIGINAL" as const, max: GALLERY_MAX_ORIGINAL_BYTES },
+    { field: "displayJpeg", role: "DISPLAY" as const, max: GALLERY_MAX_VARIANT_BYTES },
     { field: "displayWebp", role: "DISPLAY" as const, max: GALLERY_MAX_VARIANT_BYTES },
     { field: "displayAvif", role: "DISPLAY" as const, max: GALLERY_MAX_VARIANT_BYTES },
+    { field: "thumbnailJpeg", role: "THUMBNAIL" as const, max: GALLERY_MAX_VARIANT_BYTES },
     { field: "thumbnailWebp", role: "THUMBNAIL" as const, max: GALLERY_MAX_VARIANT_BYTES },
     { field: "thumbnailAvif", role: "THUMBNAIL" as const, max: GALLERY_MAX_VARIANT_BYTES },
   ]) {
@@ -66,6 +71,15 @@ export async function POST(request: NextRequest) {
     variants.push(prepared);
   }
   if (!variants.some((value) => value.role === "ORIGINAL") || !variants.some((value) => value.role === "DISPLAY") || !variants.some((value) => value.role === "THUMBNAIL")) return respondError(request, "missing_variant", 422);
+  // A photograph meant for the public website needs a format every browser can
+  // decode. WebP and AVIF are what the library stores by default, and a
+  // `<picture>` whose `<img>` fallback is one of those leaves an older client
+  // with an empty box — which is why the public renderer refuses such media
+  // outright. Refusing it here instead means the editor learns at upload,
+  // rather than discovering a blank hero on a published page.
+  if (visibility === "PUBLIC" && !variants.some((value) => value.role === "DISPLAY" && PUBLIC_FALLBACK_IMAGE_TYPES.has(value.file.type))) {
+    return respondError(request, "missing_public_fallback", 422);
+  }
 
   const storedKeys: string[] = [];
   try {
