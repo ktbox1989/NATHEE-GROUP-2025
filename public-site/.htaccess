@@ -20,6 +20,17 @@ ErrorDocument 404 /404.html
 # do not edit by hand.
 # END NATHEE LOGIN REDIRECT
 
+# BEGIN NATHEE PUBLIC APEX MAPPING
+# NATHEE_PUBLIC_APEX_MAPPING_STATE=INACTIVE
+# NATHEE_PUBLIC_APEX_MAPPING_TARGET=https://app.natheegroup2025.com
+#
+# Managed by scripts/set-public-apex-mapping.mjs; do not edit by hand.
+#
+# The application is not proxied from the apex. /assets/media/ and
+# /sitemap.xml are served by this static release exactly as before, and
+# CMS-managed media is not reachable from the public site.
+# END NATHEE PUBLIC APEX MAPPING
+
 <IfModule mod_mime.c>
   # Shared hosting does not map this extension by default, and a manifest
   # served as text/plain is ignored by the browser.
@@ -57,7 +68,11 @@ ErrorDocument 404 /404.html
 
   Header always set X-Robots-Tag "noindex, nofollow, noarchive" env=private_route
 
+  # Static assets in this document root only. A proxied /assets/media/ variant
+  # already carries the application's own Cache-Control - bounded rather than
+  # immutable, so an item withdrawn from PUBLIC stops being served within a
+  # knowable window - and replacing it here would silently extend that window.
   <FilesMatch "\.(?:css|js|json|webmanifest|svg|avif|webp|jpe?g|png)$">
-    Header always set Cache-Control "public, max-age=3600, must-revalidate"
+    Header always set Cache-Control "public, max-age=3600, must-revalidate" "expr=%{REQUEST_URI} !~ m#^/assets/media/#"
   </FilesMatch>
 </IfModule>

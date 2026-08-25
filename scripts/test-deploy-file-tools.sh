@@ -81,6 +81,7 @@ zcom_scripts=(
   "$SCRIPT_DIR/audit-production-components.sh"
   "$SCRIPT_DIR/verify-app-integration.sh"
   "$SCRIPT_DIR/verify-login-redirect-state.sh"
+  "$SCRIPT_DIR/verify-public-apex-mapping-state.sh"
   "$SCRIPT_DIR/test-public-site-gate.sh"
   "$SCRIPT_DIR/test-production-postcheck-contract.sh"
   "$SCRIPT_DIR/test-app-readiness.sh"

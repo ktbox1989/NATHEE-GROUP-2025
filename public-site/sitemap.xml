@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://natheegroup2025.com/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>
-  <url><loc>https://natheegroup2025.com/services/</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
-  <url><loc>https://natheegroup2025.com/motorcycle-transport/</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
-  <url><loc>https://natheegroup2025.com/international/</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://natheegroup2025.com/storage/</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://natheegroup2025.com/container-loading/</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://natheegroup2025.com/dealer-fleet/</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://natheegroup2025.com/gallery/</loc><changefreq>weekly</changefreq><priority>0.9</priority></url>
-  <url><loc>https://natheegroup2025.com/about/</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
-  <url><loc>https://natheegroup2025.com/contact/</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://natheegroup2025.com/quotation/</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://natheegroup2025.com/</loc></url>
+  <url><loc>https://natheegroup2025.com/about/</loc></url>
+  <url><loc>https://natheegroup2025.com/contact/</loc></url>
+  <url><loc>https://natheegroup2025.com/container-loading/</loc></url>
+  <url><loc>https://natheegroup2025.com/dealer-fleet/</loc></url>
+  <url><loc>https://natheegroup2025.com/gallery/</loc></url>
+  <url><loc>https://natheegroup2025.com/international/</loc></url>
+  <url><loc>https://natheegroup2025.com/motorcycle-transport/</loc></url>
+  <url><loc>https://natheegroup2025.com/quotation/</loc></url>
+  <url><loc>https://natheegroup2025.com/services/</loc></url>
+  <url><loc>https://natheegroup2025.com/storage/</loc></url>
 </urlset>

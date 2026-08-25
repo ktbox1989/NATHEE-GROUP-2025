@@ -31,6 +31,33 @@ for optional_command in mktemp node npm npx php composer python3 sqlite3 passeng
   fi
 done
 
+# Whether the apex can reverse-proxy /assets/media/ and /sitemap.xml to the
+# application. This decides whether the public media contract can be served at
+# all: the application sets Cross-Origin-Resource-Policy: same-origin, so a
+# redirect cannot deliver an image and only mod_proxy can.
+#
+# Read-only. Nothing is written inside Production, and AVAILABLE is printed only
+# on direct evidence - a module listing that names both modules. Anything less
+# is UNKNOWN, which keeps the activation gate closed rather than guessing.
+mod_proxy_state="UNKNOWN"
+mod_proxy_reason="no readable module listing on this host"
+for apache_binary in apachectl httpd apache2ctl; do
+  command -v "$apache_binary" >/dev/null 2>&1 || continue
+  modules="$("$apache_binary" -M 2>/dev/null)" || continue
+  if printf '%s\n' "$modules" | grep -q 'proxy_module' && printf '%s\n' "$modules" | grep -q 'proxy_http_module'; then
+    mod_proxy_state="AVAILABLE"
+    mod_proxy_reason="$apache_binary -M lists proxy_module and proxy_http_module"
+  else
+    mod_proxy_state="MISSING"
+    mod_proxy_reason="$apache_binary -M does not list both proxy modules"
+  fi
+  break
+done
+printf 'ZCOM_MOD_PROXY=%s reason=%s\n' "$mod_proxy_state" "$mod_proxy_reason"
+if [[ "$mod_proxy_state" != "AVAILABLE" ]]; then
+  printf 'ZCOM_APEX_MAPPING=BLOCKED_UNTIL_MOD_PROXY_PROVEN\n'
+fi
+
 probe_dir="$TEMP_PARENT/.nathee-runtime-probe-$(date -u +%Y%m%d-%H%M%S)-$$"
 case "$probe_dir" in
   "$TEMP_PARENT"/.nathee-runtime-probe-*) ;;
