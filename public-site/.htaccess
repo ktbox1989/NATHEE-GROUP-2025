@@ -1,4 +1,4 @@
-DirectoryIndex index.html
+DirectoryIndex index.html index.php
 Options -Indexes
 
 ErrorDocument 404 /404.html
@@ -9,6 +9,20 @@ ErrorDocument 404 /404.html
   # Keep one canonical public hostname. HTTPS is already enforced upstream.
   RewriteCond %{HTTP_HOST} ^www\.natheegroup2025\.com$ [NC]
   RewriteRule ^ https://natheegroup2025.com%{REQUEST_URI} [R=301,L,NE]
+
+  # Public News is rendered locally by PHP. These rules never proxy: the PHP
+  # entry points use a fixed HTTPS origin and a closed upstream path allowlist.
+  RewriteRule ^_nathee(?:/|$) - [R=404,L]
+  RewriteRule ^news/?$ news/index.php [L]
+  RewriteRule ^news/[a-z0-9]+(?:-[a-z0-9]+)*/?$ news/index.php [L]
+  RewriteRule ^sitemap\.xml$ sitemap.php [L]
+  RewriteRule ^assets/media/[a-z0-9](?:[a-z0-9-]{0,78}[a-z0-9])?/(?:display|thumbnail)\.(?:avif|webp|jpg|png)$ assets/media/index.php [L]
+</IfModule>
+
+<IfModule mod_authz_core.c>
+  <FilesMatch "^_">
+    Require all denied
+  </FilesMatch>
 </IfModule>
 
 # BEGIN NATHEE LOGIN REDIRECT

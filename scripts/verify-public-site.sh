@@ -45,6 +45,10 @@ required_files=(
   contact/index.html
   quotation/index.html
   login/index.html
+  _nathee/news-gateway.php
+  news/index.php
+  assets/media/index.php
+  sitemap.php
 )
 
 for file in "${required_files[@]}"; do
@@ -118,9 +122,31 @@ grep -Fq -- '<script src="/assets/site.js" defer></script>' "$SITE_DIR/index.htm
 grep -Fq -- '@media (max-width: 980px)' "$SITE_DIR/assets/site.css" || fail "tablet breakpoint is missing"
 grep -Fq -- '@media (max-width: 680px)' "$SITE_DIR/assets/site.css" || fail "mobile breakpoint is missing"
 
-if grep -RInE -- 'RewriteRule[^[:cntrl:]]*index\.php' "$SITE_DIR/.htaccess"; then
+if grep -Eiq -- 'RewriteRule[[:space:]]+(\.|\^?\.\*\$?)[[:space:]]+/?index\.php' "$SITE_DIR/.htaccess"; then
   fail "stale WordPress index.php rewrite found"
 fi
+
+# News is a local PHP renderer, never an Apache reverse proxy. The allowlist in
+# PHP is the only code allowed to reach the fixed application origin.
+for required_rule in \
+  'RewriteRule ^news/?$ news/index.php [L]' \
+  'RewriteRule ^news/[a-z0-9]+(?:-[a-z0-9]+)*/?$ news/index.php [L]' \
+  'RewriteRule ^sitemap\.xml$ sitemap.php [L]' \
+  'RewriteRule ^assets/media/'; do
+  grep -Fq -- "$required_rule" "$SITE_DIR/.htaccess" || fail "local PHP News route is missing: $required_rule"
+done
+if grep -Eiq -- '\[P([,\]]|$)|\bProxyPass\b|SSLProxyEngine' "$SITE_DIR/.htaccess"; then
+  fail "public release depends on forbidden Apache proxying"
+fi
+if grep -RInE -- '/_next/static|\$_COOKIE|HTTP_AUTHORIZATION|HTTP_X_FORWARDED' "$SITE_DIR/_nathee" "$SITE_DIR/news" "$SITE_DIR/assets/media" "$SITE_DIR/sitemap.php"; then
+  fail "PHP News gateway depends on private framework assets or visitor identity"
+fi
+grep -Fq -- "const NATHEE_NEWS_UPSTREAM_ORIGIN = 'https://app.natheegroup2025.com';" "$SITE_DIR/_nathee/news-gateway.php" \
+  || fail "PHP News upstream origin is not fixed"
+grep -Fq -- 'CURLOPT_SSL_VERIFYPEER => true' "$SITE_DIR/_nathee/news-gateway.php" \
+  || fail "PHP News TLS peer verification is not enforced"
+grep -Fq -- 'CURLOPT_SSL_VERIFYHOST => 2' "$SITE_DIR/_nathee/news-gateway.php" \
+  || fail "PHP News TLS hostname verification is not enforced"
 
 for route in services motorcycle-transport international storage container-loading dealer-fleet gallery about contact quotation; do
   page="$SITE_DIR/$route/index.html"

@@ -16,6 +16,10 @@ const requiredFiles = [
   "sitemap.xml",
   "assets/site.css",
   "assets/site.js",
+  "_nathee/news-gateway.php",
+  "news/index.php",
+  "assets/media/index.php",
+  "sitemap.php",
 ];
 
 const forbiddenPatterns = [
@@ -26,7 +30,7 @@ const forbiddenPatterns = [
   ["prototype quote store", /nathee-quotes|window\.storage|localStorage/i],
   ["demo credentials", /abc123|owner123|staff123|nathee2025/i],
   ["unverified statistics", /10\+\s*ปี|1,000\+|10,000\+/i],
-  ["WordPress rewrite", /RewriteRule[^\n]*index\.php/i],
+  ["WordPress rewrite", /RewriteRule\s+(?:\.|\^?\.\*\$?)\s+\/?index\.php/i],
 ];
 
 async function listFiles(directory) {
@@ -53,7 +57,7 @@ const files = await listFiles(siteRoot);
 const deployableText = new Map();
 for (const file of files) {
   const extension = extname(file).toLowerCase();
-  if (["", ".html", ".css", ".js", ".txt", ".xml", ".svg"].includes(extension)) {
+  if (["", ".html", ".css", ".js", ".php", ".txt", ".xml", ".svg"].includes(extension)) {
     deployableText.set(relative(siteRoot, file).replaceAll("\\", "/"), await readFile(file, "utf8"));
   }
 }
@@ -70,6 +74,7 @@ const notFound = deployableText.get("404.html");
 const htaccess = deployableText.get(".htaccess");
 const robots = deployableText.get("robots.txt");
 const sitemap = deployableText.get("sitemap.xml");
+const newsGateway = deployableText.get("_nathee/news-gateway.php");
 
 const homeRequirements = [
   '<link rel="canonical" href="https://natheegroup2025.com/">',
@@ -144,6 +149,22 @@ for (const requirement of [
   'X-Robots-Tag "noindex, nofollow, noarchive"',
 ]) {
   if (!htaccess.includes(requirement)) throw new Error(`.htaccess contract missing: ${requirement}`);
+}
+for (const requirement of [
+  "RewriteRule ^news/?$ news/index.php [L]",
+  "RewriteRule ^news/[a-z0-9]+(?:-[a-z0-9]+)*/?$ news/index.php [L]",
+  "RewriteRule ^sitemap\\.xml$ sitemap.php [L]",
+  "RewriteRule ^assets/media/",
+]) {
+  if (!htaccess.includes(requirement)) throw new Error(`Local PHP News route missing: ${requirement}`);
+}
+if (/\[P(?:,|\])|\bProxyPass\b|SSLProxyEngine/i.test(htaccess)) throw new Error("Public release must not depend on Apache proxying.");
+for (const token of [
+  "const NATHEE_NEWS_UPSTREAM_ORIGIN = 'https://app.natheegroup2025.com';",
+  "CURLOPT_SSL_VERIFYPEER => true",
+  "CURLOPT_SSL_VERIFYHOST => 2",
+]) {
+  if (!newsGateway.includes(token)) throw new Error(`PHP News gateway contract missing: ${token}`);
 }
 
 if (!robots.includes("https://natheegroup2025.com/sitemap.xml")) {
