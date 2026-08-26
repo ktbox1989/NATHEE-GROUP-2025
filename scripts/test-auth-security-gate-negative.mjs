@@ -296,6 +296,14 @@ const CASES = [
     edit: (source) => source.replace("recordSignInEvent(", "skipSignInEvent("),
   },
   {
+    name: "the hosted async PBKDF2 path is reintroduced",
+    file: "lib/owner-pin.ts",
+    edit: (source) =>
+      source
+        .replace('import { pbkdf2Sync } from "node:crypto"', 'import { pbkdf2 } from "node:crypto"')
+        .replace("pbkdf2Sync(pin, salt, iterations, HASH_BYTES", "pbkdf2(pin, salt, iterations, HASH_BYTES"),
+  },
+  {
     name: "the PIN verifier stops being slow",
     file: "lib/owner-pin.ts",
     edit: (source) => source.replace("MIN_PBKDF2_ITERATIONS = 200_000", "MIN_PBKDF2_ITERATIONS = 1_000"),

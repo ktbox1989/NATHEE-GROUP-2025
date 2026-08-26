@@ -1,4 +1,4 @@
-import { pbkdf2 } from "node:crypto";
+import { pbkdf2Sync } from "node:crypto";
 
 /**
  * The Owner's own way in, and the only one that does not depend on an external
@@ -169,21 +169,12 @@ export async function deriveOwnerPinHash(
   salt: Uint8Array,
   iterations: number,
 ): Promise<Uint8Array> {
-  // Cloudflare's WebCrypto PBKDF2 implementation rejects iteration counts over
-  // 100,000, while this credential format deliberately requires at least
-  // 200,000. The Worker is deployed with nodejs_compat, whose node:crypto
-  // PBKDF2 implementation accepts the existing 210,000-iteration credential.
-  // Keep this asynchronous so a login does not synchronously monopolise the
-  // isolate while the deliberately expensive verifier runs.
-  return await new Promise<Uint8Array>((resolve, reject) => {
-    pbkdf2(pin, salt, iterations, HASH_BYTES, "sha256", (error, derived) => {
-      if (error) {
-        reject(error);
-        return;
-      }
-      resolve(new Uint8Array(derived));
-    });
-  });
+  // Sites' hosted callback-based node:crypto PBKDF2 path rejects iteration
+  // counts above 100,000 even with nodejs_compat v2. The synchronous Worker
+  // implementation accepts the existing 210,000-iteration credential and
+  // produces the standard PBKDF2-SHA256 result. Keep the exported Promise API
+  // stable for callers; only the runtime primitive changes.
+  return new Uint8Array(pbkdf2Sync(pin, salt, iterations, HASH_BYTES, "sha256"));
 }
 
 /**

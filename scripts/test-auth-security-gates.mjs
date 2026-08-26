@@ -388,9 +388,10 @@ require(
 
 // The verifier: slow, salted, and compared without leaking how much matched.
 require(
-  ownerPin.includes('import { pbkdf2 } from "node:crypto"') &&
-    ownerPin.includes('pbkdf2(pin, salt, iterations, HASH_BYTES, "sha256"'),
-  "lib/owner-pin.ts: the PIN must use the node:crypto PBKDF2 path supported by the Worker at 200k+ iterations",
+  ownerPin.includes('import { pbkdf2Sync } from "node:crypto"') &&
+    ownerPin.includes('pbkdf2Sync(pin, salt, iterations, HASH_BYTES, "sha256"') &&
+    !/\bpbkdf2\(/.test(ownerPin),
+  "lib/owner-pin.ts: the PIN must use synchronous node:crypto PBKDF2 and never the hosted callback path capped at 100k",
 );
 require(
   ownerPin.includes("MIN_PBKDF2_ITERATIONS = 200_000"),

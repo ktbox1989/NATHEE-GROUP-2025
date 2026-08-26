@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { Miniflare } from "miniflare";
 import {
   authModeConfigured,
   clearedOwnerSessionCookieOptions,
   constantTimeEquals,
   createOwnerSessionToken,
+  DEFAULT_PBKDF2_ITERATIONS,
   deriveOwnerPinHash,
   formatOwnerPinCredential,
   fromBase64Url,
@@ -35,6 +37,7 @@ import { safeReturnTo } from "../lib/safe-return-to.ts";
 
 const PIN = "046913";
 const SECRET = toBase64Url(new Uint8Array(32).fill(7));
+const FIXED_210K_CREDENTIAL = `v1$pbkdf2-sha256$210000$${toBase64Url(new Uint8Array(32).fill(3))}$-BtgYw21fr4dtIy_Qe8DRA8DnLE8WcmqpE2uR8JK5c8`;
 
 async function credentialFor(pin: string, iterations = MIN_PBKDF2_ITERATIONS): Promise<string> {
   const salt = new Uint8Array(32).fill(3);
@@ -102,6 +105,38 @@ test("the production 210k verifier uses the standard PBKDF2-SHA256 result", asyn
   const salt = new Uint8Array(32).fill(3);
   const derived = await deriveOwnerPinHash(PIN, salt, 210_000);
   assert.equal(toBase64Url(derived), "-BtgYw21fr4dtIy_Qe8DRA8DnLE8WcmqpE2uR8JK5c8");
+});
+
+test("an existing v1 210k credential verifies without rotation", async () => {
+  assert.equal(DEFAULT_PBKDF2_ITERATIONS, 210_000);
+  assert.ok(MIN_PBKDF2_ITERATIONS >= 200_000);
+  assert.equal(parseOwnerPinCredential(FIXED_210K_CREDENTIAL)?.iterations, 210_000);
+  assert.equal(await verifyOwnerPin(PIN, FIXED_210K_CREDENTIAL), true);
+  assert.equal(await verifyOwnerPin("046912", FIXED_210K_CREDENTIAL), false);
+});
+
+test("the Sites Workerd configuration supports synchronous 210k PBKDF2", async () => {
+  const script = [
+    'import { pbkdf2Sync } from "node:crypto";',
+    'const output = pbkdf2Sync("nathee-fixed-non-secret-pin", "nathee-fixed-non-secret-salt", 210000, 32, "sha256");',
+    'const hex = Array.from(output).map((byte) => byte.toString(16).padStart(2, "0")).join("");',
+    'export default { fetch() { return Response.json({ bytes: output.byteLength, hex }); } };',
+  ].join("\n");
+  const runtime = new Miniflare({
+    modules: true,
+    script,
+    compatibilityDate: "2026-05-15",
+    compatibilityFlags: ["nodejs_compat"],
+  });
+
+  try {
+    const response = await runtime.dispatchFetch("http://localhost/");
+    const result = (await response.json()) as { bytes: number; hex: string };
+    assert.equal(result.bytes, 32);
+    assert.equal(result.hex, "687c89e84fb4de3092e99b77064fb43369dfdd0d01739b827094239336434d97");
+  } finally {
+    await runtime.dispose();
+  }
 });
 
 test("a malformed credential is the absence of a credential, never a weaker one", async () => {
