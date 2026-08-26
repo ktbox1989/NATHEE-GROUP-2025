@@ -25,6 +25,7 @@ const VALID = {
 };
 
 const OWNER_PIN_CREDENTIAL = `v1$pbkdf2-sha256$210000$${toBase64Url(new Uint8Array(32).fill(3))}$${toBase64Url(new Uint8Array(32).fill(4))}`;
+const OWNER_PIN_V2_CREDENTIAL = `v2$pbkdf2-sha256-composite210k$${toBase64Url(new Uint8Array(32).fill(1))}$${toBase64Url(new Uint8Array(32).fill(2))}$${toBase64Url(new Uint8Array(32).fill(3))}$${toBase64Url(new Uint8Array(32).fill(4))}`;
 const OWNER_SESSION_SECRET = toBase64Url(new Uint8Array(32).fill(5));
 
 const OWNER_PIN_ONLY = {
@@ -236,6 +237,14 @@ test("the Owner PIN alone satisfies activation, and Supabase becomes a warning r
   assert.ok(!/Supabase Auth dashboard/.test(output));
 });
 
+test("the v2 composite Owner PIN credential satisfies activation without exposing its fields", () => {
+  const { status, output } = run({ ...OWNER_PIN_ONLY, OWNER_PIN_CREDENTIAL: OWNER_PIN_V2_CREDENTIAL });
+  assert.equal(status, 0, output);
+  assert.match(output, /PRODUCTION_ENV_VERIFY_PASS/);
+  assert.match(output, /OK {3}OWNER_PIN_CREDENTIAL: pbkdf2-sha256-composite210k, 210000 total iterations, three salted segments/);
+  assert.ok(!output.includes(OWNER_PIN_V2_CREDENTIAL));
+});
+
 test("both modes configured is reported as both, and neither is inferred from the other", () => {
   const { status, output } = run({ ...VALID, OWNER_PIN_CREDENTIAL, OWNER_SESSION_SECRET });
   assert.equal(status, 0, output);
@@ -271,8 +280,7 @@ test("a malformed Owner PIN value is named, and never treated as a weaker creden
   const weak = `v1$pbkdf2-sha256$1000$${toBase64Url(new Uint8Array(32).fill(3))}$${toBase64Url(new Uint8Array(32).fill(4))}`;
   const { status, output } = run({ ...OWNER_PIN_ONLY, OWNER_PIN_CREDENTIAL: weak });
   assert.equal(status, 1);
-  assert.match(output, /FAIL OWNER_PIN_CREDENTIAL: rejected; expected v1\$pbkdf2-sha256/);
-  assert.match(output, /at least 200000 iterations/);
+  assert.match(output, /FAIL OWNER_PIN_CREDENTIAL: rejected; expected a supported v1 PBKDF2 credential or v2 pbkdf2-sha256-composite210k credential/);
 
   const shortSecret = run({ ...OWNER_PIN_ONLY, OWNER_SESSION_SECRET: "too-short" });
   assert.equal(shortSecret.status, 1);

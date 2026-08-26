@@ -71,8 +71,24 @@ export const MAX_PBKDF2_ITERATIONS = 5_000_000;
 
 export const DEFAULT_PBKDF2_ITERATIONS = 210_000;
 
+/**
+ * Sites Production rejects any individual PBKDF2 call above 100k. The v2
+ * credential preserves 210k total PBKDF2 work by binding three independently
+ * salted, platform-compatible segments into one final digest.
+ */
+export const SEGMENT_A_ITERATIONS = 100_000;
+export const SEGMENT_B_ITERATIONS = 100_000;
+export const SEGMENT_C_ITERATIONS = 10_000;
+export const V2_TOTAL_PBKDF2_WORK =
+  SEGMENT_A_ITERATIONS + SEGMENT_B_ITERATIONS + SEGMENT_C_ITERATIONS;
+export const MAX_SINGLE_PBKDF2_CALL = 100_000;
+export const V2_SALT_BYTES = 32;
+export const FINAL_DIGEST_BYTES = 32;
+export const OWNER_PIN_V2_ALGORITHM = "pbkdf2-sha256-composite210k";
+
 const MIN_SALT_BYTES = 16;
 const HASH_BYTES = 32;
+const V2_DIGEST_DOMAIN = "nathee-owner-pin-v2\0";
 
 /** 32 bytes of base64url is 43 characters; anything shorter is not a key. */
 const SESSION_SECRET_PATTERN = /^[A-Za-z0-9_-]{43,512}$/;
@@ -125,20 +141,58 @@ export function constantTimeEquals(left: Uint8Array, right: Uint8Array): boolean
 
 // --- The PIN credential -----------------------------------------------------
 
-export type OwnerPinCredential = {
+export type OwnerPinV1Credential = {
+  version: "v1";
+  algorithm: "pbkdf2-sha256";
   iterations: number;
   salt: Uint8Array;
   hash: Uint8Array;
 };
 
+export type OwnerPinV2Credential = {
+  version: "v2";
+  algorithm: typeof OWNER_PIN_V2_ALGORITHM;
+  /** Derived from the algorithm name, never accepted as a credential field. */
+  iterations: typeof V2_TOTAL_PBKDF2_WORK;
+  saltA: Uint8Array;
+  saltB: Uint8Array;
+  saltC: Uint8Array;
+  finalDigest: Uint8Array;
+};
+
+export type OwnerPinCredential = OwnerPinV1Credential | OwnerPinV2Credential;
+
+export type OwnerPinV1CredentialInput = Pick<OwnerPinV1Credential, "iterations" | "salt" | "hash">;
+export type OwnerPinV2CredentialInput = Pick<
+  OwnerPinV2Credential,
+  "saltA" | "saltB" | "saltC" | "finalDigest"
+>;
+
 /** `v1$pbkdf2-sha256$<iterations>$<salt-b64url>$<hash-b64url>` */
-export function formatOwnerPinCredential(credential: OwnerPinCredential): string {
+export function formatOwnerPinCredential(credential: OwnerPinV1CredentialInput): string {
   return [
     "v1",
     "pbkdf2-sha256",
     String(credential.iterations),
     toBase64Url(credential.salt),
     toBase64Url(credential.hash),
+  ].join("$");
+}
+
+/**
+ * `v2$pbkdf2-sha256-composite210k$<saltA>$<saltB>$<saltC>$<finalDigest>`
+ *
+ * No work factor is serialised. The algorithm name is the complete work
+ * contract, so a caller cannot construct a lower-cost v2 verifier.
+ */
+export function formatOwnerPinV2Credential(credential: OwnerPinV2CredentialInput): string {
+  return [
+    "v2",
+    OWNER_PIN_V2_ALGORITHM,
+    toBase64Url(credential.saltA),
+    toBase64Url(credential.saltB),
+    toBase64Url(credential.saltC),
+    toBase64Url(credential.finalDigest),
   ].join("$");
 }
 
@@ -151,17 +205,44 @@ export function parseOwnerPinCredential(value: string | undefined | null): Owner
   const encoded = value?.trim();
   if (!encoded) return null;
   const parts = encoded.split("$");
-  if (parts.length !== 5) return null;
-  const [version, algorithm, iterationsText, saltText, hashText] = parts;
-  if (version !== "v1" || algorithm !== "pbkdf2-sha256") return null;
-  if (!/^[0-9]{1,9}$/.test(iterationsText)) return null;
-  const iterations = Number(iterationsText);
-  if (iterations < MIN_PBKDF2_ITERATIONS || iterations > MAX_PBKDF2_ITERATIONS) return null;
-  const salt = fromBase64Url(saltText);
-  const hash = fromBase64Url(hashText);
-  if (!salt || salt.length < MIN_SALT_BYTES) return null;
-  if (!hash || hash.length !== HASH_BYTES) return null;
-  return { iterations, salt, hash };
+  if (parts[0] === "v1") {
+    if (parts.length !== 5) return null;
+    const [version, algorithm, iterationsText, saltText, hashText] = parts;
+    if (version !== "v1" || algorithm !== "pbkdf2-sha256") return null;
+    if (!/^[0-9]{1,9}$/.test(iterationsText)) return null;
+    const iterations = Number(iterationsText);
+    if (iterations < MIN_PBKDF2_ITERATIONS || iterations > MAX_PBKDF2_ITERATIONS) return null;
+    const salt = fromBase64Url(saltText);
+    const hash = fromBase64Url(hashText);
+    if (!salt || salt.length < MIN_SALT_BYTES) return null;
+    if (!hash || hash.length !== HASH_BYTES) return null;
+    return { version, algorithm, iterations, salt, hash };
+  }
+
+  if (parts[0] === "v2") {
+    if (parts.length !== 6) return null;
+    const [version, algorithm, saltAText, saltBText, saltCText, finalDigestText] = parts;
+    if (version !== "v2" || algorithm !== OWNER_PIN_V2_ALGORITHM) return null;
+    const saltA = fromBase64Url(saltAText);
+    const saltB = fromBase64Url(saltBText);
+    const saltC = fromBase64Url(saltCText);
+    const finalDigest = fromBase64Url(finalDigestText);
+    if (!saltA || saltA.length < MIN_SALT_BYTES) return null;
+    if (!saltB || saltB.length < MIN_SALT_BYTES) return null;
+    if (!saltC || saltC.length < MIN_SALT_BYTES) return null;
+    if (!finalDigest || finalDigest.length !== FINAL_DIGEST_BYTES) return null;
+    return {
+      version,
+      algorithm,
+      iterations: V2_TOTAL_PBKDF2_WORK,
+      saltA,
+      saltB,
+      saltC,
+      finalDigest,
+    };
+  }
+
+  return null;
 }
 
 export async function deriveOwnerPinHash(
@@ -169,12 +250,39 @@ export async function deriveOwnerPinHash(
   salt: Uint8Array,
   iterations: number,
 ): Promise<Uint8Array> {
-  // Sites' hosted callback-based node:crypto PBKDF2 path rejects iteration
-  // counts above 100,000 even with nodejs_compat v2. The synchronous Worker
-  // implementation accepts the existing 210,000-iteration credential and
-  // produces the standard PBKDF2-SHA256 result. Keep the exported Promise API
-  // stable for callers; only the runtime primitive changes.
+  // Kept for v1 rollback/backward compatibility. Sites Production cannot
+  // verify a v1 value above 100k; v2 below is the deployable 210k contract.
   return new Uint8Array(pbkdf2Sync(pin, salt, iterations, HASH_BYTES, "sha256"));
+}
+
+/**
+ * Derive the v2 verifier. Every segment is always computed before the final
+ * digest, and only the final digest is ever serialised or compared.
+ */
+export async function deriveOwnerPinV2Digest(
+  pin: string,
+  saltA: Uint8Array,
+  saltB: Uint8Array,
+  saltC: Uint8Array,
+): Promise<Uint8Array> {
+  const segmentA = new Uint8Array(
+    pbkdf2Sync(pin, saltA, SEGMENT_A_ITERATIONS, HASH_BYTES, "sha256"),
+  );
+  const segmentB = new Uint8Array(
+    pbkdf2Sync(pin, saltB, SEGMENT_B_ITERATIONS, HASH_BYTES, "sha256"),
+  );
+  const segmentC = new Uint8Array(
+    pbkdf2Sync(pin, saltC, SEGMENT_C_ITERATIONS, HASH_BYTES, "sha256"),
+  );
+
+  const domain = new TextEncoder().encode(V2_DIGEST_DOMAIN);
+  const boundSegments = new Uint8Array(domain.length + segmentA.length + segmentB.length + segmentC.length);
+  boundSegments.set(domain, 0);
+  boundSegments.set(segmentA, domain.length);
+  boundSegments.set(segmentB, domain.length + segmentA.length);
+  boundSegments.set(segmentC, domain.length + segmentA.length + segmentB.length);
+  const digest = await crypto.subtle.digest("SHA-256", boundSegments);
+  return new Uint8Array(digest);
 }
 
 /**
@@ -189,8 +297,12 @@ export async function verifyOwnerPin(
   const parsed = typeof credential === "string" ? parseOwnerPinCredential(credential) : credential;
   if (!parsed) return false;
   if (!isSixDigitPin(pin)) return false;
-  const derived = await deriveOwnerPinHash(pin, parsed.salt, parsed.iterations);
-  return constantTimeEquals(derived, parsed.hash);
+  if (parsed.version === "v1") {
+    const derived = await deriveOwnerPinHash(pin, parsed.salt, parsed.iterations);
+    return constantTimeEquals(derived, parsed.hash);
+  }
+  const finalDigest = await deriveOwnerPinV2Digest(pin, parsed.saltA, parsed.saltB, parsed.saltC);
+  return constantTimeEquals(finalDigest, parsed.finalDigest);
 }
 
 /**

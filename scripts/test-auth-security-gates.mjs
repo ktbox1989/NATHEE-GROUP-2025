@@ -330,7 +330,10 @@ require(
 
 const OWNER_PIN_ROUTE = "app/api/auth/owner-pin/login/route.ts";
 const ownerPinRoute = await read(OWNER_PIN_ROUTE);
-const ownerPin = await read("lib/owner-pin.ts");
+const ownerPin = (await read("lib/owner-pin.ts")).replaceAll("\r\n", "\n");
+const ownerPinCredentialOnlyGenerator = (
+  await read("scripts/generate-owner-pin-credential-only.mjs")
+).replaceAll("\r\n", "\n");
 const ownerPinSql = await read("lib/owner-pin-sql.ts");
 const ownerPinStore = await read("lib/owner-pin-store.ts");
 const currentActor = await read("lib/current-actor.ts");
@@ -386,10 +389,11 @@ require(
   `${OWNER_PIN_ROUTE}: only the sanitised returnTo may be echoed back, never the raw form value`,
 );
 
-// The verifier: slow, salted, and compared without leaking how much matched.
+// The verifier: the legacy v1 parser remains available, while deployable v2
+// spends exactly 210k work over three independently salted calls that each fit
+// Sites' 100k per-call ceiling. Only the bound final digest is compared.
 require(
   ownerPin.includes('import { pbkdf2Sync } from "node:crypto"') &&
-    ownerPin.includes('pbkdf2Sync(pin, salt, iterations, HASH_BYTES, "sha256"') &&
     !/\bpbkdf2\(/.test(ownerPin),
   "lib/owner-pin.ts: the PIN must use synchronous node:crypto PBKDF2 and never the hosted callback path capped at 100k",
 );
@@ -399,15 +403,83 @@ require(
 );
 require(
   ownerPin.includes("iterations < MIN_PBKDF2_ITERATIONS"),
-  "lib/owner-pin.ts: a credential below the floor must be refused, not accepted with a weaker parameter",
+  "lib/owner-pin.ts: a v1 credential below the floor must be refused, not accepted with a weaker parameter",
 );
 require(
   ownerPin.includes("salt.length < MIN_SALT_BYTES"),
-  "lib/owner-pin.ts: a credential with a short salt must be refused",
+  "lib/owner-pin.ts: a v1 credential with a short salt must be refused",
 );
 require(
-  ownerPin.includes("constantTimeEquals(derived, parsed.hash)"),
-  "lib/owner-pin.ts: the PIN comparison must not leak a matching prefix",
+  ownerPin.includes('OWNER_PIN_V2_ALGORITHM = "pbkdf2-sha256-composite210k"') &&
+    ownerPin.includes("SEGMENT_A_ITERATIONS = 100_000") &&
+    ownerPin.includes("SEGMENT_B_ITERATIONS = 100_000") &&
+    ownerPin.includes("SEGMENT_C_ITERATIONS = 10_000") &&
+    ownerPin.includes("SEGMENT_A_ITERATIONS + SEGMENT_B_ITERATIONS + SEGMENT_C_ITERATIONS") &&
+    ownerPin.includes("MAX_SINGLE_PBKDF2_CALL = 100_000"),
+  "lib/owner-pin.ts: v2 must hardcode 100k+100k+10k work with no call above 100k",
+);
+for (const [salt, iterations] of [
+  ["saltA", "SEGMENT_A_ITERATIONS"],
+  ["saltB", "SEGMENT_B_ITERATIONS"],
+  ["saltC", "SEGMENT_C_ITERATIONS"],
+]) {
+  require(
+    ownerPin.includes(`pbkdf2Sync(pin, ${salt}, ${iterations}, HASH_BYTES, "sha256")`),
+    `lib/owner-pin.ts: v2 ${salt} segment is absent or no longer uses its fixed work factor`,
+  );
+}
+const v2ParserStart = ownerPin.indexOf('if (parts[0] === "v2")');
+const v2ParserEnd = ownerPin.indexOf("\n  return null;\n}", v2ParserStart);
+const v2Parser = v2ParserStart >= 0 && v2ParserEnd > v2ParserStart
+  ? ownerPin.slice(v2ParserStart, v2ParserEnd)
+  : "";
+require(
+  v2Parser.includes("parts.length !== 6") &&
+    v2Parser.includes("algorithm !== OWNER_PIN_V2_ALGORITHM") &&
+    !v2Parser.includes("iterationsText") &&
+    !v2Parser.includes("Number("),
+  "lib/owner-pin.ts: v2 must take its exact work only from the algorithm name, never credential fields",
+);
+const v2FormatterStart = ownerPin.indexOf("export function formatOwnerPinV2Credential(");
+const v2FormatterEnd = ownerPin.indexOf("\n}\n\n/**\n * Every field", v2FormatterStart);
+const v2Formatter = v2FormatterStart >= 0 && v2FormatterEnd > v2FormatterStart
+  ? ownerPin.slice(v2FormatterStart, v2FormatterEnd)
+  : "";
+require(
+  (v2Formatter.match(/toBase64Url\(/g) ?? []).length === 4 &&
+    v2Formatter.includes("credential.saltA") &&
+    v2Formatter.includes("credential.saltB") &&
+    v2Formatter.includes("credential.saltC") &&
+    v2Formatter.includes("credential.finalDigest") &&
+    !/credential\.segment[A-C]/.test(v2Formatter),
+  "lib/owner-pin.ts: v2 may store only three salts and the bound final digest, never raw segment verifiers",
+);
+const v2DeriverStart = ownerPin.indexOf("export async function deriveOwnerPinV2Digest(");
+const v2DeriverEnd = ownerPin.indexOf("\n}\n\n/**\n * Fails closed", v2DeriverStart);
+const v2Deriver = v2DeriverStart >= 0 && v2DeriverEnd > v2DeriverStart
+  ? ownerPin.slice(v2DeriverStart, v2DeriverEnd)
+  : "";
+require(
+  v2Deriver.includes('V2_DIGEST_DOMAIN = "nathee-owner-pin-v2\\0"') ||
+    ownerPin.includes('V2_DIGEST_DOMAIN = "nathee-owner-pin-v2\\0"'),
+  "lib/owner-pin.ts: v2 segments must be domain-bound before the final digest",
+);
+require(
+  v2Deriver.includes('crypto.subtle.digest("SHA-256", boundSegments)') &&
+    !v2Deriver.includes("process.env"),
+  "lib/owner-pin.ts: v2 must bind all segments with SHA-256 and expose no reduced-work environment switch",
+);
+require(
+  ownerPin.includes("constantTimeEquals(derived, parsed.hash)") &&
+    ownerPin.includes("constantTimeEquals(finalDigest, parsed.finalDigest)"),
+  "lib/owner-pin.ts: both v1 and v2 PIN comparisons must remain constant-time",
+);
+require(
+  ownerPinCredentialOnlyGenerator.includes("formatOwnerPinV2Credential({") &&
+    ownerPinCredentialOnlyGenerator.includes("deriveOwnerPinV2Digest(pin, saltA, saltB, saltC)") &&
+    ownerPinCredentialOnlyGenerator.includes("process.stdout.write(`OWNER_PIN_CREDENTIAL=${credential}\\n`)") &&
+    !ownerPinCredentialOnlyGenerator.includes("OWNER_SESSION_SECRET="),
+  "scripts/generate-owner-pin-credential-only.mjs: rotation must output one v2 credential and never a session secret",
 );
 
 // The session cookie: unforgeable, bounded, revoked by rotation, and never
@@ -514,6 +586,7 @@ const authSources = await Promise.all(
     "lib/owner-pin-identity.ts",
     "lib/owner-pin-sql.ts",
     "lib/owner-pin-store.ts",
+    "scripts/generate-owner-pin-credential-only.mjs",
   ].map(async (path) => ({ path, source: await read(path) })),
 );
 for (const { path, source } of authSources) {
@@ -528,6 +601,7 @@ for (const { path, source } of authSources) {
     /OWNER_PIN_CREDENTIAL\s*(\?\?|\|\|)/,
     /OWNER_SESSION_SECRET\s*(\?\?|\|\|)/,
     /v1\$pbkdf2-sha256\$[0-9]+\$[A-Za-z0-9_-]{8,}/,
+    /v2\$pbkdf2-sha256-composite210k\$[A-Za-z0-9_-]{8,}/,
   ]) {
     require(!forbidden.test(source), `${path}: forbidden escape hatch or built-in credential (${forbidden})`);
   }
@@ -539,5 +613,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  `AUTH_SECURITY_GATE_PASS throttledRoutes=${throttledRoutes.length} clientScope=cf-connecting-ip passwordChange=grant-or-current-password privilegedWrites=reauthenticated auditedEvents=sign-in,sign-in-denied,password-changed readiness=auth_attempt_counters,auth_recovery_grants ownerPin=fixed-account,pbkdf2-sha256>=200k,fingerprinted-session,insert-only-bootstrap`,
+  `AUTH_SECURITY_GATE_PASS throttledRoutes=${throttledRoutes.length} clientScope=cf-connecting-ip passwordChange=grant-or-current-password privilegedWrites=reauthenticated auditedEvents=sign-in,sign-in-denied,password-changed readiness=auth_attempt_counters,auth_recovery_grants ownerPin=fixed-account,composite-pbkdf2=100k+100k+10k,credential-only-rotation,fingerprinted-session,insert-only-bootstrap`,
 );

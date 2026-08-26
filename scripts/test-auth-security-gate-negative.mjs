@@ -45,6 +45,7 @@ const TRACKED = [
   "lib/owner-pin-sql.ts",
   "lib/owner-pin-store.ts",
   "lib/current-actor.ts",
+  "scripts/generate-owner-pin-credential-only.mjs",
 ];
 
 const CASES = [
@@ -302,6 +303,57 @@ const CASES = [
       source
         .replace('import { pbkdf2Sync } from "node:crypto"', 'import { pbkdf2 } from "node:crypto"')
         .replace("pbkdf2Sync(pin, salt, iterations, HASH_BYTES", "pbkdf2(pin, salt, iterations, HASH_BYTES"),
+  },
+  {
+    name: "one composite PBKDF2 segment is removed",
+    file: "lib/owner-pin.ts",
+    edit: (source) =>
+      source.replace(
+        'pbkdf2Sync(pin, saltC, SEGMENT_C_ITERATIONS, HASH_BYTES, "sha256")',
+        "new Uint8Array(HASH_BYTES)",
+      ),
+  },
+  {
+    name: "one composite PBKDF2 segment is reduced",
+    file: "lib/owner-pin.ts",
+    edit: (source) => source.replace("SEGMENT_C_ITERATIONS = 10_000", "SEGMENT_C_ITERATIONS = 1_000"),
+  },
+  {
+    name: "composite PBKDF2 total work falls below 200k",
+    file: "lib/owner-pin.ts",
+    edit: (source) => source.replace("SEGMENT_B_ITERATIONS = 100_000", "SEGMENT_B_ITERATIONS = 80_000"),
+  },
+  {
+    name: "the composite final comparison stops being constant-time",
+    file: "lib/owner-pin.ts",
+    edit: (source) =>
+      source.replace(
+        "constantTimeEquals(finalDigest, parsed.finalDigest)",
+        'toBase64Url(finalDigest) === toBase64Url(parsed.finalDigest)',
+      ),
+  },
+  {
+    name: "the credential-only generator prints a session secret",
+    file: "scripts/generate-owner-pin-credential-only.mjs",
+    edit: (source) => `${source}\nprocess.stdout.write("OWNER_SESSION_SECRET=unsafe\\n");\n`,
+  },
+  {
+    name: "v2 accepts caller-controlled iteration counts",
+    file: "lib/owner-pin.ts",
+    edit: (source) =>
+      source.replace(
+        'if (parts[0] === "v2") {',
+        'if (parts[0] === "v2") {\n    const iterationsText = parts[2];\n    Number(iterationsText);',
+      ),
+  },
+  {
+    name: "v2 stores an individual segment verifier",
+    file: "lib/owner-pin.ts",
+    edit: (source) =>
+      source.replace(
+        "toBase64Url(credential.finalDigest),",
+        "toBase64Url(credential.segmentA),\n    toBase64Url(credential.finalDigest),",
+      ),
   },
   {
     name: "the PIN verifier stops being slow",

@@ -102,16 +102,14 @@ if (ownerPinInUse) {
     record(
       "OWNER_PIN_CREDENTIAL",
       false,
-      "rejected; expected v1$pbkdf2-sha256$<iterations>$<salt>$<hash> with at least 200000 iterations, a 16-byte salt and a 32-byte hash",
+      "rejected; expected a supported v1 PBKDF2 credential or v2 pbkdf2-sha256-composite210k credential",
       { required: ownerPinRequired },
     );
   } else {
-    record(
-      "OWNER_PIN_CREDENTIAL",
-      true,
-      `pbkdf2-sha256, ${ownerPinCredential.iterations} iterations, ${ownerPinCredential.salt.length}-byte salt`,
-      { required: ownerPinRequired },
-    );
+    const metadata = ownerPinCredential.version === "v1"
+      ? `pbkdf2-sha256, ${ownerPinCredential.iterations} iterations, ${ownerPinCredential.salt.length}-byte salt`
+      : `${ownerPinCredential.algorithm}, ${ownerPinCredential.iterations} total iterations, three salted segments`;
+    record("OWNER_PIN_CREDENTIAL", true, metadata, { required: ownerPinRequired });
   }
 
   if (!present(env.OWNER_SESSION_SECRET)) {

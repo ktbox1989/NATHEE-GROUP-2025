@@ -16,11 +16,22 @@ import {
 // runtime accepts, and the PIN itself appears nowhere in what it produces.
 
 const SCRIPT = fileURLToPath(new URL("../scripts/generate-owner-pin-credential.mjs", import.meta.url));
+const CREDENTIAL_ONLY_SCRIPT = fileURLToPath(
+  new URL("../scripts/generate-owner-pin-credential-only.mjs", import.meta.url),
+);
 const PIN = "046913";
 
-function run(input, args = []) {
-  const result = spawnSync(process.execPath, [SCRIPT, ...args], { input, encoding: "utf8" });
+function runScript(script, input, args = []) {
+  const result = spawnSync(process.execPath, [script, ...args], { input, encoding: "utf8" });
   return { status: result.status, stdout: result.stdout, stderr: result.stderr };
+}
+
+function run(input, args = []) {
+  return runScript(SCRIPT, input, args);
+}
+
+function runCredentialOnly(input, args = []) {
+  return runScript(CREDENTIAL_ONLY_SCRIPT, input, args);
 }
 
 function assignments(stdout) {
@@ -136,5 +147,56 @@ test("an unknown or malformed argument is refused rather than ignored", () => {
     const { status, stdout } = run(`${PIN}\n${PIN}\n`, args);
     assert.equal(status, 1, args.join(" "));
     assert.equal(stdout, "", args.join(" "));
+  }
+});
+
+test("the credential-only generator emits one v2 assignment and no session secret", async () => {
+  const { status, stdout, stderr } = runCredentialOnly(`${PIN}\n${PIN}\n`);
+  assert.equal(status, 0, stderr);
+  const lines = stdout.trimEnd().split("\n");
+  assert.equal(lines.length, 1);
+  assert.match(lines[0], /^OWNER_PIN_CREDENTIAL=v2\$pbkdf2-sha256-composite210k\$/);
+  assert.ok(!stdout.includes("OWNER_SESSION_SECRET"));
+  assert.ok(!stderr.includes("OWNER_SESSION_SECRET="));
+  assert.ok(!stdout.includes(PIN));
+  assert.ok(!stderr.includes(PIN));
+
+  const credentialValue = assignments(stdout).OWNER_PIN_CREDENTIAL;
+  const credential = parseOwnerPinCredential(credentialValue);
+  assert.equal(credential?.version, "v2");
+  assert.equal(credential?.iterations, 210_000);
+  assert.equal(credential?.saltA.length, 32);
+  assert.equal(credential?.saltB.length, 32);
+  assert.equal(credential?.saltC.length, 32);
+  assert.equal(credential?.finalDigest.length, 32);
+  assert.equal(await verifyOwnerPin(PIN, credentialValue), true);
+  assert.equal(await verifyOwnerPin("046912", credentialValue), false);
+  assert.match(stderr, /OWNER_PIN_CREDENTIAL_ONLY_READY .*totalWork=210000 .*pinPrinted=no filesWritten=none/);
+});
+
+test("credential-only rotation uses fresh salts without rotating the session secret", () => {
+  const first = runCredentialOnly(`${PIN}\n${PIN}\n`);
+  const second = runCredentialOnly(`${PIN}\n${PIN}\n`);
+  assert.equal(first.status, 0, first.stderr);
+  assert.equal(second.status, 0, second.stderr);
+  assert.notEqual(assignments(first.stdout).OWNER_PIN_CREDENTIAL, assignments(second.stdout).OWNER_PIN_CREDENTIAL);
+  for (const output of [first.stdout, first.stderr, second.stdout, second.stderr]) {
+    assert.ok(!output.includes("OWNER_SESSION_SECRET="));
+  }
+});
+
+test("credential-only rotation rejects malformed input, mismatches and every argument", () => {
+  const cases = [
+    runCredentialOnly(""),
+    runCredentialOnly(`${PIN}\n`),
+    runCredentialOnly("12345\n12345\n"),
+    runCredentialOnly(`${PIN}\n046914\n`),
+    runCredentialOnly(`${PIN}\n${PIN}\n`, ["--iterations", "100000"]),
+  ];
+  for (const result of cases) {
+    assert.equal(result.status, 1);
+    assert.equal(result.stdout, "");
+    assert.ok(!result.stderr.includes(PIN));
+    assert.ok(!result.stderr.includes("OWNER_SESSION_SECRET="));
   }
 });
