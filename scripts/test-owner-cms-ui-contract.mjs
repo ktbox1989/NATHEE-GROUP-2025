@@ -20,13 +20,110 @@ const require = (condition, message) => { if (!condition) failures.push(message)
 const SETTINGS_EDITOR = "components/site-settings-editor.tsx";
 const SETTINGS_PAGE = "app/app/site-settings/page.tsx";
 const MEDIA_PICKER = "components/media-picker.tsx";
+const PAGES_PAGE = "app/app/site-content/page.tsx";
 const PAGE_EDITOR = "components/site-page-editor.tsx";
+const POSTS_PAGE = "app/app/posts/page.tsx";
+const POST_EDITOR = "components/post-editor.tsx";
+const GALLERY_PAGE = "app/app/gallery/page.tsx";
+const GALLERY_UPLOAD = "components/gallery-bulk-upload-form.tsx";
+const PENDING_FORM = "components/pending-form.tsx";
 const ORDER_BOARD = "components/gallery-order-board.tsx";
 const ORDER_PAGE = "app/app/gallery/order/page.tsx";
 const PUBLIC_PAGE = "components/cms-public-page.tsx";
 
-const [settingsEditor, settingsPage, mediaPicker, pageEditor, orderBoard, orderPage, publicPage] = await Promise.all(
-  [SETTINGS_EDITOR, SETTINGS_PAGE, MEDIA_PICKER, PAGE_EDITOR, ORDER_BOARD, ORDER_PAGE, PUBLIC_PAGE].map(read),
+const [settingsEditor, settingsPage, mediaPicker, pagesPage, pageEditor, postsPage, postEditor, galleryPage, galleryUpload, pendingForm, orderBoard, orderPage, publicPage] = await Promise.all(
+  [SETTINGS_EDITOR, SETTINGS_PAGE, MEDIA_PICKER, PAGES_PAGE, PAGE_EDITOR, POSTS_PAGE, POST_EDITOR, GALLERY_PAGE, GALLERY_UPLOAD, PENDING_FORM, ORDER_BOARD, ORDER_PAGE, PUBLIC_PAGE].map(read),
+);
+
+// 0. A managed page is a fixed allowlisted identity, but its D1 record may not
+//    exist yet. The list must make that first-save path explicit and the editor
+//    must validate with the same parser the route uses before it claims to be
+//    saving. A busy save control prevents a double revision while the redirect
+//    reloads the canonical row from D1.
+require(
+  pagesPage.includes('row.state === "UNMANAGED"') && pagesPage.includes("เพิ่มหน้านี้"),
+  `${PAGES_PAGE}: an unmanaged allowlisted page has no explicit add/first-draft action`,
+);
+require(
+  pagesPage.includes('href={`/app/site-content/${row.slug}`}'),
+  `${PAGES_PAGE}: the page action does not open the real editor route`,
+);
+require(
+  pageEditor.includes("parseCmsPageContent(content)"),
+  `${PAGE_EDITOR}: must validate with the server content parser before submitting`,
+);
+require(
+  pageEditor.includes("const [busy, setBusy]")
+    && pageEditor.includes('type="submit" disabled={busy} aria-busy={busy}')
+    && pageEditor.includes("aria-busy={busy}"),
+  `${PAGE_EDITOR}: save must expose and enforce its pending state`,
+);
+require(
+  pageEditor.includes('action={`/api/site-content/${encodeURIComponent(slug)}/revisions`}'),
+  `${PAGE_EDITOR}: save is not wired to the real revision endpoint`,
+);
+require(
+  pageEditor.includes('slug === "services"')
+    && pageEditor.includes('section.id === "services-list"')
+    && pageEditor.includes("เพิ่มบริการ")
+    && pageEditor.includes("แก้ไขบริการ"),
+  `${PAGE_EDITOR}: the services revision has no explicit add/edit interaction`,
+);
+require(
+  pageEditor.includes("patchItem(")
+    && pageEditor.includes("moveItem(")
+    && pageEditor.includes("section.items.length < 12"),
+  `${PAGE_EDITOR}: services add/edit does not preserve the bounded section-items contract`,
+);
+require(
+  postsPage.includes('href="#new-post"')
+    && postsPage.includes("เพิ่มบทความ")
+    && postsPage.includes('id="new-post"'),
+  `${POSTS_PAGE}: the add-post action does not open the real creation editor`,
+);
+require(
+  postsPage.includes('<PostEditor action="/api/posts" slugField')
+    && postEditor.includes('action={action}')
+    && postEditor.includes('method="post"'),
+  `${POST_EDITOR}: post create/edit is not wired to the real revision routes`,
+);
+require(
+  postEditor.includes("parsePostContent(content)")
+    && postEditor.includes("isValidPostSlug(slug)")
+    && postEditor.includes('type="submit" className="button button-gradient" disabled={busy || disabled}'),
+  `${POST_EDITOR}: post save lacks server-equivalent validation or pending protection`,
+);
+require(
+  galleryPage.includes('href="#gallery-upload"')
+    && galleryPage.includes("เพิ่มรายการ / อัปโหลดสื่อ")
+    && galleryPage.includes('id="gallery-upload"'),
+  `${GALLERY_PAGE}: Gallery/Media has no explicit add interaction`,
+);
+require(
+  galleryPage.includes('<details className="gallery-item-editor"><summary>แก้ไขรายการ</summary><PendingForm')
+    && galleryPage.includes('action={`/api/gallery/${item.id}`}')
+    && galleryPage.includes("<PendingSubmitButton"),
+  `${GALLERY_PAGE}: Gallery/Media edit does not open and submit to the real item endpoint`,
+);
+require(
+  pendingForm.includes("const [busy, setBusy]")
+    && pendingForm.includes("disabled={busy}")
+    && pendingForm.includes('role="status"'),
+  `${PENDING_FORM}: ordinary CMS forms have no honest pending state`,
+);
+require(
+  settingsPage.includes('href="#site-settings-editor">แก้ไขการตั้งค่า</Link>')
+    && settingsEditor.includes('id="site-settings-editor"')
+    && settingsEditor.includes('action="/api/site-settings/revisions"')
+    && settingsEditor.includes('disabled={busy}')
+    && settingsEditor.includes('aria-busy={busy}'),
+  `${SETTINGS_PAGE}: Site Settings has no explicit real edit action with an honest pending state`,
+);
+require(
+  galleryUpload.includes("isConfirmedGalleryUploadResponse")
+    && galleryUpload.includes("window.location.assign")
+    && galleryUpload.includes("disabled={busy}"),
+  `${GALLERY_UPLOAD}: upload must wait for backend confirmation and reload canonical D1 state`,
 );
 
 // 1. The four contact fields, by the names the write contract uses. A field

@@ -15,12 +15,69 @@ const TRACKED_TREES = ["app", "components", "lib"];
 const SETTINGS_EDITOR = "components/site-settings-editor.tsx";
 const SETTINGS_PAGE = "app/app/site-settings/page.tsx";
 const MEDIA_PICKER = "components/media-picker.tsx";
+const PAGES_PAGE = "app/app/site-content/page.tsx";
 const PAGE_EDITOR = "components/site-page-editor.tsx";
+const POSTS_PAGE = "app/app/posts/page.tsx";
+const POST_EDITOR = "components/post-editor.tsx";
+const GALLERY_PAGE = "app/app/gallery/page.tsx";
+const PENDING_FORM = "components/pending-form.tsx";
 const ORDER_BOARD = "components/gallery-order-board.tsx";
 const ORDER_PAGE = "app/app/gallery/order/page.tsx";
 const PUBLIC_PAGE = "components/cms-public-page.tsx";
 
 const CASES = [
+  {
+    name: "the first-save add action for an unmanaged page disappears",
+    apply: (d) => edit(d, PAGES_PAGE, (s) => s.replace("เพิ่มหน้านี้", "แก้ไขหน้า")),
+  },
+  {
+    name: "the page editor stops validating with the server parser",
+    apply: (d) => edit(d, PAGE_EDITOR, (s) => s.replace("parseCmsPageContent(content)", "content")),
+  },
+  {
+    name: "the page save can be double-submitted while pending",
+    apply: (d) => edit(d, PAGE_EDITOR, (s) => s.replace('type="submit" disabled={busy} aria-busy={busy}', 'type="submit" disabled={false} aria-busy={false}')),
+  },
+  {
+    name: "the services revision loses its add interaction",
+    apply: (d) => edit(d, PAGE_EDITOR, (s) => s.replace("เพิ่มบริการ", "เพิ่มรายการ")),
+  },
+  {
+    name: "the services revision loses its explicit edit interaction",
+    apply: (d) => edit(d, PAGE_EDITOR, (s) => s.replace("แก้ไขบริการ", "รายการบริการ")),
+  },
+  {
+    name: "the add-post action disappears",
+    apply: (d) => edit(d, POSTS_PAGE, (s) => s.replace("เพิ่มบทความ", "รายการบทความ")),
+  },
+  {
+    name: "the post editor stops validating the slug with the backend contract",
+    apply: (d) => edit(d, POST_EDITOR, (s) => s.replace("isValidPostSlug(slug)", "Boolean(slug)")),
+  },
+  {
+    name: "the post editor reports a save without validating its content",
+    apply: (d) => edit(d, POST_EDITOR, (s) => s.replace("parsePostContent(content)", "content")),
+  },
+  {
+    name: "the Gallery add/upload action disappears",
+    apply: (d) => edit(d, GALLERY_PAGE, (s) => s.replace("เพิ่มรายการ / อัปโหลดสื่อ", "Media Library")),
+  },
+  {
+    name: "the Gallery edit interaction stops using the pending form",
+    apply: (d) => edit(d, GALLERY_PAGE, (s) => s.replace('<details className="gallery-item-editor"><summary>แก้ไขรายการ</summary><PendingForm', '<details className="gallery-item-editor"><summary>แก้ไขรายการ</summary><form')),
+  },
+  {
+    name: "ordinary CMS forms no longer disable the submit control while pending",
+    apply: (d) => edit(d, PENDING_FORM, (s) => s.replace("disabled={busy}", "disabled={false}")),
+  },
+  {
+    name: "the Settings edit action disappears",
+    apply: (d) => edit(d, SETTINGS_PAGE, (s) => s.replace('href="#site-settings-editor">แก้ไขการตั้งค่า</Link>', 'href="/app/site-settings">ตั้งค่าเว็บไซต์</Link>')),
+  },
+  {
+    name: "the Settings save can be double-submitted while pending",
+    apply: (d) => edit(d, SETTINGS_EDITOR, (s) => s.replace("disabled={busy}", "disabled={false}")),
+  },
   {
     name: "a contact field is renamed, so the save silently drops it",
     apply: (d) => edit(d, SETTINGS_EDITOR, (s) => s.replaceAll("contact, lineId:", "contact, lineID:")),

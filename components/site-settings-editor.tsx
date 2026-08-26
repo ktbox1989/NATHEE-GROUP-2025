@@ -25,6 +25,7 @@ const publicNavigationPaths = [
 export function SiteSettingsEditor({ initial, media }: { initial: SiteSettings; media: MediaOption[] }) {
   const [settings, setSettings] = useState(initial);
   const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
   const payloadRef = useRef<HTMLInputElement>(null);
   const requestRef = useRef<HTMLInputElement>(null);
 
@@ -47,9 +48,11 @@ export function SiteSettingsEditor({ initial, media }: { initial: SiteSettings; 
     try {
       if (payloadRef.current) payloadRef.current.value = JSON.stringify(cleaned);
       if (requestRef.current) requestRef.current.value = browserSecureId("site-settings-save");
+      setBusy(true);
       setMessage("กำลังบันทึก Revision ใหม่…");
     } catch {
       event.preventDefault();
+      setBusy(false);
       setMessage("เบราว์เซอร์นี้สร้างรหัสคำขอที่ปลอดภัยไม่ได้ กรุณาใช้ Chrome, Edge หรือ Safari รุ่นใหม่");
     }
   }
@@ -84,7 +87,7 @@ export function SiteSettingsEditor({ initial, media }: { initial: SiteSettings; 
   const previewAddress = settings.contact.addressLines.filter((line) => line.trim());
   const canAddNavigation = settings.navigation.items.length < 8 && publicNavigationPaths.some((candidate) => !settings.navigation.items.some((item) => item.href === candidate.href));
 
-  return <form className="site-editor" action="/api/site-settings/revisions" method="post" onSubmit={submit}>
+  return <form id="site-settings-editor" className="site-editor" action="/api/site-settings/revisions" method="post" onSubmit={submit} aria-busy={busy}>
     <input ref={requestRef} type="hidden" name="requestKey" />
     <input ref={payloadRef} type="hidden" name="settingsJson" />
     <section className="app-panel"><div className="detail-section-head"><div><p>BRAND</p><h2>ชื่อและโลโก้</h2></div><span>ใช้ร่วมกันทุกหน้าสาธารณะ</span></div><div className="record-form">
@@ -137,6 +140,6 @@ export function SiteSettingsEditor({ initial, media }: { initial: SiteSettings; 
     <section className="app-panel"><div className="detail-section-head"><div><p>NAVIGATION</p><h2>เมนูเว็บไซต์</h2></div><span>สูงสุด 8 เมนู · เลือกจากหน้าสาธารณะที่มีจริง</span></div><div className="site-editor-list">{settings.navigation.items.map((item, index) => <div className="record-form site-settings-nav-row" key={`${item.href}-${index}`}><label className="field">ข้อความ<input required maxLength={40} value={item.label} onChange={(event) => patchNavigation(index, { label: event.target.value })} /></label><label className="field">หน้าเว็บ<select value={item.href} onChange={(event) => patchNavigation(index, { href: event.target.value })}>{publicNavigationPaths.map((candidate) => <option key={candidate.href} value={candidate.href} disabled={settings.navigation.items.some((current, itemIndex) => itemIndex !== index && current.href === candidate.href)}>{candidate.label} · {candidate.href}</option>)}</select></label><div className="site-editor-order"><button type="button" onClick={() => moveNavigation(index, -1)} disabled={index === 0} aria-label={`เลื่อน ${item.label} ขึ้น`}>↑</button><button type="button" onClick={() => moveNavigation(index, 1)} disabled={index === settings.navigation.items.length - 1} aria-label={`เลื่อน ${item.label} ลง`}>↓</button><button type="button" onClick={() => removeNavigation(index)} disabled={item.href === "/"}>นำออก</button></div></div>)}</div><button className="button button-glass" type="button" disabled={!canAddNavigation} onClick={addNavigation}>+ เพิ่มเมนู</button><div className="record-form site-settings-login-label"><label className="field">ข้อความปุ่มเข้าสู่ระบบ<input required maxLength={40} value={settings.navigation.loginLabel} onChange={(event) => setSettings((current) => ({ ...current, navigation: { ...current.navigation, loginLabel: event.target.value } }))} /></label></div></section>
     <section className="app-panel"><div className="detail-section-head"><div><p>FOOTER</p><h2>ส่วนท้ายเว็บไซต์</h2></div></div><div className="record-form"><label className="field">Copyright<input required maxLength={180} value={settings.footer.copyright} onChange={(event) => setSettings((current) => ({ ...current, footer: { ...current.footer, copyright: event.target.value } }))} /></label><label className="field">ข้อความด้านขวา<input required maxLength={180} value={settings.footer.secondaryText} onChange={(event) => setSettings((current) => ({ ...current, footer: { ...current.footer, secondaryText: event.target.value } }))} /></label></div></section>
     <section className="app-panel site-settings-preview" aria-label="ตัวอย่าง Header และ Footer"><div className="detail-section-head"><div><p>PREVIEW</p><h2>ตัวอย่างส่วนที่ใช้ร่วมกัน</h2></div><span>ยังไม่เผยแพร่จนกว่าจะบันทึกและกดเผยแพร่</span></div><div className="site-settings-preview-header"><div className="brand">{logoPreview ? <span className="brand-mark cms-brand-logo"><img src={logoPreview.previewSrc} alt="" width={logoPreview.width} height={logoPreview.height} /></span> : <span className="brand-mark">{settings.brand.abbreviation}</span>}<span className="brand-name">{settings.brand.name}<small>{settings.brand.tagline}</small></span></div><nav aria-label="ตัวอย่างเมนู">{settings.navigation.items.map((item) => <span key={item.href}>{item.label}</span>)}<b>{settings.navigation.loginLabel}</b></nav></div><div className="site-settings-preview-footer"><span>{settings.footer.copyright}</span><span>{[settings.contact.primaryPhone, settings.contact.secondaryPhone, settings.contact.email, settings.contact.lineId ? `LINE ${settings.contact.lineId}` : ""].filter(Boolean).join(" · ")}</span></div>{previewAddress.length > 0 && <div className="site-settings-preview-footer site-settings-preview-address">{previewAddress.map((line, index) => <span key={index}>{line}</span>)}</div>}</section>
-    <section className="app-panel site-editor-save"><label>หมายเหตุการแก้ไข<textarea name="changeNote" maxLength={500} rows={2} placeholder="เช่น เปลี่ยนเมนูและอัปเดตโลโก้บริษัท" /></label><button className="button button-gradient" type="submit">บันทึกเป็น Revision ใหม่</button>{message && <p role="status" aria-live="polite">{message}</p>}</section>
+    <section className="app-panel site-editor-save"><label>หมายเหตุการแก้ไข<textarea name="changeNote" maxLength={500} rows={2} placeholder="เช่น เปลี่ยนเมนูและอัปเดตโลโก้บริษัท" /></label><button className="button button-gradient" type="submit" disabled={busy} aria-busy={busy}>{busy ? "กำลังบันทึก…" : "บันทึกเป็น Revision ใหม่"}</button>{message && <p role="status" aria-live="polite">{message}</p>}</section>
   </form>;
 }

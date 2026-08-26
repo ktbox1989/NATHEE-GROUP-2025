@@ -2,7 +2,8 @@
 
 import { useRef, useState, type FormEvent } from "react";
 import { browserSecureId } from "@/lib/browser-secure-id";
-import type { PostContent, PostRobots } from "@/lib/post-cms-content";
+import { parsePostContent, type PostContent, type PostRobots } from "@/lib/post-cms-content";
+import { isValidPostSlug } from "@/lib/public-cms/posts";
 import type { CmsSection, CmsSectionType } from "@/lib/site-cms";
 
 type MediaOption = { id: string; label: string };
@@ -29,22 +30,31 @@ export function PostEditor({
   disabled?: boolean;
 }) {
   const [content, setContent] = useState(initial);
+  const [slug, setSlug] = useState("");
   const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
   const payloadRef = useRef<HTMLInputElement>(null);
   const requestRef = useRef<HTMLInputElement>(null);
 
   function submit(event: FormEvent<HTMLFormElement>) {
-    if (!content.sections.some((section) => section.enabled)) {
+    if (slugField && !isValidPostSlug(slug)) {
       event.preventDefault();
-      return setMessage("ต้องเปิดใช้งานอย่างน้อยหนึ่ง Section");
+      return setMessage("Slug ไม่ถูกต้อง: ใช้ตัวพิมพ์เล็ก a-z ตัวเลข และขีดกลาง ห้ามเป็น page, feed, sitemap หรือชื่อที่ระบบสงวนไว้");
+    }
+    const validated = parsePostContent(content);
+    if (!validated) {
+      event.preventDefault();
+      return setMessage("ยังบันทึกไม่ได้ กรุณาตรวจหัวข้อ สรุป SEO และเปิดใช้งาน Section ที่มีหัวข้ออย่างน้อยหนึ่งรายการ");
     }
     try {
-      if (payloadRef.current) payloadRef.current.value = JSON.stringify(content);
+      if (payloadRef.current) payloadRef.current.value = JSON.stringify(validated);
       // A request key the server uses to make a double submit idempotent.
       if (requestRef.current) requestRef.current.value = browserSecureId("post-save");
+      setBusy(true);
       setMessage("กำลังบันทึก Revision ใหม่…");
     } catch {
       event.preventDefault();
+      setBusy(false);
       setMessage("เบราว์เซอร์นี้สร้างรหัสคำขอที่ปลอดภัยไม่ได้ กรุณาใช้ Chrome, Edge หรือ Safari รุ่นใหม่");
     }
   }
@@ -56,24 +66,25 @@ export function PostEditor({
     }));
 
   return (
-    <form className="cms-editor" action={action} method="post" onSubmit={submit}>
+    <form className="cms-editor" action={action} method="post" onSubmit={submit} aria-busy={busy}>
       <input ref={payloadRef} type="hidden" name="contentJson" />
       <input ref={requestRef} type="hidden" name="requestKey" />
 
       {slugField && (
         <label className="field">
           <span>Slug (ใช้เป็น URL /news/&lt;slug&gt;/ และเปลี่ยนภายหลังไม่ได้)</span>
-          <input name="slug" required maxLength={80} pattern="[a-z0-9]+(-[a-z0-9]+)*" placeholder="new-route-bangkok" />
+          <input name="slug" required maxLength={80} pattern="[a-z0-9]+(-[a-z0-9]+)*" placeholder="new-route-bangkok" value={slug} disabled={busy} onChange={(event) => setSlug(event.target.value.trim().toLowerCase())} aria-describedby="post-slug-hint" />
+          <small id="post-slug-hint">Slug เป็น URL ถาวร ระบบตรวจชื่อซ้ำและชื่อสงวนก่อนสร้าง Draft และจะไม่เผยแพร่อัตโนมัติ</small>
         </label>
       )}
 
       <label className="field">
         <span>หัวข้อ (H1)</span>
-        <input value={content.title} maxLength={300} onChange={(event) => setContent({ ...content, title: event.target.value })} />
+        <input value={content.title} minLength={3} maxLength={300} required onChange={(event) => setContent({ ...content, title: event.target.value })} />
       </label>
       <label className="field">
         <span>สรุปย่อ (แสดงในหน้ารวมข่าว)</span>
-        <textarea value={content.excerpt} maxLength={500} rows={2} onChange={(event) => setContent({ ...content, excerpt: event.target.value })} />
+        <textarea value={content.excerpt} minLength={20} maxLength={500} required rows={2} onChange={(event) => setContent({ ...content, excerpt: event.target.value })} />
       </label>
 
       <fieldset className="field-group">
@@ -118,11 +129,11 @@ export function PostEditor({
         <legend>SEO</legend>
         <label className="field">
           <span>Title</span>
-          <input value={content.seo.title} maxLength={120} onChange={(event) => setContent({ ...content, seo: { ...content.seo, title: event.target.value } })} />
+          <input value={content.seo.title} minLength={5} maxLength={120} required onChange={(event) => setContent({ ...content, seo: { ...content.seo, title: event.target.value } })} />
         </label>
         <label className="field">
           <span>Description</span>
-          <textarea value={content.seo.description} maxLength={300} rows={2} onChange={(event) => setContent({ ...content, seo: { ...content.seo, description: event.target.value } })} />
+          <textarea value={content.seo.description} minLength={20} maxLength={300} required rows={2} onChange={(event) => setContent({ ...content, seo: { ...content.seo, description: event.target.value } })} />
         </label>
         <label className="field">
           <span>การจัดทำดัชนี</span>
@@ -146,7 +157,7 @@ export function PostEditor({
           </label>
           <label className="field">
             <span>หัวข้อ</span>
-            <input value={section.heading} maxLength={180} onChange={(event) => patch(index, { heading: event.target.value })} />
+          <input value={section.heading} maxLength={180} required onChange={(event) => patch(index, { heading: event.target.value })} />
           </label>
           <label className="field">
             <span>เนื้อหา</span>
@@ -181,6 +192,7 @@ export function PostEditor({
         <button
           type="button"
           className="button button-glass"
+          disabled={busy || content.sections.length >= 20}
           onClick={() =>
             setContent({
               ...content,
@@ -212,9 +224,9 @@ export function PostEditor({
           <span>หมายเหตุการแก้ไข</span>
           <input name="changeNote" maxLength={500} />
         </label>
-        <button type="submit" className="button button-gradient" disabled={disabled}>บันทึก Revision</button>
+        <button type="submit" className="button button-gradient" disabled={busy || disabled} aria-busy={busy}>{busy ? "กำลังบันทึก…" : "บันทึก Revision"}</button>
       </div>
-      {message && <p className="form-message">{message}</p>}
+      {message && <p className="form-message" role="status" aria-live="polite">{message}</p>}
     </form>
   );
 }

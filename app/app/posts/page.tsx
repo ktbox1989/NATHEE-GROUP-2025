@@ -45,7 +45,10 @@ export default async function PostsPage({ searchParams }: { searchParams: Promis
           <h1>ข่าวและบทความ</h1>
           <span>เผยแพร่ที่ {POSTS_INDEX_PATH} แก้ไขแบบ Revision และย้อนกลับได้เสมอ</span>
         </div>
-        <Link className="button button-glass" href="/app/website">ภาพรวมเว็บไซต์</Link>
+        <div className="app-page-actions">
+          {canWrite && <Link className="button button-gradient" href="#new-post">+ เพิ่มบทความ</Link>}
+          <Link className="button button-glass" href="/app/website">ภาพรวมเว็บไซต์</Link>
+        </div>
       </div>
 
       {error && <p className="form-error">{ERRORS[error] ?? "ดำเนินการไม่สำเร็จ"}</p>}
@@ -92,7 +95,7 @@ export default async function PostsPage({ searchParams }: { searchParams: Promis
       </section>
 
       {canWrite && (
-        <section className="app-panel">
+        <section className="app-panel" id="new-post">
           <h2>สร้างข่าวใหม่</h2>
           <p>Slug กำหนดเป็น URL ถาวรและเปลี่ยนภายหลังไม่ได้ เพราะจะทำให้ลิงก์เดิมเสีย</p>
           <PostEditor action="/api/posts" slugField initial={DEFAULT_POST_CONTENT} media={media} />

@@ -463,6 +463,10 @@ footer { border-top: 1px solid var(--border); background: #050611; color: var(--
 .gallery-item-form label { display: grid; gap: 4px; color: var(--muted); font-size: 10px; }
 .gallery-item-form label:nth-of-type(3) { grid-column: 1 / -1; }
 .gallery-admin-actions { display: flex; flex-wrap: wrap; gap: 7px; padding: 0 14px 14px; }
+.gallery-item-editor { border-top: 1px solid var(--border); }
+.gallery-item-editor summary { padding: 12px 14px; color: #fff; cursor: pointer; font-weight: 700; }
+.gallery-item-editor[open] summary { border-bottom: 1px solid var(--border); }
+.cms-pending-message { grid-column: 1 / -1; color: var(--muted); font-size: 12px; }
 .public-gallery-page { min-height: 100vh; background: var(--bg); color: var(--text); }
 .public-gallery-hero { padding: 72px 0 58px; border-bottom: 1px solid var(--border); background: radial-gradient(circle at 80% 10%, rgba(139,92,246,.2), transparent 38%), var(--bg-2); }
 .public-gallery-hero a { color: #c4b5fd; font-family: var(--font-mono); font-size: 11px; letter-spacing: .12em; }
@@ -810,6 +814,12 @@ footer { border-top: 1px solid var(--border); background: #050611; color: var(--
 .site-editor-save label { grid-column: 1; }
 .site-editor-save button { grid-column: 2; }
 .site-editor-save p { grid-column: 1 / -1; color: var(--muted); }
+.cms-service-items { display: grid; gap: 10px; min-width: 0; padding: 14px; border: 1px solid var(--border); border-radius: 12px; }
+.cms-service-items > p { color: var(--muted); font-size: 12px; }
+.cms-service-item { border: 1px solid var(--border); border-radius: 10px; background: rgba(255,255,255,.025); }
+.cms-service-item summary { padding: 12px 14px; color: #fff; cursor: pointer; font-weight: 700; }
+.cms-service-item[open] summary { border-bottom: 1px solid var(--border); }
+.cms-service-item .record-form { padding: 14px; }
 .cms-revision-list { display: grid; gap: 10px; }
 .cms-revision-list article { display: grid; grid-template-columns: .7fr 1.4fr 1.3fr; align-items: center; gap: 14px; padding: 17px; }
 .cms-revision-list article > div { display: flex; flex-wrap: wrap; gap: 7px; }

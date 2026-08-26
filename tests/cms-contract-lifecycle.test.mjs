@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { drizzle } from "drizzle-orm/d1";
 import {
+  auditLogs,
   sitePagePublicationEvents,
   sitePageRevisions,
   sitePages,
@@ -238,5 +239,93 @@ test("a page revision stored before the field existed is still served as indexab
   const live = await getPublishedSitePage("about", db);
   assert.equal(live.status, "PUBLISHED");
   assert.equal(live.content.seo.robots, "INDEX");
+  sqlite.close();
+});
+
+test("services add and edit are real append-only page revisions, never an implicit publish", async () => {
+  const { sqlite, db } = setup();
+  await db.insert(sitePages).values({
+    id: "page-services",
+    slug: "services",
+    displayName: "บริการ",
+    createdBy: "user-owner",
+  });
+
+  function servicesWith(items) {
+    const content = structuredClone(DEFAULT_SITE_CONTENT.services);
+    const section = content.sections.find((candidate) => candidate.id === "services-list");
+    assert.ok(section, "the canonical Services page lost its services-list section");
+    section.items = items;
+    const parsed = parseCmsPageContent(content);
+    assert.ok(parsed, "the Services editor produced content the server refuses");
+    return parsed;
+  }
+
+  async function save(key, content) {
+    const revisionId = `services-rev-${key}`;
+    await db.batch([
+      db.insert(sitePageRevisions).values({
+        id: revisionId,
+        requestKey: `services-save-${key}`,
+        pageId: "page-services",
+        contentJson: serializeCmsPageContent(content),
+        contentHash: HASH,
+        changeNote: `services ${key}`,
+        createdBy: "user-owner",
+        createdAt: at(),
+      }),
+      db.insert(auditLogs).values({
+        id: `services-audit-${key}`,
+        actorUserId: "user-owner",
+        action: "CREATE_REVISION",
+        entityType: "site_page",
+        entityId: "page-services",
+        afterJson: JSON.stringify({ revisionId, slug: "services" }),
+      }),
+    ]);
+    return revisionId;
+  }
+
+  const addedContent = servicesWith([
+    { title: "ขนส่งในประเทศ", body: "รับรถถึงปลายทางตามรอบงาน" },
+  ]);
+  const addedRevision = await save("add", addedContent);
+  assert.equal((await getPublishedSitePage("services", db)).status, "UNMANAGED", "saving a new service published it");
+
+  const storedAdd = parseCmsPageContent(JSON.parse(sqlite.prepare("SELECT content_json FROM site_page_revisions WHERE id = ?").get(addedRevision).content_json));
+  assert.equal(storedAdd.sections.find((section) => section.id === "services-list").items[0].title, "ขนส่งในประเทศ");
+
+  await db.insert(sitePagePublicationEvents).values({
+    id: "services-pub-add",
+    requestKey: "services-publish-add",
+    pageId: "page-services",
+    revisionId: addedRevision,
+    action: "PUBLISH",
+    createdBy: "user-owner",
+    createdAt: at(),
+  });
+
+  const editedContent = servicesWith([
+    { title: "ขนส่งในประเทศ", body: "รับรถถึงปลายทางพร้อมตรวจสถานะ" },
+    { title: "จัดเก็บรถ", body: "จัดลานและตำแหน่งรถตามงานจริง" },
+  ]);
+  const editedRevision = await save("edit", editedContent);
+  let live = await getPublishedSitePage("services", db);
+  assert.equal(live.content.sections.find((section) => section.id === "services-list").items.length, 1, "an edited draft changed the public page");
+
+  await db.insert(sitePagePublicationEvents).values({
+    id: "services-pub-edit",
+    requestKey: "services-publish-edit",
+    pageId: "page-services",
+    revisionId: editedRevision,
+    action: "PUBLISH",
+    createdBy: "user-owner",
+    createdAt: at(),
+  });
+  live = await getPublishedSitePage("services", db);
+  const liveServices = live.content.sections.find((section) => section.id === "services-list").items;
+  assert.deepEqual(liveServices.map((item) => item.title), ["ขนส่งในประเทศ", "จัดเก็บรถ"]);
+  assert.equal(sqlite.prepare("SELECT count(*) AS n FROM site_page_revisions WHERE page_id = 'page-services'").get().n, 2);
+  assert.equal(sqlite.prepare("SELECT count(*) AS n FROM audit_logs WHERE entity_id = 'page-services'").get().n, 2);
   sqlite.close();
 });
