@@ -45,13 +45,18 @@ cp -R "$SOURCE_ROOT/." "$RELEASE/"
 HTACCESS="$RELEASE/.htaccess"
 
 original_state="$(nathee_login_redirect_state "$SOURCE_ROOT/.htaccess")"
+case "$original_state" in
+  ACTIVE|INACTIVE) ;;
+  *) fail "the committed release has an invalid state: $original_state" ;;
+esac
+original_htaccess="$WORK_ROOT/original.htaccess"
+cp "$SOURCE_ROOT/.htaccess" "$original_htaccess"
 checks=0
 pass() { checks=$((checks + 1)); printf 'LOGIN_REDIRECT_CASE %s\n' "$1"; }
 
-# The committed release must never ship an active handoff by accident: it takes
-# the login entry point off the air the moment it is deployed.
-[[ "$original_state" == "INACTIVE" ]] || fail "the committed release must be INACTIVE, found $original_state"
-pass committed-release-inactive
+# Both states are releaseable, but only through the managed block. Deployment
+# decides which one it expects and requires live evidence for ACTIVE.
+pass committed-release-state-recognized
 
 # --- INACTIVE ---------------------------------------------------------------
 node "$TOGGLE" --state inactive --file "$HTACCESS" >/dev/null
@@ -60,6 +65,11 @@ if grep -Eq 'RewriteRule[^[:cntrl:]]*app\.natheegroup2025\.com' "$HTACCESS"; the
   fail "an inactive release must contain no redirect rule"
 fi
 bash "$VERIFIER" "$RELEASE" >/dev/null || fail "the inactive release must pass the deploy gate"
+NATHEE_HTACCESS="$HTACCESS" NATHEE_EXPECT_LOGIN_REDIRECT=INACTIVE \
+  bash "$STATE_VERIFIER" >/dev/null \
+  || fail "the portable state gate must accept the inactive release"
+inactive_copy="$WORK_ROOT/inactive.htaccess"
+cp "$HTACCESS" "$inactive_copy"
 pass inactive-serves-local-page
 
 # --- ACTIVE -----------------------------------------------------------------
@@ -84,7 +94,8 @@ pass active-rule-contract
 
 # Only the canonical apex redirects, so the rule cannot loop if the application
 # host is ever pointed at this same document root.
-grep -Eq 'RewriteCond %\{HTTP_HOST\} \^natheegroup2025' "$HTACCESS" || fail "the loop guard host condition is missing"
+grep -Fq 'RewriteCond %{HTTP_HOST} ^natheegroup2025\.com$ [NC]' "$HTACCESS" \
+  || fail "the exact loop guard host condition is missing or malformed"
 if grep -Eq 'RewriteRule[^[:cntrl:]]*https://natheegroup2025\.com/login' "$HTACCESS"; then
   fail "the target must not be the public host"
 fi
@@ -113,8 +124,8 @@ node "$TOGGLE" --state inactive --file "$HTACCESS" >/dev/null
 if grep -Eq 'RewriteRule[^[:cntrl:]]*app\.natheegroup2025\.com' "$HTACCESS"; then
   fail "rollback must remove the redirect rule"
 fi
-cmp -s "$SOURCE_ROOT/.htaccess" "$HTACCESS" || fail "rollback must restore the committed release byte-for-byte"
-pass rollback-restores-committed-release
+cmp -s "$inactive_copy" "$HTACCESS" || fail "rollback must restore the generated inactive release byte-for-byte"
+pass rollback-restores-inactive-release
 
 # --- Activation refuses without proof ---------------------------------------
 if node "$TOGGLE" --state active --file "$HTACCESS" >/dev/null 2>&1; then
@@ -143,5 +154,14 @@ grep -Fq 'LOGIN_REDIRECT_STATE' "$postcheck" || fail "the postcheck must report 
 grep -Fq 'must hand off with 302' "$postcheck" || fail "the postcheck must assert the 302 handoff"
 grep -Fq 'would loop' "$postcheck" || fail "the postcheck must reject a self-referential redirect"
 pass postcheck-follows-release-state
+
+# The generator must reproduce the exact committed release in either state.
+if [[ "$original_state" == "ACTIVE" ]]; then
+  node "$TOGGLE" --state active --evidence "$WORK_ROOT/evidence.txt" --file "$HTACCESS" >/dev/null
+else
+  node "$TOGGLE" --state inactive --file "$HTACCESS" >/dev/null
+fi
+cmp -s "$original_htaccess" "$HTACCESS" || fail "the managed generator does not reproduce the committed $original_state release"
+pass committed-release-reproducible
 
 printf 'LOGIN_REDIRECT_TEST_PASS cases=%s committedState=%s\n' "$checks" "$original_state"

@@ -66,9 +66,9 @@ grep -Eq '^[[:space:]]*RewriteRule \^assets/media/\(\.\*\)\$ https://app\.nathee
   || fail "the media rule is not the expected proxy"
 grep -Eq '^[[:space:]]*RewriteRule \^sitemap\\\.xml\$ https://app\.natheegroup2025\.com/sitemap\.xml \[P,QSA,L\]' "$copy" \
   || fail "the sitemap rule is not the expected proxy"
-# Scoped to rules that target the application: the release already contains a
-# legitimate www -> apex canonical 301 that has nothing to do with this mapping.
-if grep -E 'RewriteRule[^[:cntrl:]]*app\.natheegroup2025\.com' "$copy" | grep -Eq 'R=30[12]'; then
+# Scoped to proxy rules: the release also contains legitimate canonical and
+# Owner-login redirects that have nothing to do with the media/sitemap mapping.
+if grep -E 'RewriteRule[^[:cntrl:]]*app\.natheegroup2025\.com[^[:cntrl:]]*\[P[,\]]' "$copy" | grep -Eq 'R=30[12]'; then
   fail "the mapping hands off with a redirect; CORP: same-origin means the browser would block the image"
 fi
 case_pass "rules-are-proxies-with-query-preserved"

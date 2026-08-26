@@ -103,8 +103,8 @@ printf '%s\n' "$rule" | grep -Fq "$APP_LOGIN_URL" || fail "the rule does not tar
 printf '%s\n' "$rule" | grep -Eq 'https://' || fail "the redirect target must be HTTPS"
 printf '%s\n' "$rule" | grep -Eq '\^login/\?\$' || fail "the rule must match both /login and /login/"
 
-grep -Eq 'RewriteCond %\{HTTP_HOST\} \^natheegroup2025' "$HTACCESS" \
-  || fail "the apex host condition is missing; the rule could loop"
+grep -Fq 'RewriteCond %{HTTP_HOST} ^natheegroup2025\.com$ [NC]' "$HTACCESS" \
+  || fail "the exact apex host condition is missing or malformed; the rule could fail or loop"
 if grep -Eq 'RewriteRule[^[:cntrl:]]*https://natheegroup2025\.com/login' "$HTACCESS"; then
   fail "the redirect target points back at the public host and would loop"
 fi

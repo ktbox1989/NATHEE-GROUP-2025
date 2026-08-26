@@ -26,12 +26,21 @@ ErrorDocument 404 /404.html
 </IfModule>
 
 # BEGIN NATHEE LOGIN REDIRECT
-# NATHEE_LOGIN_REDIRECT_STATE=INACTIVE
+# NATHEE_LOGIN_REDIRECT_STATE=ACTIVE
 # NATHEE_LOGIN_REDIRECT_TARGET=https://app.natheegroup2025.com/login
 #
-# The public /login/ page is served from this site while the application
-# runtime is not accepted. Managed by scripts/set-login-redirect.mjs;
-# do not edit by hand.
+# Managed by scripts/set-login-redirect.mjs; do not edit by hand.
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # Only the canonical apex hands off. Without this the rule would loop if
+  # the application host were ever pointed at this same document root.
+  RewriteCond %{HTTP_HOST} ^natheegroup2025\.com$ [NC]
+  # 302, never 301. Activation must stay reversible: a permanent redirect
+  # is cached by browsers and cannot be withdrawn if the application is
+  # rolled back. QSA keeps returnTo and error; NE avoids double-encoding.
+  RewriteRule ^login/?$ https://app.natheegroup2025.com/login [R=302,L,QSA,NE]
+</IfModule>
 # END NATHEE LOGIN REDIRECT
 
 # BEGIN NATHEE PUBLIC APEX MAPPING

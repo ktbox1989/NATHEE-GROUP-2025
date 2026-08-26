@@ -90,7 +90,7 @@ function activeBlock() {
     "",
     "  # Only the canonical apex hands off. Without this the rule would loop if",
     `  # the application host were ever pointed at this same document root.`,
-    `  RewriteCond %{HTTP_HOST} ^${PUBLIC_HOST.replaceAll(".", "\\\\.")}$ [NC]`,
+    `  RewriteCond %{HTTP_HOST} ^${PUBLIC_HOST.replaceAll(".", "\\.")}$ [NC]`,
     "  # 302, never 301. Activation must stay reversible: a permanent redirect",
     "  # is cached by browsers and cannot be withdrawn if the application is",
     "  # rolled back. QSA keeps returnTo and error; NE avoids double-encoding.",
