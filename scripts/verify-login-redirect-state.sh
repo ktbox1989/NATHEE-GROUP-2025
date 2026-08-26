@@ -10,12 +10,12 @@ set -Eeuo pipefail
 # which state the release declares, and that the rewrite contract is intact.
 #
 # Default expectation is INACTIVE. The redirect stays off until Lane B reports
-# APP_RUNTIME_PASS, so a release that would switch it on is rejected here
+# APP_INTEGRATION_GATE_PASS, so a release that would switch it on is rejected here
 # rather than discovered by visitors.
 #
 # Usage:
 #   bash scripts/verify-login-redirect-state.sh
-#   NATHEE_EXPECT_LOGIN_REDIRECT=ACTIVE bash scripts/verify-login-redirect-state.sh --evidence app-runtime-pass.txt
+#   NATHEE_EXPECT_LOGIN_REDIRECT=ACTIVE bash scripts/verify-login-redirect-state.sh --evidence app-integration-gate.txt
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 REPO_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd -P)"
@@ -23,8 +23,10 @@ HTACCESS="${NATHEE_HTACCESS:-$REPO_ROOT/public-site/.htaccess}"
 EXPECTED="${NATHEE_EXPECT_LOGIN_REDIRECT:-INACTIVE}"
 EVIDENCE=""
 
-# The token Lane B must produce before the handoff may be expected live.
-REQUIRED_EVIDENCE_TOKEN="APP_RUNTIME_PASS"
+# The live, release-specific integration token required before the handoff may
+# be expected. Whole-platform health intentionally stays degraded in the
+# supported Owner-PIN-only mode, so APP_RUNTIME_PASS is the wrong contract here.
+REQUIRED_EVIDENCE_TOKEN="APP_INTEGRATION_GATE_PASS"
 APP_LOGIN_URL="https://app.natheegroup2025.com/login"
 
 # shellcheck source=scripts/lib/login-redirect.sh

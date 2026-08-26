@@ -76,6 +76,42 @@ expect_failures empty-body "health-response-empty"
 write_health '{"checks":{"authentication":"true","adminAuthentication":true,"canonicalOrigin":true,"database":true,"storage":true,"antiAbuse":true}}'
 expect_failures string-not-boolean "authentication-false"
 
+expect_owner_failures() {
+  local label="$1"
+  local expected="$2"
+  local actual=""
+  actual="$(nathee_owner_login_health_failures "$WORK_ROOT/health.json" | tr '\n' ' ' | sed 's/ *$//')"
+  [[ "$actual" == "$expected" ]] || fail "$label: expected Owner-login failures [$expected], got [$actual]"
+  cases_run=$((cases_run + 1))
+  printf 'OWNER_LOGIN_READINESS_CASE %s\n' "$label"
+}
+
+# Owner-PIN-only is a supported partial runtime: Supabase Admin and Turnstile
+# are unrelated to the Owner CMS path and may be false without weakening it.
+write_health '{"status":"degraded","checks":{"authentication":true,"adminAuthentication":false,"canonicalOrigin":true,"database":true,"storage":true,"antiAbuse":false},"auth":{"mode":"owner-pin","ownerPin":true,"supabase":false,"supabaseAdmin":false}}'
+expect_owner_failures owner-pin-with-optional-services-absent ""
+
+write_health '{"status":"degraded","checks":{"authentication":true,"adminAuthentication":false,"canonicalOrigin":true,"database":true,"storage":true,"antiAbuse":false},"auth":{"mode":"owner-pin+supabase","ownerPin":true,"supabase":true,"supabaseAdmin":false}}'
+expect_owner_failures owner-pin-plus-supabase-with-admin-absent ""
+
+write_health '{"checks":{"authentication":false,"canonicalOrigin":true,"database":true,"storage":true},"auth":{"mode":"none","ownerPin":false}}'
+expect_owner_failures owner-pin-unconfigured "authentication-false ownerPin-false ownerPinMode-wrong"
+
+write_health '{"checks":{"authentication":true,"canonicalOrigin":false,"database":true,"storage":true},"auth":{"mode":"owner-pin","ownerPin":true}}'
+expect_owner_failures canonical-origin-required "canonicalOrigin-false"
+
+write_health '{"checks":{"authentication":true,"canonicalOrigin":true,"database":false,"storage":true},"auth":{"mode":"owner-pin","ownerPin":true}}'
+expect_owner_failures database-required "database-false"
+
+write_health '{"checks":{"authentication":true,"canonicalOrigin":true,"database":true,"storage":false},"auth":{"mode":"owner-pin","ownerPin":true}}'
+expect_owner_failures storage-required "storage-false"
+
+write_health '{"checks":{"authentication":"true","canonicalOrigin":"true","database":"true","storage":"true"},"auth":{"mode":"owner-pin","ownerPin":"true"}}'
+expect_owner_failures truthy-strings-rejected "authentication-false canonicalOrigin-false database-false storage-false ownerPin-false"
+
+write_health '{"checks":{"authentication":true,"canonicalOrigin":true,"database":true,"storage":true}}'
+expect_owner_failures auth-detail-cannot-be-omitted "ownerPin-absent ownerPinMode-absent"
+
 expect_gate() {
   local status="$1"
   local expected_verdict="$2"
@@ -103,4 +139,4 @@ expect_gate 404 hidden ok
 expect_gate 500 unexpected-500 reject
 expect_gate 000 unexpected-000 reject
 
-printf 'APP_READINESS_TEST_PASS cases=%s healthChecks=6\n' "$cases_run"
+printf 'APP_READINESS_TEST_PASS cases=%s wholePlatformChecks=6 ownerLoginChecks=6\n' "$cases_run"

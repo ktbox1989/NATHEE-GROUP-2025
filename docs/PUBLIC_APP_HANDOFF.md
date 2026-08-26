@@ -84,18 +84,22 @@ bash scripts/verify-public-site.sh
 npm test
 
 # 4. On Z.com, pull and deploy. The state gate must be told to expect ACTIVE,
-#    and only Lane B's APP_RUNTIME_PASS evidence permits that.
+#    and the same live integration evidence permits that.
 NATHEE_EXPECT_LOGIN_REDIRECT=ACTIVE \
-  bash scripts/verify-login-redirect-state.sh --evidence app-runtime-pass.txt
+  bash scripts/verify-login-redirect-state.sh --evidence app-integration-gate.txt
 bash scripts/deploy-zcom.sh
 ```
 
 The integration gate fails closed unless **all** of the following hold:
 
-- `/api/health` returns 200 with all six checks true; an **absent** check fails
-  too, so an older runtime cannot pass by omission;
-- `https://app.natheegroup2025.com/login` returns 200 with a non-empty body;
-- `/auth/callback` exists (any status except 404 or 5xx);
+- `/api/health` explicitly reports Owner PIN authentication, canonical origin,
+  complete D1 and storage ready. A whole-platform `503 degraded` is accepted
+  only in that narrow case: Supabase Admin for staff/customer administration
+  and Turnstile for quotation submission are not Owner-login dependencies;
+- `https://app.natheegroup2025.com/login` returns 200, posts to the Owner PIN
+  endpoint, displays the fixed Owner account and has no editable email field;
+- `/app/website` and private media both refuse an anonymous request;
+- the anonymous public News API returns 200 with a non-empty response;
 - nothing probed returns 5xx or is unreachable;
 - the application is `noindex` and does not claim the public canonical URL;
 - the application host does not serve the public site byte-for-byte, which
@@ -180,10 +184,10 @@ deploying, so it expects 200 for an inactive release and a 302 to the declared
 target for an active one. This matters: a postcheck that always expected 200
 would fail a correct activation and roll it back.
 
-`audit-production-components.sh` reports
-`full-application=RUNTIME_HEALTHY_ANONYMOUS_GATED`, never `LIVE`, and prints
-`PRODUCTION_NOT_PROVEN` for real login, OWNER mapping, customer isolation and
-QR scanning.
+`audit-production-components.sh` still reports whole-platform health. It is not
+the release-specific Owner-login handoff gate and a supported Owner-PIN-only
+runtime may remain `503 degraded` there while the narrower integration gate
+passes. Authenticated acceptance remains separate evidence.
 
 ## What is proven today
 

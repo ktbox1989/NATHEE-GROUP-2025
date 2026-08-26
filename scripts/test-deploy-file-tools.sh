@@ -85,6 +85,7 @@ zcom_scripts=(
   "$SCRIPT_DIR/test-public-site-gate.sh"
   "$SCRIPT_DIR/test-production-postcheck-contract.sh"
   "$SCRIPT_DIR/test-app-readiness.sh"
+  "$SCRIPT_DIR/test-app-integration-gate.sh"
   "$SCRIPT_DIR/test-public-seo-gates.sh"
 )
 

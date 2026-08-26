@@ -68,18 +68,26 @@ reject_server_error() {
   esac
 }
 
-# 1. Application readiness. Every gate /api/health reports must be true; an
-#    absent gate fails closed too.
+# 1. Owner-login readiness. /api/health intentionally describes the whole
+#    platform and therefore returns 503 in the supported Owner-PIN-only mode
+#    while optional staff/customer Supabase Admin and quotation Turnstile are
+#    absent. The login handoff has a narrower contract: the health body must
+#    explicitly prove the configured Owner PIN (which includes the session
+#    signing secret), canonical origin, complete D1 schema and storage.
 health_status="$(probe_status "$APP_BASE_URL/api/health" "$TMP_DIR/health.json")"
-reject_server_error "/api/health" "$health_status"
-[[ "$health_status" == "200" ]] || fail "/api/health is not 200 (status=$health_status)"
+case "$health_status" in
+  200|503) ;;
+  000) fail "/api/health was unreachable" ;;
+  5??) fail "/api/health returned an unexpected server error (status=$health_status)" ;;
+  *) fail "/api/health returned an unexpected status (status=$health_status)" ;;
+esac
 
-health_failures="$(nathee_health_failures "$TMP_DIR/health.json")"
+health_failures="$(nathee_owner_login_health_failures "$TMP_DIR/health.json")"
 if [[ -n "$health_failures" ]]; then
   printf 'APP_INTEGRATION_HEALTH_FAILURE %s\n' $health_failures >&2
-  fail "application readiness is incomplete"
+  fail "Owner-login readiness is incomplete"
 fi
-printf 'APP_INTEGRATION_CHECK health=PASS checks=6\n'
+printf 'APP_INTEGRATION_CHECK ownerLoginHealth=PASS status=%s required=authentication,canonicalOrigin,database,storage,ownerPin\n' "$health_status"
 
 # 2. The application login page must actually answer. This is the page the
 #    public site is about to hand every visitor to.
@@ -90,16 +98,34 @@ case "$login_status" in
   *) fail "application /login is not 200 (status=$login_status)" ;;
 esac
 [[ -s "$TMP_DIR/login.html" ]] || fail "application /login returned an empty body"
-printf 'APP_INTEGRATION_CHECK login=PASS status=200\n'
+grep -Fq 'action="/api/auth/owner-pin/login"' "$TMP_DIR/login.html" \
+  || fail "application /login does not post to the Owner PIN endpoint"
+grep -Fq 'kaikt143@gmail.com' "$TMP_DIR/login.html" \
+  || fail "application /login does not display the fixed Owner account"
+if grep -Eiq '<input[^>]+name="email"' "$TMP_DIR/login.html"; then
+  fail "application /login exposes an editable email field"
+fi
+printf 'APP_INTEGRATION_CHECK login=PASS status=200 mode=owner-pin fixedOwner=yes editableEmail=no\n'
 
-# 3. The authentication callback must exist. A missing callback breaks sign-in
-#    only after a visitor has already left the public site.
-callback_status="$(probe_status "$APP_BASE_URL/auth/callback" "$TMP_DIR/callback.html")"
-reject_server_error "/auth/callback" "$callback_status"
-case "$callback_status" in
-  404) fail "/auth/callback does not exist on the application host" ;;
-esac
-printf 'APP_INTEGRATION_CHECK authCallback=PRESENT status=%s\n' "$callback_status"
+# 3. The protected Owner workspace and one private-media route must refuse an
+#    anonymous caller. This is independent of whether the login page renders:
+#    a public CMS or media route is a breach, not readiness.
+owner_workspace_status="$(probe_status "$APP_BASE_URL/app/website" "$TMP_DIR/owner-workspace.html")"
+nathee_anonymous_gate_ok "$owner_workspace_status" \
+  || fail "/app/website is reachable without authentication (status=$owner_workspace_status)"
+private_media_status="$(probe_status "$APP_BASE_URL/api/images/00000000-0000-4000-8000-000000000000" "$TMP_DIR/private-media.bin")"
+nathee_anonymous_gate_ok "$private_media_status" \
+  || fail "private media is reachable without authentication (status=$private_media_status)"
+printf 'APP_INTEGRATION_CHECK anonymousProtection=PASS workspace=%s privateMedia=%s\n' \
+  "$owner_workspace_status" "$private_media_status"
+
+# Public News is part of the public handoff already in Production. Repointing
+# /login must not be authorised by a runtime whose public read contract is down.
+public_news_status="$(probe_status "$APP_BASE_URL/api/public/v1/news" "$TMP_DIR/public-news.json")"
+reject_server_error "public News API" "$public_news_status"
+[[ "$public_news_status" == "200" ]] || fail "public News API is not 200 (status=$public_news_status)"
+[[ -s "$TMP_DIR/public-news.json" ]] || fail "public News API returned an empty body"
+printf 'APP_INTEGRATION_CHECK publicNewsApi=PASS status=200\n'
 
 # 4. Loop guard. If the application host resolves to this same static document
 #    root, the redirect would send visitors straight back to itself. Comparing
@@ -148,6 +174,6 @@ bash "$SCRIPT_DIR/verify-public-site.sh" "$REPO_ROOT/public-site" >/dev/null \
   || fail "the public release no longer passes its own verification"
 printf 'APP_INTEGRATION_CHECK publicRelease=PASS\n'
 
-printf 'APP_INTEGRATION_GATE_PASS app=%s login=200 authCallback=%s health=6 publicRoutes=8 loop=none\n' \
-  "$APP_BASE_URL" "$callback_status"
+printf 'APP_INTEGRATION_GATE_PASS app=%s login=owner-pin health=%s ownerPin=yes database=yes storage=yes anonymousProtection=yes publicNews=200 publicRoutes=8 loop=none\n' \
+  "$APP_BASE_URL" "$health_status"
 printf 'Activation is still a separate deliberate step; this gate changed nothing.\n'

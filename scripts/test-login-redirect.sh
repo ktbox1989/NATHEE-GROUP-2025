@@ -12,6 +12,7 @@ REPO_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd -P)"
 SOURCE_ROOT="$REPO_ROOT/public-site"
 TOGGLE="$SCRIPT_DIR/set-login-redirect.mjs"
 VERIFIER="$SCRIPT_DIR/verify-public-site.sh"
+STATE_VERIFIER="$SCRIPT_DIR/verify-login-redirect-state.sh"
 
 # shellcheck source=scripts/lib/login-redirect.sh
 source "$SCRIPT_DIR/lib/login-redirect.sh"
@@ -95,6 +96,9 @@ grep -Fq '<meta name="robots" content="noindex,nofollow,noarchive">' "$RELEASE/l
   || fail "the login page must stay noindex"
 grep -Fq 'Disallow: /login/' "$RELEASE/robots.txt" || fail "robots must still exclude /login/"
 bash "$VERIFIER" "$RELEASE" >/dev/null || fail "the active release must also pass the deploy gate"
+NATHEE_HTACCESS="$HTACCESS" NATHEE_EXPECT_LOGIN_REDIRECT=ACTIVE \
+  bash "$STATE_VERIFIER" --evidence "$WORK_ROOT/evidence.txt" >/dev/null \
+  || fail "the portable state gate must accept the live integration token"
 pass active-release-still-deployable
 
 # --- Idempotency and rollback ----------------------------------------------
@@ -123,11 +127,13 @@ fi
 [[ "$(nathee_login_redirect_state "$HTACCESS")" == "INACTIVE" ]] || fail "a refused activation must not change state"
 pass activation-requires-gate-evidence
 
-# The gate itself must fail closed while the application host does not exist.
-if bash "$SCRIPT_DIR/verify-app-integration.sh" >/dev/null 2>&1; then
-  fail "the integration gate must not pass while the application host is absent"
-fi
-pass integration-gate-fails-closed
+# The integration gate itself is exercised deterministically by
+# test-app-integration-gate.sh. A live-host expectation here used to pass only
+# because the hostname was absent, and became a false regression once the real
+# runtime existed.
+[[ -f "$SCRIPT_DIR/test-app-integration-gate.sh" ]] \
+  || fail "the deterministic integration-gate regression suite is missing"
+pass integration-gate-has-deterministic-regression
 
 # --- The postcheck must follow the release ----------------------------------
 # A postcheck that always expects 200 would roll back a correct activation.

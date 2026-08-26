@@ -91,11 +91,16 @@ rejected on the deploying host. Expecting `ACTIVE` requires evidence:
 
 ```bash
 NATHEE_EXPECT_LOGIN_REDIRECT=ACTIVE \
-  bash scripts/verify-login-redirect-state.sh --evidence app-runtime-pass.txt
+  bash scripts/verify-login-redirect-state.sh --evidence app-integration-gate.txt
 ```
 
-The evidence file must contain `APP_RUNTIME_PASS` from Lane B. When the state
-is `ACTIVE` the gate also re-checks the rewrite contract with portable tools:
+The evidence file must contain `APP_INTEGRATION_GATE_PASS` from the live,
+read-only `verify-app-integration.sh` run. This is deliberately narrower than
+whole-platform `/api/health`: Owner-PIN-only mode does not require Supabase
+Admin or quotation Turnstile, but it still requires the Owner PIN/session
+configuration, canonical origin, D1, storage, the exact Owner login form,
+anonymous protection and the public News API. When the state is `ACTIVE` the
+gate also re-checks the rewrite contract with portable tools:
 302 and never 301, `QSA`, an HTTPS target, the apex host condition that
 prevents a loop, and the local login page still shipped for rollback.
 
