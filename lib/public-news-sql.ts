@@ -68,6 +68,52 @@ export const PUBLISHED_POSTS_INDEX_SQL = `
   LIMIT ? OFFSET ?
 `;
 
+/**
+ * The same published selection for an opaque keyset cursor.
+ *
+ * The cursor carries the last row's first-publication timestamp and slug. A
+ * timestamp can tie because publication events have one-second resolution, so
+ * the slug is part of both the ORDER BY and the continuation predicate. The
+ * query deliberately asks for a caller-supplied bound; the API requests one
+ * extra row to decide whether a continuation exists.
+ */
+export const PUBLISHED_POSTS_CURSOR_SQL = `
+  SELECT
+    p.slug              AS slug,
+    r.id                AS revision_id,
+    r.content_json      AS content_json,
+    pub.first_published AS first_published,
+    pub.last_published  AS last_published,
+    pub.publish_count   AS publish_count
+  FROM posts p
+  JOIN (
+    SELECT post_id,
+           MIN(created_at) AS first_published,
+           MAX(created_at) AS last_published,
+           COUNT(*)        AS publish_count
+    FROM post_publication_events
+    WHERE action = 'PUBLISH'
+    GROUP BY post_id
+  ) pub ON pub.post_id = p.id
+  JOIN post_publication_events latest
+    ON latest.id = (
+      SELECT id FROM post_publication_events
+      WHERE post_id = p.id
+      ORDER BY created_at DESC, rowid DESC
+      LIMIT 1
+    )
+  JOIN post_revisions r
+    ON r.id = latest.revision_id AND r.post_id = p.id
+  WHERE latest.action = 'PUBLISH'
+    AND (
+      ? IS NULL
+      OR pub.first_published < ?
+      OR (pub.first_published = ? AND p.slug > ?)
+    )
+  ORDER BY pub.first_published DESC, p.slug ASC
+  LIMIT ?
+`;
+
 /** How many posts the index has, for pagination that cannot overshoot. */
 export const PUBLISHED_POSTS_COUNT_SQL = `
   SELECT COUNT(*) AS total
@@ -84,4 +130,17 @@ export const PUBLISHED_POSTS_COUNT_SQL = `
 
 export function publishedPostsIndexParams(limit: number, offset: number): [number, number] {
   return [limit, offset];
+}
+
+export function publishedPostsCursorParams(
+  limit: number,
+  after: { publishedAt: string; slug: string } | null,
+): [string | null, string | null, string | null, string | null, number] {
+  return [
+    after?.publishedAt ?? null,
+    after?.publishedAt ?? null,
+    after?.publishedAt ?? null,
+    after?.slug ?? null,
+    limit,
+  ];
 }

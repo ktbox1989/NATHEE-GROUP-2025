@@ -100,6 +100,16 @@ const PUBLIC_SURFACES = [
       "Public quotation intake. Guarded by same-origin, Turnstile, bounded multipart and append-only storage.",
   },
   {
+    path: "app/api/public/v1/news/route.ts",
+    reason:
+      "Anonymous read-only News index. The shared selection requires the latest publication event to be PUBLISH, the response passes through the public CMS and media validators, and the route exports only GET and HEAD.",
+  },
+  {
+    path: "app/api/public/v1/news/[slug]/route.ts",
+    reason:
+      "Anonymous read-only News detail. Strict slugs resolve through getPublishedPost and the validated public CMS/media mapper; unpublished content is represented only as 404.",
+  },
+  {
     path: "app/assets/media/[itemId]/[variant]/route.ts",
     reason:
       "Public CMS media delivery. A visitor cannot sign in for a marketing photograph; what stands in place of a session is that only PUBLISHED and PUBLIC gallery rows match the query, the served identity is one the delivery contract can produce, and the untouched original has no public role. Asserted in scripts/test-private-media-contract.mjs.",

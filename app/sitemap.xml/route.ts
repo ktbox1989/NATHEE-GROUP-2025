@@ -1,7 +1,6 @@
 import { getD1 } from "@/db";
 import { parsePostContentJson } from "@/lib/post-cms-content";
-import type { NewsIndexRow } from "@/lib/public-news-content";
-import { PUBLISHED_POSTS_INDEX_SQL, publishedPostsIndexParams } from "@/lib/public-news-sql";
+import { loadPublishedNewsSelection } from "@/lib/public-news-selection";
 import {
   buildSitemapPaths,
   renderSitemapXml,
@@ -49,13 +48,10 @@ async function readPages(): Promise<SitemapPage[]> {
 }
 
 async function readPosts(): Promise<SitemapPost[]> {
-  const { results } = await getD1()
-    .prepare(PUBLISHED_POSTS_INDEX_SQL)
-    .bind(...publishedPostsIndexParams(MAX_SITEMAP_POSTS, 0))
-    .all<NewsIndexRow>();
+  const { rows } = await loadPublishedNewsSelection(getD1(), { limit: MAX_SITEMAP_POSTS });
 
   const posts: SitemapPost[] = [];
-  for (const row of results ?? []) {
+  for (const row of rows) {
     if (typeof row.slug !== "string" || typeof row.content_json !== "string") continue;
     const content = parsePostContentJson(row.content_json);
     // A revision that no longer parses is not listed. It is also not rendered,

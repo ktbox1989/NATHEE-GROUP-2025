@@ -85,12 +85,12 @@ require(
 // Both the listing and the count must agree on it. A count that still
 // includes hidden posts paginates readers into empty pages.
 require(
-  sql.split("WHERE latest.action = 'PUBLISH'").length - 1 === 2,
-  `${SQL}: the index and its count must both require the most recent event to be a PUBLISH, so a hidden post disappears`,
+  sql.split("WHERE latest.action = 'PUBLISH'").length - 1 === 3,
+  `${SQL}: the offset index, cursor index and count must require the most recent event to be a PUBLISH, so a hidden post disappears`,
 );
 require(
-  sql.includes("MIN(created_at) AS first_published"),
-  `${SQL}: publishedAt must be the first publication, so a correction does not re-date the article`,
+  sql.split("MIN(created_at) AS first_published").length - 1 === 2,
+  `${SQL}: offset and cursor selection must use the first publication, so a correction does not re-date the article`,
 );
 require(
   reader.includes("getPublishedPost("),

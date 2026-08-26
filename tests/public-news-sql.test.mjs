@@ -3,7 +3,12 @@ import { readdirSync, readFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { PUBLISHED_POSTS_COUNT_SQL, PUBLISHED_POSTS_INDEX_SQL } from "../lib/public-news-sql.ts";
+import {
+  PUBLISHED_POSTS_COUNT_SQL,
+  PUBLISHED_POSTS_CURSOR_SQL,
+  PUBLISHED_POSTS_INDEX_SQL,
+  publishedPostsCursorParams,
+} from "../lib/public-news-sql.ts";
 
 // The /news/ index decides what an anonymous reader sees. Every rule below is
 // one where getting it wrong publishes something that was never published, or
@@ -55,6 +60,8 @@ function hide(db, id, postId, at) {
 
 const index = (db, limit = 12, offset = 0) => db.prepare(PUBLISHED_POSTS_INDEX_SQL).all(limit, offset);
 const total = (db) => db.prepare(PUBLISHED_POSTS_COUNT_SQL).get().total;
+const cursorPage = (db, limit, after = null) =>
+  db.prepare(PUBLISHED_POSTS_CURSOR_SQL).all(...publishedPostsCursorParams(limit, after));
 
 test("a post that was never published has no representation in the index", () => {
   const db = createDatabase();
@@ -171,6 +178,36 @@ test("posts published in the same second are ordered by slug, not by insertion",
   // requests, which paginates one post twice and hides another. The rule is the
   // one comparePostsForList already uses for the static release.
   assert.deepEqual(index(db).map((row) => row.slug), ["alpha-post", "bravo-post", "charlie-post"]);
+});
+
+test("keyset pagination is stable across same-second publication ties", () => {
+  const db = createDatabase();
+  for (const [slug, at] of [
+    ["newest", "2026-08-03 09:00:00"],
+    ["alpha", "2026-08-02 09:00:00"],
+    ["bravo", "2026-08-02 09:00:00"],
+    ["charlie", "2026-08-02 09:00:00"],
+    ["oldest", "2026-08-01 09:00:00"],
+  ]) {
+    addPost(db, slug, slug);
+    addRevision(db, `rev-${slug}`, slug, slug);
+    publish(db, `evt-${slug}`, slug, `rev-${slug}`, at);
+  }
+  const first = cursorPage(db, 2);
+  const second = cursorPage(db, 2, { publishedAt: first.at(-1).first_published, slug: first.at(-1).slug });
+  const third = cursorPage(db, 2, { publishedAt: second.at(-1).first_published, slug: second.at(-1).slug });
+  assert.deepEqual([...first, ...second, ...third].map((row) => row.slug), ["newest", "alpha", "bravo", "charlie", "oldest"]);
+});
+
+test("cursor selection excludes drafts and a post whose latest event is HIDE", () => {
+  const db = createDatabase();
+  addPost(db, "draft", "draft-only");
+  addRevision(db, "rev-draft", "draft", "Draft");
+  addPost(db, "hidden", "hidden-post");
+  addRevision(db, "rev-hidden", "hidden", "Hidden");
+  publish(db, "evt-publish", "hidden", "rev-hidden", "2026-08-01 09:00:00");
+  hide(db, "evt-hide", "hidden", "2026-08-02 09:00:00");
+  assert.deepEqual(cursorPage(db, 10), []);
 });
 
 test("a publish and a revert inside the same second resolve to the revert", () => {
