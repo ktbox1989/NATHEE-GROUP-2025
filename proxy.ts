@@ -1,7 +1,10 @@
-import type { NextRequest } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
+import { canonicalPublicRedirectUrl } from "@/lib/canonical-public-redirect";
 import { updateSession } from "@/lib/supabase/proxy";
 
 export async function proxy(request: NextRequest) {
+  const canonicalDestination = canonicalPublicRedirectUrl(request.nextUrl);
+  if (canonicalDestination) return NextResponse.redirect(canonicalDestination, 308);
   return updateSession(request);
 }
 
@@ -23,6 +26,22 @@ export async function proxy(request: NextRequest) {
  */
 export const config = {
   matcher: [
+    // Duplicate public presentation exists here only as a CMS-backed source.
+    // On the Production application hostname it permanently hands off to the
+    // canonical apex; on local and preview hosts the pages remain testable.
+    "/",
+    "/services/:path*",
+    "/motorcycle-transport/:path*",
+    "/international/:path*",
+    "/storage/:path*",
+    "/container-loading/:path*",
+    "/dealer-fleet/:path*",
+    "/gallery/:path*",
+    "/about/:path*",
+    "/contact/:path*",
+    "/quotation/:path*",
+    "/news/:path*",
+    "/sitemap.xml",
     "/app/:path*",
     "/portal/:path*",
     "/auth/:path*",

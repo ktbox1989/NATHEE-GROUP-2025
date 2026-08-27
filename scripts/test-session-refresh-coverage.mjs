@@ -1,6 +1,7 @@
 import { readFile, readdir } from "node:fs/promises";
 import { dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { CANONICAL_PUBLIC_REDIRECT_MATCHERS } from "../lib/canonical-public-redirect.ts";
 
 // A Server Component cannot write cookies. When one refreshes an expired access
 // token, the rotated refresh token is computed and then thrown away, and the
@@ -61,13 +62,14 @@ function matcherPredicate(pattern) {
     const prefix = wildcard[1];
     return (path) => path === prefix || path.startsWith(`${prefix}/`);
   }
-  if (/^\/[A-Za-z0-9\-_/[\]]*$/.test(pattern)) {
+  if (/^\/[A-Za-z0-9.\-_/[\]]*$/.test(pattern)) {
     return (path) => path === pattern;
   }
   return null;
 }
 
 const proxySource = await read("proxy.ts");
+const redirectOnlyMatchers = new Set(CANONICAL_PUBLIC_REDIRECT_MATCHERS);
 
 // The proxy must actually perform the refresh it exists for.
 const proxyLib = await read("lib/supabase/proxy.ts");
@@ -82,6 +84,14 @@ require(
 require(
   proxySource.includes("updateSession(request)"),
   "proxy.ts: the proxy must delegate to updateSession",
+);
+require(
+  proxySource.includes("canonicalPublicRedirectUrl(request.nextUrl)"),
+  "proxy.ts: canonical public matchers must delegate to the closed redirect resolver",
+);
+require(
+  proxySource.includes("NextResponse.redirect(canonicalDestination, 308)"),
+  "proxy.ts: canonical public handoff must be a permanent 308 redirect",
 );
 
 // A Server Component client must not pretend it can persist a refresh.
@@ -121,12 +131,16 @@ for (const file of surfaces) {
 }
 require(readers.length > 0, "no session readers were found; the scan is misconfigured");
 
-// A matcher entry that covers nothing is either a typo or a leftover.
+// A matcher entry that covers neither a session reader nor one of the closed
+// canonical-public redirect routes is either a typo or a leftover.
 for (const { pattern, predicate } of predicates) {
   require(
-    readers.some((routePath) => predicate(routePath)),
-    `proxy.ts: matcher entry '${pattern}' covers no session reader`,
+    readers.some((routePath) => predicate(routePath)) || redirectOnlyMatchers.has(pattern),
+    `proxy.ts: matcher entry '${pattern}' covers neither a session reader nor a canonical public redirect`,
   );
+}
+for (const pattern of redirectOnlyMatchers) {
+  require(patterns.includes(pattern), `proxy.ts: canonical public redirect matcher '${pattern}' is not wired`);
 }
 
 if (failures.length > 0) {
@@ -135,5 +149,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  `SESSION_REFRESH_COVERAGE_PASS sessionReaders=${readers.length} covered=${covered} matcherEntries=${patterns.length}`,
+  `SESSION_REFRESH_COVERAGE_PASS sessionReaders=${readers.length} covered=${covered} matcherEntries=${patterns.length} canonicalRedirectMatchers=${redirectOnlyMatchers.size}`,
 );
