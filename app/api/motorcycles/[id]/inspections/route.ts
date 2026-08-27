@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { NextResponse, type NextRequest } from "next/server";
 import { getDb } from "@/db";
 import {
@@ -25,6 +25,7 @@ import {
   parseOdometerKm,
 } from "@/lib/inspections";
 import { getCurrentActor } from "@/lib/current-actor";
+import { parseReceiptEvidence, receiptEvidenceMatches } from "@/lib/intake-inspection";
 import { isSameOrigin } from "@/lib/same-origin";
 import { bangkokInputToUtc, isTripRequestKey } from "@/lib/trips";
 
@@ -57,6 +58,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   const description = normalizeInspectionText(String(form.get("findingDescription") ?? ""), { min: 3, max: 1000 });
   const rawSeverity = String(form.get("findingSeverity") ?? "");
   const evidenceImageId = String(form.get("evidenceImageId") ?? "").trim() || null;
+  const receiptEvidence = rawType === "RECEIPT" ? parseReceiptEvidence(form) : null;
   const hasFindingInput = Boolean(area || description || rawSeverity || evidenceImageId);
 
   if (
@@ -73,6 +75,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     || (result !== "PASS" && (!notes || notes.length < 3))
     || (result === "PASS" && hasFindingInput)
     || (hasFindingInput && (!area || !description || !DAMAGE_SEVERITIES.includes(rawSeverity as DamageSeverity)))
+    || (type === "RECEIPT" && !receiptEvidence)
   ) {
     return redirect(request, motorcycleId, "error", "invalid_inspection");
   }
@@ -96,6 +99,18 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     }
   }
 
+  if (type === "RECEIPT" && receiptEvidence) {
+    const imageIds = Object.values(receiptEvidence);
+    const metadata = await db
+      .select({ id: motorcycleImages.id, motorcycleId: motorcycleImages.motorcycleId, companyId: motorcycleImages.companyId, category: motorcycleImages.category })
+      .from(motorcycleImages)
+      .where(inArray(motorcycleImages.id, imageIds))
+      .all();
+    if (!receiptEvidenceMatches(receiptEvidence, metadata, motorcycleId, motorcycle.companyId)) {
+      return redirect(request, motorcycleId, "error", "invalid_receipt_evidence");
+    }
+  }
+
   const inspectionId = crypto.randomUUID();
   const findingId = hasFindingInput ? crypto.randomUUID() : null;
   const inspectionInsert = db.insert(motorcycleInspections).values({
@@ -108,6 +123,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     odometerKm,
     fuelLevel,
     notes,
+    leftImageId: receiptEvidence?.leftImageId ?? null,
+    rightImageId: receiptEvidence?.rightImageId ?? null,
+    frontImageId: receiptEvidence?.frontImageId ?? null,
+    rearImageId: receiptEvidence?.rearImageId ?? null,
     inspectedBy: actor.userId,
     inspectedAt,
   });
@@ -117,7 +136,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     entityType: "motorcycle_inspection",
     entityId: inspectionId,
     companyId: motorcycle.companyId,
-    after: { motorcycleId, type, result, findingCount: findingId ? 1 : 0, hasEvidence: Boolean(evidenceImageId) },
+    after: { motorcycleId, type, result, findingCount: findingId ? 1 : 0, hasEvidence: Boolean(evidenceImageId), receiptEvidence: receiptEvidence ? Object.values(receiptEvidence) : [] },
   }));
 
   try {

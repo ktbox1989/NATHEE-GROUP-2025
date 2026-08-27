@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  parseReceiptEvidence,
+  receiptEvidenceMatches,
+  receiptInspectionHasFourAngles,
+} from "../lib/intake-inspection.ts";
+import {
   canCreateProofOfDelivery,
   inspectionTypeAllowedForStatus,
   isReasonableRecordedTime,
@@ -35,4 +40,31 @@ test("proof of delivery is created only after arrival and phone output is masked
   assert.equal(maskPhone(null), "ไม่ระบุ");
   assert.equal(isReasonableRecordedTime("2026-08-21T05:00:00.000Z", Date.parse("2026-08-21T05:10:00.000Z")), true);
   assert.equal(isReasonableRecordedTime("2026-08-21T05:30:01.000Z", Date.parse("2026-08-21T05:10:00.000Z")), false);
+});
+
+test("receipt evidence requires four distinct, correctly categorised images from the same motorcycle", () => {
+  const form = new FormData();
+  form.set("leftImageId", "left");
+  form.set("rightImageId", "right");
+  form.set("frontImageId", "front");
+  form.set("rearImageId", "rear");
+  const evidence = parseReceiptEvidence(form);
+  assert.ok(evidence);
+  const metadata = [
+    { id: "left", motorcycleId: "mc-a", companyId: "company-a", category: "LEFT" as const },
+    { id: "right", motorcycleId: "mc-a", companyId: "company-a", category: "RIGHT" as const },
+    { id: "front", motorcycleId: "mc-a", companyId: "company-a", category: "FRONT" as const },
+    { id: "rear", motorcycleId: "mc-a", companyId: "company-a", category: "REAR" as const },
+  ];
+  assert.equal(receiptEvidenceMatches(evidence, metadata, "mc-a", "company-a"), true);
+  assert.equal(receiptEvidenceMatches(evidence, metadata, "mc-b", "company-a"), false);
+  assert.equal(receiptEvidenceMatches({ ...evidence, leftImageId: "front" }, metadata, "mc-a", "company-a"), false);
+});
+
+test("receipt completion is false until every canonical angle is linked", () => {
+  assert.equal(receiptInspectionHasFourAngles({ leftImageId: "left", rightImageId: "right", frontImageId: "front", rearImageId: "rear" }), true);
+  assert.equal(receiptInspectionHasFourAngles({ leftImageId: "left", rightImageId: "right", frontImageId: null, rearImageId: "rear" }), false);
+  const missing = new FormData();
+  missing.set("leftImageId", "left");
+  assert.equal(parseReceiptEvidence(missing), null);
 });

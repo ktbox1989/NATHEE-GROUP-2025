@@ -1,7 +1,7 @@
-import { eq } from "drizzle-orm";
+import { and, eq, isNotNull } from "drizzle-orm";
 import { NextResponse, type NextRequest } from "next/server";
 import { getD1, getDb } from "@/db";
-import { MOTORCYCLE_STATUSES, motorcycles } from "@/db/schema";
+import { MOTORCYCLE_STATUSES, motorcycleInspections, motorcycles } from "@/db/schema";
 import type { MotorcycleStatus } from "@/db/schema";
 import { can } from "@/lib/authorization";
 import { getCurrentActor } from "@/lib/current-actor";
@@ -29,7 +29,23 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   const newStatus = rawStatus as MotorcycleStatus;
   const note = String(form.get("note") ?? "").trim().slice(0, 1000) || null;
   const requiresReason = ["ISSUE", "DAMAGED", "CANCELLED"].includes(newStatus);
-  if (!canTransition(motorcycle.currentStatus, newStatus) || (requiresReason && !note)) {
+  const requiresReceiptEvidence = newStatus === "RECEIVED" || newStatus === "INSPECTED";
+  const receiptEvidence = requiresReceiptEvidence
+    ? await db
+        .select({ id: motorcycleInspections.id })
+        .from(motorcycleInspections)
+        .where(and(
+          eq(motorcycleInspections.motorcycleId, id),
+          eq(motorcycleInspections.type, "RECEIPT"),
+          eq(motorcycleInspections.result, "PASS"),
+          isNotNull(motorcycleInspections.leftImageId),
+          isNotNull(motorcycleInspections.rightImageId),
+          isNotNull(motorcycleInspections.frontImageId),
+          isNotNull(motorcycleInspections.rearImageId),
+        ))
+        .get()
+    : null;
+  if (!canTransition(motorcycle.currentStatus, newStatus) || (requiresReason && !note) || (requiresReceiptEvidence && !receiptEvidence)) {
     return NextResponse.redirect(new URL(`/app/motorcycles/${id}?error=transition`, request.url), 303);
   }
 

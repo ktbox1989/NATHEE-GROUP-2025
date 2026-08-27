@@ -53,13 +53,14 @@ function rename(db, postId, from, to, key) {
   );
 }
 
-test("the sequence is gapless and 0030 is the only addition after 0029", () => {
-  assert.equal(ALL.at(-1), NEW_MIGRATION);
-  assert.equal(ALL.at(-2), "0029_yard_rows_and_slots.sql");
+test("the sequence is gapless and 0030 remains immediately after 0029", () => {
+  assert.equal(ALL[29], "0029_yard_rows_and_slots.sql");
+  assert.equal(ALL[30], NEW_MIGRATION);
+  assert.equal(ALL[31], "0031_intake_inspection_evidence.sql");
   ALL.forEach((name, index) => assert.equal(name.slice(0, 4), String(index).padStart(4, "0")));
 });
 
-test("a virgin database migrates 0000 to 0030 and gains exactly the slug history objects", () => {
+test("a virgin database migrates through the current chain and gains exactly the slug history objects", () => {
   const db = migrated();
   const objects = db
     .prepare("SELECT type, name FROM sqlite_master WHERE name LIKE '%post_slug_history%' ORDER BY name")
@@ -87,7 +88,7 @@ test("a virgin database migrates 0000 to 0030 and gains exactly the slug history
 
 // The upgrade a Production database will actually perform.
 test("a database that stopped at 0029 upgrades without disturbing what is already stored", () => {
-  const db = migrated(ALL.filter((name) => name !== NEW_MIGRATION));
+  const db = migrated(ALL.filter((name) => name < NEW_MIGRATION));
   seedPost(db);
   db.exec(
     `INSERT INTO post_revisions (id, request_key, post_id, content_json, content_hash, created_by)

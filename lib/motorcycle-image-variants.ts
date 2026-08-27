@@ -7,6 +7,10 @@ export const MOTORCYCLE_IMAGE_VARIANT_TYPES = new Set(["image/webp", "image/avif
 
 export type MotorcycleImageRequestedRole = MotorcycleImageVariantRole | "ORIGINAL";
 
+export function selectedMotorcycleImageCategory(form: Pick<FormData, "get">): string {
+  return String(form.get("category") ?? "OTHER").toUpperCase();
+}
+
 export function isMotorcycleImageRequestKey(value: string): boolean {
   return /^motorcycle-image-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }

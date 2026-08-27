@@ -2,6 +2,7 @@
 
 import { useRef, useState, type FormEvent } from "react";
 import { browserSecureId } from "@/lib/browser-secure-id";
+import { selectedMotorcycleImageCategory } from "@/lib/motorcycle-image-variants";
 
 type Variant = { blob: Blob; width: number; height: number };
 type DecodedImage = ImageBitmap | HTMLImageElement;
@@ -23,6 +24,10 @@ export function MotorcycleImageUploadForm({ motorcycleId }: { motorcycleId: stri
       setMessage("กรุณาเลือกภาพขนาดไม่เกิน 10 MB");
       return;
     }
+    // Disabled controls are omitted from FormData. Capture the selected
+    // category before `busy` disables the form, then restore it explicitly
+    // after the image variants have been prepared.
+    const category = selectedMotorcycleImageCategory(new FormData(formElement));
     setBusy(true);
     setProgress(0);
     setMessage("กำลังเตรียมภาพขนาดเหมาะสม โดยไฟล์ต้นฉบับจะถูกเก็บเป็นหลักฐาน Private");
@@ -39,6 +44,7 @@ export function MotorcycleImageUploadForm({ motorcycleId }: { motorcycleId: stri
       if ("close" in decoded) decoded.close();
 
       const body = new FormData(formElement);
+      body.set("category", category);
       if (!requestKeyRef.current) requestKeyRef.current = browserSecureId("motorcycle-image");
       body.set("requestKey", requestKeyRef.current);
       body.set("image", file, file.name);

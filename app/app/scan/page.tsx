@@ -1,13 +1,16 @@
 import Link from "next/link";
-import { eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { QrScanner } from "@/components/qr-scanner";
 import { getDb } from "@/db";
-import { companies, motorcycles, transportJobs, trips, trucks, users, yardZones } from "@/db/schema";
-import { can, isCustomerRole, isInternalRole, type Actor } from "@/lib/authorization";
-import { requireActor } from "@/lib/current-actor";
+import { companies, motorcycleInspections, motorcycles, transportJobs, trips, trucks, users, yardZones } from "@/db/schema";
+import { writeAudit } from "@/lib/audit";
+import { can, isCustomerRole, isInternalRole } from "@/lib/authorization";
+import { requireActor, type CurrentActor } from "@/lib/current-actor";
 import { motorcycleStatusLabels } from "@/lib/labels";
+import { receiptInspectionHasFourAngles } from "@/lib/intake-inspection";
 import { parseOperationalQrToken, type ParsedOperationalQrToken } from "@/lib/qr";
+import { getMotorcycleLocation } from "@/lib/yard-location";
 
 export const dynamic = "force-dynamic";
 
@@ -44,13 +47,25 @@ export default async function ScanPage({ searchParams }: ScanPageProps) {
   </>;
 }
 
-async function resolveScanResult(parsed: ParsedOperationalQrToken, actor: Actor): Promise<ScanResult | null> {
+async function resolveScanResult(parsed: ParsedOperationalQrToken, actor: CurrentActor): Promise<ScanResult | null> {
   const db = getDb();
   if (parsed.entityType === "motorcycle") {
     const record = await db.select({ id: motorcycles.id, companyId: motorcycles.companyId, companyName: companies.displayName, jobNumber: transportJobs.jobNumber, sequenceNumber: motorcycles.sequenceNumber, make: motorcycles.make, model: motorcycles.model, color: motorcycles.color, registration: motorcycles.registration, currentStatus: motorcycles.currentStatus })
       .from(motorcycles).innerJoin(companies, eq(companies.id, motorcycles.companyId)).innerJoin(transportJobs, eq(transportJobs.id, motorcycles.jobId)).where(eq(motorcycles.publicId, parsed.publicId)).get();
     if (!record || !can(actor, "motorcycles:read", record.companyId)) return null;
-    return { entityType: "VEHICLE", title: `${record.jobNumber} · คันที่ ${record.sequenceNumber}`, subtitle: record.companyName, status: motorcycleStatusLabels[record.currentStatus], details: [{ label: "ยี่ห้อ / รุ่น", value: [record.make, record.model].filter(Boolean).join(" · ") }, { label: "สี", value: record.color ?? "—" }, { label: "ทะเบียน", value: record.registration ?? "—" }], href: `/app/motorcycles/${record.id}`, actionLabel: "เปิดรายละเอียดรถ" };
+    const [latestReceipt, yardLocation] = await Promise.all([
+      db.select({ result: motorcycleInspections.result, leftImageId: motorcycleInspections.leftImageId, rightImageId: motorcycleInspections.rightImageId, frontImageId: motorcycleInspections.frontImageId, rearImageId: motorcycleInspections.rearImageId })
+        .from(motorcycleInspections)
+        .where(and(eq(motorcycleInspections.motorcycleId, record.id), eq(motorcycleInspections.type, "RECEIPT")))
+        .orderBy(desc(motorcycleInspections.inspectedAt), desc(motorcycleInspections.id))
+        .get(),
+      can(actor, "yard:read") ? getMotorcycleLocation(record.id) : Promise.resolve(null),
+    ]);
+    await writeAudit({ actor, action: "QR_RESOLVE", entityType: "motorcycle", entityId: record.id, companyId: record.companyId, after: { publicId: parsed.publicId, status: record.currentStatus } });
+    const inspectionState = latestReceipt
+      ? `${latestReceipt.result}${receiptInspectionHasFourAngles(latestReceipt) ? " · รูปครบ 4 มุม" : " · รูปยังไม่ครบ"}`
+      : "ยังไม่มีใบตรวจรับ";
+    return { entityType: "VEHICLE", title: `${record.jobNumber} · คันที่ ${record.sequenceNumber}`, subtitle: record.companyName, status: motorcycleStatusLabels[record.currentStatus], details: [{ label: "ยี่ห้อ / รุ่น", value: [record.make, record.model].filter(Boolean).join(" · ") }, { label: "สี", value: record.color ?? "—" }, { label: "ทะเบียน", value: record.registration ?? "—" }, { label: "ตรวจรับ", value: inspectionState }, { label: "ตำแหน่งลาน", value: yardLocation?.label ?? "อยู่นอกลาน" }], href: `/app/motorcycles/${record.id}`, actionLabel: "เปิดรายละเอียดรถและทำขั้นถัดไป" };
   }
   if (parsed.entityType === "job") {
     const record = await db.select({ id: transportJobs.id, companyId: transportJobs.companyId, jobNumber: transportJobs.jobNumber, companyName: companies.displayName, origin: transportJobs.origin, destination: transportJobs.destination, status: transportJobs.status, pickup: transportJobs.plannedPickupDate, delivery: transportJobs.plannedDeliveryDate })

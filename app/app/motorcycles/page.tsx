@@ -1,5 +1,6 @@
 /* eslint-disable jsx-a11y/no-noninteractive-tabindex -- the scoped overflow table must be keyboard-focusable */
 import Link from "next/link";
+import { PendingForm, PendingSubmitButton } from "@/components/pending-form";
 import { asc, desc, eq, notInArray } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { getDb } from "@/db";
@@ -70,7 +71,7 @@ export default async function MotorcyclesPage({ searchParams }: MotorcyclesPageP
       {params.status === "created" && <div className="form-message success page-message">เพิ่มรถเข้าระบบเรียบร้อยแล้ว</div>}
       {params.error && <div className="form-message error page-message">เพิ่มรถไม่สำเร็จ กรุณาตรวจสอบ Job, VIN และเลขเครื่อง</div>}
       {canWrite && (
-        <form className="record-form" action="/api/motorcycles" method="post">
+        <PendingForm className="record-form" action="/api/motorcycles" busyMessage="กำลังบันทึกรถและสร้าง QR ประจำคัน…">
           <div className="field full"><label htmlFor="jobId">งานขนส่ง *</label><select id="jobId" name="jobId" required><option value="">เลือก Job</option>{jobRows.map((job) => <option key={job.id} value={job.id}>{job.jobNumber} · {job.companyName}</option>)}</select></div>
           <div className="field"><label htmlFor="make">ยี่ห้อ</label><input id="make" name="make" placeholder="เช่น Honda" /></div>
           <div className="field"><label htmlFor="model">รุ่น</label><input id="model" name="model" /></div>
@@ -83,8 +84,8 @@ export default async function MotorcyclesPage({ searchParams }: MotorcyclesPageP
           <div className="field"><label htmlFor="vin">เลขโครง / VIN *</label><input id="vin" name="vin" /><small>ต้องมี VIN หรือเลขเครื่องอย่างน้อยหนึ่งค่า</small></div>
           <div className="field"><label htmlFor="engineNumber">เลขเครื่อง *</label><input id="engineNumber" name="engineNumber" /></div>
           <div className="field full"><label htmlFor="notes">หมายเหตุ</label><textarea id="notes" name="notes" rows={3} maxLength={1000} /></div>
-          <div className="full"><button className="button button-gradient" type="submit">เพิ่มรถเข้าระบบ</button></div>
-        </form>
+          <div className="full"><PendingSubmitButton className="button button-gradient" busyLabel="กำลังบันทึกรถ…">เพิ่มรถเข้าระบบ</PendingSubmitButton></div>
+        </PendingForm>
       )}
       <div className="data-card">
         {rows.length ? (

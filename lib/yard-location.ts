@@ -194,7 +194,28 @@ export async function getMotorcycleMovements(motorcycleId: string, limit = 50) {
     .all();
 }
 
-export type FreeSlot = { slotId: string; zoneId: string; label: string };
+export type FreeSlot = {
+  slotId: string;
+  slotCode: string;
+  rowId: string;
+  rowCode: string;
+  zoneId: string;
+  zoneCode: string;
+  label: string;
+};
+
+export type YardSelectionRow = { rowId: string; rowCode: string; rowName: string | null; zoneId: string };
+
+export async function listYardRowsForSelection(limit = 200): Promise<YardSelectionRow[]> {
+  return getDb()
+    .select({ rowId: yardRows.id, rowCode: yardRows.code, rowName: yardRows.name, zoneId: yardRows.yardZoneId })
+    .from(yardRows)
+    .innerJoin(yardZones, eq(yardZones.id, yardRows.yardZoneId))
+    .where(and(eq(yardRows.status, "ACTIVE"), eq(yardZones.status, "ACTIVE")))
+    .orderBy(asc(yardZones.code), asc(yardRows.sortOrder), asc(yardRows.code))
+    .limit(limit)
+    .all();
+}
 
 /**
  * Bays a motorcycle can actually be put in right now: the slot, its row and its
@@ -206,6 +227,7 @@ export async function listFreeSlots(limit = 300): Promise<FreeSlot[]> {
     .select({
       slotId: yardSlots.id,
       slotCode: yardSlots.code,
+      rowId: yardRows.id,
       rowCode: yardRows.code,
       zoneId: yardZones.id,
       zoneCode: yardZones.code,
@@ -228,7 +250,11 @@ export async function listFreeSlots(limit = 300): Promise<FreeSlot[]> {
 
   return rows.map((row) => ({
     slotId: row.slotId,
+    slotCode: row.slotCode,
+    rowId: row.rowId,
+    rowCode: row.rowCode,
     zoneId: row.zoneId,
+    zoneCode: row.zoneCode,
     label: formatYardLocation({ zoneCode: row.zoneCode, rowCode: row.rowCode, slotCode: row.slotCode }),
   }));
 }

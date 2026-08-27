@@ -386,6 +386,24 @@ footer { border-top: 1px solid var(--border); background: #050611; color: var(--
 .inspection-finding-fields > div:first-child { grid-column: 1 / -1; display: flex; justify-content: space-between; gap: 12px; }
 .inspection-finding-fields > div:first-child b { font-size: 12px; }
 .inspection-finding-fields > div:first-child span { color: var(--muted); font-size: 10px; }
+.intake-workflow { display: grid; gap: 18px; margin-bottom: 20px; padding: 20px; }
+.intake-workflow > div > p { margin: 0 0 5px; color: var(--accent-2); font-size: 10px; font-weight: 800; letter-spacing: .14em; }
+.intake-workflow > div > h2 { margin: 0 0 5px; font-size: 20px; }
+.intake-workflow > div > span { color: var(--muted); font-size: 12px; }
+.intake-workflow ol { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 10px; margin: 0; padding: 0; list-style: none; }
+.intake-workflow li { display: grid; min-width: 0; grid-template-columns: 34px minmax(0,1fr); gap: 10px; align-items: center; padding: 12px; border: 1px solid var(--border); border-radius: 13px; background: rgba(255,255,255,.025); }
+.intake-workflow li > b { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 50%; background: rgba(255,255,255,.06); }
+.intake-workflow li.complete > b { background: linear-gradient(135deg,#20b486,#5f66ff); color: #fff; }
+.intake-workflow li.pending { color: var(--muted); }
+.intake-workflow li span { min-width: 0; font-size: 12px; font-weight: 700; overflow-wrap: anywhere; }
+.intake-workflow li small { display: block; margin-top: 4px; color: var(--muted); font-size: 9px; font-weight: 500; }
+.intake-edit-panel { margin-bottom: 20px; padding: 0; overflow: hidden; }
+.intake-edit-panel > summary { min-height: 48px; padding: 14px 18px; cursor: pointer; font-weight: 800; }
+.intake-edit-panel .record-form { margin: 0; border: 0; border-top: 1px solid var(--border); border-radius: 0; }
+.inspection-evidence-fields { min-width: 0; padding: 14px; border: 1px solid var(--border-strong); border-radius: 13px; }
+.inspection-evidence-fields legend { padding-inline: 7px; color: var(--accent-2); font-weight: 800; }
+.inspection-evidence-fields > p { margin: 0 0 12px; color: var(--muted); font-size: 11px; }
+.inspection-evidence-fields .record-form { margin: 0; padding: 0; border: 0; background: transparent; }
 .inspection-list, .pod-list { display: grid; gap: 11px; }
 .inspection-card, .pod-card { position: relative; overflow: hidden; padding: 17px; }
 .inspection-card::before, .pod-card::before { position: absolute; inset: 0 auto 0 0; width: 3px; background: #34d399; content: ""; }
@@ -962,6 +980,8 @@ footer { border-top: 1px solid var(--border); background: #050611; color: var(--
   .trip-load-actions, .trip-load-actions form, .trip-load-actions input, .trip-load-actions button { display: grid; width: 100%; }
   .trip-workflow-form input { grid-column: auto; grid-row: auto; }
   .inspection-finding-fields, .inspection-card > dl, .pod-card > dl { grid-template-columns: 1fr; }
+  .intake-workflow ol { grid-template-columns: 1fr; }
+  .inspection-evidence-fields { padding: 12px; }
   .inspection-finding-fields > div:first-child { grid-column: auto; flex-direction: column; }
   .inspection-add-finding, .pod-void-form { grid-template-columns: 1fr; }
   .pod-signature-head { align-items: stretch; flex-direction: column; }

@@ -1,7 +1,9 @@
 /* eslint-disable @next/next/no-img-element -- Private R2 images are served by an authenticated endpoint and must not pass through the public image optimizer. */
 import Link from "next/link";
 import { MotorcycleImageUploadForm } from "@/components/motorcycle-image-upload-form";
+import { PendingForm, PendingSubmitButton } from "@/components/pending-form";
 import { ProofOfDeliveryForm } from "@/components/proof-of-delivery-form";
+import { YardAssignmentForm } from "@/components/yard-assignment-form";
 import { and, asc, desc, eq, isNull } from "drizzle-orm";
 import { notFound, redirect } from "next/navigation";
 import { getDb } from "@/db";
@@ -27,11 +29,13 @@ import {
   INSPECTION_RESULTS,
   INSPECTION_TYPES,
 } from "@/db/schema";
-import { getMotorcycleLocation, listFreeSlots } from "@/lib/yard-location";
+import { getMotorcycleLocation, listFreeSlots, listYardRowsForSelection } from "@/lib/yard-location";
 import { can, isCustomerRole, isInternalRole } from "@/lib/authorization";
 import { requireActor } from "@/lib/current-actor";
 import { inspectionTypeAllowedForStatus, maskPhone } from "@/lib/inspections";
+import { receiptInspectionHasFourAngles } from "@/lib/intake-inspection";
 import { motorcycleStatusLabels } from "@/lib/labels";
+import { canEditMotorcycleIntake, motorcycleIntakeFingerprint } from "@/lib/motorcycle-intake";
 import { allowedTransitions } from "@/lib/status-transitions";
 import { isYardPlacementAllowed, YARD_EXIT_VALUE } from "@/lib/yard";
 
@@ -70,6 +74,7 @@ export default async function MotorcycleDetailPage({ params, searchParams }: Mot
       vehicleCondition: motorcycles.vehicleCondition,
       notes: motorcycles.notes,
       currentStatus: motorcycles.currentStatus,
+      updatedAt: motorcycles.updatedAt,
     })
     .from(motorcycles)
     .innerJoin(companies, eq(companies.id, motorcycles.companyId))
@@ -171,6 +176,10 @@ export default async function MotorcycleDetailPage({ params, searchParams }: Mot
             odometerKm: motorcycleInspections.odometerKm,
             fuelLevel: motorcycleInspections.fuelLevel,
             notes: motorcycleInspections.notes,
+            leftImageId: motorcycleInspections.leftImageId,
+            rightImageId: motorcycleInspections.rightImageId,
+            frontImageId: motorcycleInspections.frontImageId,
+            rearImageId: motorcycleInspections.rearImageId,
             inspectedAt: motorcycleInspections.inspectedAt,
             inspectorName: users.displayName,
           })
@@ -227,23 +236,31 @@ export default async function MotorcycleDetailPage({ params, searchParams }: Mot
   ]);
 
   // The exact bay, and the bays that are free to move into.
-  const [yardLocation, freeSlots] = await Promise.all([getMotorcycleLocation(id), listFreeSlots()]);
+  const [yardLocation, freeSlots, yardRowsForSelection] = await Promise.all([getMotorcycleLocation(id), listFreeSlots(), listYardRowsForSelection()]);
   const canUpdateStatus = can(actor, "status:write", record.companyId);
   const canUpload = can(actor, "images:write", record.companyId);
+  const canEditIntake = can(actor, "motorcycles:write", record.companyId) && canEditMotorcycleIntake(record.currentStatus);
   const canPrintLabel = can(actor, "motorcycles:write", record.companyId);
   const canInspect = canUpdateStatus;
   const canManagePod = isInternalRole(actor.role) && canUpdateStatus && can(actor, "images:read", record.companyId) && canReadDocuments;
   const activePod = podRecords.find((pod) => pod.status === "ACTIVE");
   const activePodReady = activePod && (activePod.signatureRequired === 0 || Boolean(activePod.signatureId));
-  const hasPassedReceiptInspection = inspections.some((inspection) => inspection.type === "RECEIPT" && inspection.result === "PASS");
+  const intakeInspectionComplete = inspections.some((inspection) => inspection.type === "RECEIPT" && inspection.result === "PASS" && receiptInspectionHasFourAngles(inspection));
   const nextStatuses = allowedTransitions(record.currentStatus).filter((status) => {
-    if (status === "INSPECTED") return hasPassedReceiptInspection;
+    if (status === "RECEIVED" || status === "INSPECTED") return intakeInspectionComplete;
     if (status === "DELIVERED") return Boolean(activePodReady);
     return true;
   });
   const damageImages = images.filter((image) => image.category === "DAMAGE");
   const deliveryImages = images.filter((image) => image.category === "DELIVERY");
+  const receiptImages = {
+    LEFT: images.filter((image) => image.category === "LEFT"),
+    RIGHT: images.filter((image) => image.category === "RIGHT"),
+    FRONT: images.filter((image) => image.category === "FRONT"),
+    REAR: images.filter((image) => image.category === "REAR"),
+  };
   const allowedInspectionTypes = INSPECTION_TYPES.filter((type) => inspectionTypeAllowedForStatus(type, record.currentStatus));
+  const intakeFingerprint = canEditIntake ? await motorcycleIntakeFingerprint(record) : null;
 
   return (
     <>
@@ -272,6 +289,8 @@ export default async function MotorcycleDetailPage({ params, searchParams }: Mot
           </article>
         </section>
       )}
+      {query.status === "created" && <div className="form-message success page-message">บันทึกรถจริงและสร้าง QR ประจำคันเรียบร้อยแล้ว ทำขั้นตรวจรับต่อได้ทันที</div>}
+      {query.status === "intake_updated" && <div className="form-message success page-message">แก้ไขข้อมูลรับรถและอ่านค่ากลับจากระบบเรียบร้อยแล้ว</div>}
       {query.status === "updated" && <div className="form-message success page-message">อัปเดตสถานะเรียบร้อยแล้ว</div>}
       {query.status === "image_uploaded" && <div className="form-message success page-message">อัปโหลดรูปเรียบร้อยแล้ว</div>}
       {query.status === "yard_updated" && <div className="form-message success page-message">อัปเดตตำแหน่งลานเรียบร้อยแล้ว</div>}
@@ -282,7 +301,17 @@ export default async function MotorcycleDetailPage({ params, searchParams }: Mot
       {query.status === "pod_created" && <div className="form-message success page-message">บันทึกหลักฐานส่งมอบแล้ว</div>}
       {query.status === "pod_exists" && <div className="login-notice page-message">คำขอนี้บันทึกหลักฐานส่งมอบแล้ว</div>}
       {query.status === "pod_voided" && <div className="form-message success page-message">ยกเลิกหลักฐานฉบับเดิมโดยเก็บประวัติแล้ว</div>}
-      {query.error && <div className="form-message error page-message">บันทึกไม่สำเร็จ กรุณาตรวจสอบข้อมูลและสิทธิ์</div>}
+      {query.error && <div className="form-message error page-message" role="alert">บันทึกไม่สำเร็จ ข้อมูลอาจเปลี่ยนจากอีกหน้าจอ กรุณารีเฟรชแล้วตรวจข้อมูล สิทธิ์ และหลักฐาน 4 มุมอีกครั้ง</div>}
+
+      <section className="app-panel intake-workflow" aria-labelledby="intake-workflow-title">
+        <div><p>INTAKE WORKFLOW</p><h2 id="intake-workflow-title">สถานะรับรถเข้าลาน</h2><span>ข้อมูลทุกขั้นอ่านจาก Backend เมื่อเปิดหรือรีเฟรชหน้า</span></div>
+        <ol>
+          <li className="complete"><b>1</b><span>บันทึกรถแล้ว<small>{record.jobNumber} · คันที่ {record.sequenceNumber}</small></span></li>
+          <li className="complete"><b>2</b><span>QR พร้อมใช้<small>{record.publicId}</small></span></li>
+          <li className={intakeInspectionComplete ? "complete" : "pending"}><b>3</b><span>{intakeInspectionComplete ? "ตรวจรับพร้อมรูป 4 มุมแล้ว" : "รอตรวจรับและรูป 4 มุม"}<small>ซ้าย · ขวา · หน้า · หลัง</small></span></li>
+          <li className={currentYard ? "complete" : "pending"}><b>4</b><span>{currentYard ? "กำหนดตำแหน่งลานแล้ว" : "รอกำหนดตำแหน่งลาน"}<small>{yardLocation?.label ?? "โซน · แถว · ช่อง"}</small></span></li>
+        </ol>
+      </section>
 
       <div className="record-detail-grid">
         <section className="app-panel record-summary">
@@ -309,7 +338,29 @@ export default async function MotorcycleDetailPage({ params, searchParams }: Mot
         )}
       </div>
 
-      {canUpdateStatus && allowedTransitions(record.currentStatus).includes("INSPECTED") && !hasPassedReceiptInspection && <div className="login-notice page-message">ต้องบันทึกผลตรวจรับรถเป็น “ผ่าน” ก่อน ระบบจึงจะอนุญาตสถานะตรวจสภาพแล้ว</div>}
+      {canEditIntake && intakeFingerprint && (
+        <details className="app-panel intake-edit-panel">
+          <summary>แก้ไขข้อมูลก่อนยืนยันรับรถ</summary>
+          <PendingForm className="record-form" action={`/api/motorcycles/${id}`} busyMessage="กำลังตรวจข้อมูลล่าสุดและบันทึกการแก้ไข…">
+            <input type="hidden" name="expectedFingerprint" value={intakeFingerprint} />
+            <div className="field"><label htmlFor="editMake">ยี่ห้อ</label><input id="editMake" name="make" defaultValue={record.make ?? ""} maxLength={80} /></div>
+            <div className="field"><label htmlFor="editModel">รุ่น</label><input id="editModel" name="model" defaultValue={record.model ?? ""} maxLength={80} /></div>
+            <div className="field"><label htmlFor="editVariant">รุ่นย่อย</label><input id="editVariant" name="variant" defaultValue={record.variant ?? ""} maxLength={80} /></div>
+            <div className="field"><label htmlFor="editModelYear">ปีรถ</label><input id="editModelYear" name="modelYear" type="number" min={1900} max={new Date().getUTCFullYear() + 1} defaultValue={record.modelYear ?? ""} /></div>
+            <div className="field"><label htmlFor="editColor">สี</label><input id="editColor" name="color" defaultValue={record.color ?? ""} maxLength={60} /></div>
+            <div className="field"><label htmlFor="editRegistration">ทะเบียน</label><input id="editRegistration" name="registration" defaultValue={record.registration ?? ""} maxLength={30} /></div>
+            <div className="field"><label htmlFor="editProvince">จังหวัด</label><input id="editProvince" name="province" defaultValue={record.province ?? ""} maxLength={80} /></div>
+            <div className="field"><label htmlFor="editCondition">สภาพรถ</label><select id="editCondition" name="vehicleCondition" defaultValue={record.vehicleCondition}><option value="UNKNOWN">ไม่ระบุ</option><option value="NEW">รถใหม่</option><option value="USED">รถมือสอง</option></select></div>
+            <div className="field"><label htmlFor="editVin">เลขโครง / VIN *</label><input id="editVin" name="vin" defaultValue={record.vin ?? ""} maxLength={50} /><small>ต้องมี VIN หรือเลขเครื่องอย่างน้อยหนึ่งค่า</small></div>
+            <div className="field"><label htmlFor="editEngine">เลขเครื่อง *</label><input id="editEngine" name="engineNumber" defaultValue={record.engineNumber ?? ""} maxLength={50} /></div>
+            <div className="field full"><label htmlFor="editNotes">หมายเหตุ</label><textarea id="editNotes" name="notes" defaultValue={record.notes ?? ""} maxLength={1000} rows={3} /></div>
+            <div className="full"><PendingSubmitButton className="button button-gradient" busyLabel="กำลังบันทึกข้อมูลรับรถ…">บันทึกการแก้ไข</PendingSubmitButton></div>
+          </PendingForm>
+        </details>
+      )}
+
+      {canUpdateStatus && allowedTransitions(record.currentStatus).includes("INSPECTED") && !intakeInspectionComplete && <div className="login-notice page-message">ต้องมีผลตรวจรับ “ผ่าน” พร้อมรูปซ้าย ขวา หน้า และหลังครบก่อน ระบบจึงจะอนุญาตสถานะตรวจสภาพแล้ว</div>}
+      {canUpdateStatus && record.currentStatus === "PENDING_RECEIPT" && !intakeInspectionComplete && <div className="login-notice page-message">ยืนยันรับรถได้เมื่อบันทึกใบตรวจรับ “ผ่าน” พร้อมรูปซ้าย ขวา หน้า และหลังครบเท่านั้น</div>}
       {canUpdateStatus && allowedTransitions(record.currentStatus).includes("DELIVERED") && !activePodReady && <div className="login-notice page-message">ต้องมีหลักฐานส่งมอบที่ active พร้อมรูป DELIVERY และลายเซ็นผู้รับสำหรับ POD ใหม่ ก่อนระบบอนุญาตสถานะส่งมอบแล้ว</div>}
 
       {canReadYard && (
@@ -323,15 +374,15 @@ export default async function MotorcycleDetailPage({ params, searchParams }: Mot
             {canUpdateYard && (
               <div className="yard-action-stack">
                 {activeZones.some((zone) => zone.id !== currentYard?.yardZoneId) && isYardPlacementAllowed(record.currentStatus) ? (
-                  <form className="app-panel status-form yard-form" action={`/api/motorcycles/${id}/yard`} method="post">
-                    <h2>{currentYard ? "ย้ายโซน" : "นำรถเข้าลาน"}</h2>
-                    <input type="hidden" name="expectedPlacementId" value={currentYard?.placementId ?? "none"} />
-                    <input type="hidden" name="requestKey" value={crypto.randomUUID()} />
-                    <div className="field"><label htmlFor="destinationZoneId">โซนปลายทาง</label><select id="destinationZoneId" name="destinationZoneId" required><option value="">เลือกโซน</option>{activeZones.filter((zone) => zone.id !== currentYard?.yardZoneId).map((zone) => <option key={zone.id} value={zone.id}>{zone.code} · {zone.name}</option>)}</select></div>
-                    {freeSlots.length > 0 && <div className="field"><label htmlFor="destinationSlotId">ช่องจอดที่แน่นอน</label><select id="destinationSlotId" name="destinationSlotId"><option value="">ระบุเฉพาะโซน (เฉพาะโซนที่ยังไม่แบ่งช่อง)</option>{freeSlots.map((slot) => <option key={slot.slotId} value={slot.slotId}>{slot.label}</option>)}</select><small>โซนที่แบ่งช่องแล้วต้องเลือกช่อง ระบบจะปฏิเสธถ้าระบุแค่โซน</small></div>}
-                    <div className="field"><label htmlFor="yardNote">หมายเหตุ</label><textarea id="yardNote" name="note" rows={2} maxLength={500} /></div>
-                    <button className="button button-gradient" type="submit">บันทึกตำแหน่ง</button>
-                  </form>
+                  <YardAssignmentForm
+                    motorcycleId={id}
+                    expectedPlacementId={currentYard?.placementId ?? "none"}
+                    requestKey={crypto.randomUUID()}
+                    zones={activeZones.filter((zone) => zone.id !== currentYard?.yardZoneId)}
+                    rows={yardRowsForSelection}
+                    slots={freeSlots}
+                    moving={Boolean(currentYard)}
+                  />
                 ) : !isYardPlacementAllowed(record.currentStatus) ? (
                   <div className="app-panel yard-action-note">สถานะรถปัจจุบันไม่อนุญาตให้นำเข้าหรือย้ายลาน</div>
                 ) : (
@@ -372,6 +423,15 @@ export default async function MotorcycleDetailPage({ params, searchParams }: Mot
               <div className="field"><label htmlFor="odometerKm">เลขไมล์ (กม.)</label><input id="odometerKm" name="odometerKm" type="number" min={0} max={10000000} inputMode="numeric" /></div>
               <div className="field"><label htmlFor="fuelLevel">ระดับน้ำมัน</label><select id="fuelLevel" name="fuelLevel" defaultValue="UNKNOWN">{FUEL_LEVELS.map((level) => <option key={level} value={level}>{fuelLevelLabel(level)}</option>)}</select></div>
               <div className="field full"><label htmlFor="inspectionNotes">สรุปผล / เหตุผล (บังคับเมื่อพบปัญหา)</label><textarea id="inspectionNotes" name="notes" rows={3} maxLength={2000} /></div>
+              {allowedInspectionTypes.includes("RECEIPT") && <fieldset className="inspection-evidence-fields full"><legend>หลักฐานตรวจรับ 4 มุม *</legend><p>อัปโหลดรูปจริงด้านล่างก่อน แล้วเลือกรูปที่ตรงกับแต่ละมุม ระบบจะตรวจรถ บริษัท และหมวดภาพซ้ำที่ Backend</p>
+                <div className="record-form">
+                  <ReceiptImageSelect id="leftImageId" label="ด้านซ้าย" images={receiptImages.LEFT} required={allowedInspectionTypes.length === 1} />
+                  <ReceiptImageSelect id="rightImageId" label="ด้านขวา" images={receiptImages.RIGHT} required={allowedInspectionTypes.length === 1} />
+                  <ReceiptImageSelect id="frontImageId" label="ด้านหน้า" images={receiptImages.FRONT} required={allowedInspectionTypes.length === 1} />
+                  <ReceiptImageSelect id="rearImageId" label="ด้านหลัง" images={receiptImages.REAR} required={allowedInspectionTypes.length === 1} />
+                </div>
+                {Object.values(receiptImages).some((angleImages) => angleImages.length === 0) && <div className="form-message error" role="alert">ยังมีรูปไม่ครบ 4 มุม กรุณาอัปโหลดรูปที่ขาดก่อนบันทึกใบตรวจรับ</div>}
+              </fieldset>}
               <div className="inspection-finding-fields full">
                 <div><b>รายการตรวจพบแรก (กรอกครบชุดเมื่อมี)</b><span>เพิ่มรายการถัดไปได้หลังบันทึกใบตรวจ</span></div>
                 <div className="field"><label htmlFor="findingArea">ตำแหน่ง</label><input id="findingArea" name="findingArea" maxLength={100} placeholder="เช่น กันชนหน้า" /></div>
@@ -426,6 +486,10 @@ function formatThaiDateTime(value: string): string {
   const date = new Date(value.endsWith("Z") ? value : `${value.replace(" ", "T")}Z`);
   if (Number.isNaN(date.getTime())) return value;
   return new Intl.DateTimeFormat("th-TH", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Bangkok" }).format(date);
+}
+
+function ReceiptImageSelect({ id, label, images, required }: { id: string; label: string; images: Array<{ id: string; createdAt: string }>; required: boolean }) {
+  return <div className="field"><label htmlFor={id}>{label}</label><select id={id} name={id} required={required} defaultValue=""><option value="">เลือกรูป{label}</option>{images.map((image) => <option key={image.id} value={image.id}>{formatThaiDateTime(image.createdAt)} · {image.id.slice(0, 8)}</option>)}</select></div>;
 }
 
 function tripStatusLabel(status: string): string {

@@ -42,6 +42,10 @@ function createDatabase() {
       (id, motorcycle_id, company_id, storage_key, category, content_type, byte_size, checksum, uploaded_by)
     VALUES
       ('damage-image-a', 'motorcycle-a', 'company-a', 'damage-a.jpg', 'DAMAGE', 'image/jpeg', 100, '${"a".repeat(64)}', 'owner-a'),
+      ('left-image-a', 'motorcycle-a', 'company-a', 'left-a.jpg', 'LEFT', 'image/jpeg', 100, '${"e".repeat(64)}', 'owner-a'),
+      ('right-image-a', 'motorcycle-a', 'company-a', 'right-a.jpg', 'RIGHT', 'image/jpeg', 100, '${"f".repeat(64)}', 'owner-a'),
+      ('front-image-a', 'motorcycle-a', 'company-a', 'front-a.jpg', 'FRONT', 'image/jpeg', 100, '${"1".repeat(64)}', 'owner-a'),
+      ('rear-image-a', 'motorcycle-a', 'company-a', 'rear-a.jpg', 'REAR', 'image/jpeg', 100, '${"2".repeat(64)}', 'owner-a'),
       ('delivery-image-b', 'motorcycle-b', 'company-a', 'delivery-b.jpg', 'DELIVERY', 'image/jpeg', 100, '${"b".repeat(64)}', 'owner-a'),
       ('delivery-image-d', 'motorcycle-d', 'company-a', 'delivery-d.jpg', 'DELIVERY', 'image/jpeg', 100, '${"d".repeat(64)}', 'owner-a');
   `);
@@ -76,18 +80,18 @@ test("receipt inspection is append-only and required before INSPECTED status", (
   assert.throws(() => db.exec("UPDATE motorcycles SET current_status = 'INSPECTED' WHERE id = 'motorcycle-a'"), /passed receipt inspection/);
   assert.throws(() => db.exec(`
     INSERT INTO motorcycle_inspections
-      (id, request_key, motorcycle_id, company_id, type, result, fuel_level, inspected_by, inspected_at)
-    VALUES ('inspection-bad-company', '0198f708-44a3-7ef7-8d4f-4f477922ca01', 'motorcycle-a', 'company-b', 'RECEIPT', 'PASS', 'UNKNOWN', 'owner-a', '2026-08-21T05:00:00.000Z')
+      (id, request_key, motorcycle_id, company_id, type, result, fuel_level, left_image_id, right_image_id, front_image_id, rear_image_id, inspected_by, inspected_at)
+    VALUES ('inspection-bad-company', '0198f708-44a3-7ef7-8d4f-4f477922ca01', 'motorcycle-a', 'company-b', 'RECEIPT', 'PASS', 'UNKNOWN', 'left-image-a', 'right-image-a', 'front-image-a', 'rear-image-a', 'owner-a', '2026-08-21T05:00:00.000Z')
   `), /matching motorcycle/);
   assert.throws(() => db.exec(`
     INSERT INTO motorcycle_inspections
-      (id, request_key, motorcycle_id, company_id, type, result, fuel_level, inspected_by, inspected_at)
-    VALUES ('inspection-no-note', '0198f708-44a3-7ef7-8d4f-4f477922ca02', 'motorcycle-a', 'company-a', 'RECEIPT', 'DAMAGE', 'UNKNOWN', 'owner-a', '2026-08-21T05:00:00.000Z')
+      (id, request_key, motorcycle_id, company_id, type, result, fuel_level, left_image_id, right_image_id, front_image_id, rear_image_id, inspected_by, inspected_at)
+    VALUES ('inspection-no-note', '0198f708-44a3-7ef7-8d4f-4f477922ca02', 'motorcycle-a', 'company-a', 'RECEIPT', 'DAMAGE', 'UNKNOWN', 'left-image-a', 'right-image-a', 'front-image-a', 'rear-image-a', 'owner-a', '2026-08-21T05:00:00.000Z')
   `), /issue notes/);
   db.exec(`
     INSERT INTO motorcycle_inspections
-      (id, request_key, motorcycle_id, company_id, type, result, odometer_km, fuel_level, inspected_by, inspected_at)
-    VALUES ('inspection-pass', '0198f708-44a3-7ef7-8d4f-4f477922ca03', 'motorcycle-a', 'company-a', 'RECEIPT', 'PASS', 1200, 'HALF', 'owner-a', '2026-08-21T05:00:00.000Z')
+      (id, request_key, motorcycle_id, company_id, type, result, odometer_km, fuel_level, left_image_id, right_image_id, front_image_id, rear_image_id, inspected_by, inspected_at)
+    VALUES ('inspection-pass', '0198f708-44a3-7ef7-8d4f-4f477922ca03', 'motorcycle-a', 'company-a', 'RECEIPT', 'PASS', 1200, 'HALF', 'left-image-a', 'right-image-a', 'front-image-a', 'rear-image-a', 'owner-a', '2026-08-21T05:00:00.000Z')
   `);
   db.exec("UPDATE motorcycles SET current_status = 'INSPECTED' WHERE id = 'motorcycle-a'");
   assert.equal(db.prepare("SELECT current_status FROM motorcycles WHERE id = 'motorcycle-a'").get().current_status, "INSPECTED");
@@ -100,8 +104,8 @@ test("damage findings accept only matching DAMAGE evidence and retain history", 
   const db = createDatabase();
   db.exec(`
     INSERT INTO motorcycle_inspections
-      (id, request_key, motorcycle_id, company_id, type, result, fuel_level, notes, inspected_by, inspected_at)
-    VALUES ('inspection-damage', '0198f708-44a3-7ef7-8d4f-4f477922cb01', 'motorcycle-a', 'company-a', 'RECEIPT', 'DAMAGE', 'UNKNOWN', 'พบรอยที่กันชนหน้า', 'owner-a', '2026-08-21T05:00:00.000Z');
+      (id, request_key, motorcycle_id, company_id, type, result, fuel_level, notes, left_image_id, right_image_id, front_image_id, rear_image_id, inspected_by, inspected_at)
+    VALUES ('inspection-damage', '0198f708-44a3-7ef7-8d4f-4f477922cb01', 'motorcycle-a', 'company-a', 'RECEIPT', 'DAMAGE', 'UNKNOWN', 'พบรอยที่กันชนหน้า', 'left-image-a', 'right-image-a', 'front-image-a', 'rear-image-a', 'owner-a', '2026-08-21T05:00:00.000Z');
     INSERT INTO inspection_findings
       (id, inspection_id, area, severity, description, evidence_image_id, created_by)
     VALUES ('finding-a', 'inspection-damage', 'กันชนหน้า', 'MODERATE', 'มีรอยแตกด้านซ้าย', 'damage-image-a', 'owner-a');

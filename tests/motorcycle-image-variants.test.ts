@@ -7,7 +7,15 @@ import {
   parseMotorcycleImageDimension,
   parseMotorcycleImageRole,
   preferredMotorcycleImageContentTypes,
+  selectedMotorcycleImageCategory,
 } from "../lib/motorcycle-image-variants.ts";
+
+test("mandatory receipt angles survive request serialization exactly", () => {
+  for (const category of ["LEFT", "RIGHT", "FRONT", "REAR"]) {
+    const form = { get: (name: string) => name === "category" ? category : null } as Pick<FormData, "get">;
+    assert.equal(selectedMotorcycleImageCategory(form), category, `REQUEST_CATEGORY_${category}`);
+  }
+});
 
 test("motorcycle image request keys use a strict cryptographic UUID identity", () => {
   assert.equal(isMotorcycleImageRequestKey("motorcycle-image-123e4567-e89b-42d3-a456-426614174000"), true);
