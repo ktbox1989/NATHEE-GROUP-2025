@@ -35,15 +35,22 @@ test("server-renders the NATHEE public website without demo data", async () => {
   assert.doesNotMatch(html, /02-000-0000|@natheegroup|10,000\+|1,000\+/i);
 });
 
-test("server-renders the login baseline without embedded credentials", async () => {
+test("server-renders the fixed Owner PIN login without embedded credentials", async () => {
   const response = await render("/login");
   assert.equal(response.status, 200);
 
   const html = await response.text();
-  assert.match(html, /<title>เข้าสู่ระบบ \| NATHEE GROUP 2025<\/title>/i);
-  assert.match(html, /UI พร้อมใช้งานแล้ว/);
-  assert.match(html, /action="\/api\/auth\/login"/);
-  assert.match(html, /disabled/);
+  assert.match(html, /<title>เข้าสู่ระบบเจ้าของ \| NATHEE GROUP 2025<\/title>/i);
+  assert.match(html, /บัญชีเจ้าของ/);
+  assert.match(html, /kaikt143@gmail\.com/i);
+  assert.match(html, /action="\/api\/auth\/owner-pin\/login"/);
+  assert.match(html, /name="pin"/);
+  assert.match(html, /pattern="\[0-9\]\{6\}"/);
+  assert.match(html, /minLength="6"|minlength="6"/i);
+  assert.match(html, /maxLength="6"|maxlength="6"/i);
+  assert.doesNotMatch(html, /<input[^>]+name="email"/i);
+  assert.doesNotMatch(html, /<input[^>]+type="email"/i);
+  assert.doesNotMatch(html, /action="\/api\/auth\/login"/);
   assert.doesNotMatch(html, /owner123|staff123|abc123|nathee2025/i);
 });
 
