@@ -86,6 +86,7 @@ zcom_scripts=(
   "$SCRIPT_DIR/test-production-postcheck-contract.sh"
   "$SCRIPT_DIR/test-app-readiness.sh"
   "$SCRIPT_DIR/test-app-integration-gate.sh"
+  "$SCRIPT_DIR/test-production-component-audit-login-state.sh"
   "$SCRIPT_DIR/test-public-seo-gates.sh"
 )
 
@@ -178,5 +179,7 @@ fi
 printf '%s\n' "$$" > "$lock_dir/owner.pid"
 nathee_release_lock_dir "$lock_dir" || fail "portable lock release"
 [[ ! -e "$lock_dir" ]] || fail "portable lock directory remains"
+
+bash "$SCRIPT_DIR/test-production-component-audit-login-state.sh"
 
 printf 'DEPLOY_FILE_TOOLS_TEST_PASS backup=verified nested_routes=verified unknown=preserved rollback=verified tar_tamper=rejected metadata_tamper=rejected rsync=absent flock=absent dev_fd=absent herestring=absent root=absent nodeOnZcom=absent mktemp_fallback=verified lock=atomic_mkdir\n'

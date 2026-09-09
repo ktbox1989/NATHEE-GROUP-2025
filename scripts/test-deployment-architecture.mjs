@@ -33,6 +33,9 @@ for (const check of ["authentication", "adminAuthentication", "canonicalOrigin",
   if (!appReadiness.includes(check)) throw new Error(`Application runtime audit is missing ${check}`);
 }
 if (!productionAudit.includes("nathee_health_failures")) throw new Error("Application audit must evaluate every health gate");
+for (const loginContract of ["nathee_login_redirect_state", "HANDED_OFF_TO_APPLICATION", "redirect_url"]) {
+  if (!productionAudit.includes(loginContract)) throw new Error(`Production audit is missing login handoff contract: ${loginContract}`);
+}
 // Health alone must never be reported as a working application.
 if (productionAudit.includes("full-application=LIVE")) throw new Error("Application audit must not claim LIVE from a health probe");
 if (!productionAudit.includes("full-application=RUNTIME_HEALTHY_ANONYMOUS_GATED")) {

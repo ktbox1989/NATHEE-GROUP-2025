@@ -4,9 +4,13 @@ set -Eeuo pipefail
 PUBLIC_BASE_URL="${NATHEE_PUBLIC_BASE_URL:-https://natheegroup2025.com}"
 APP_BASE_URL="${NATHEE_APP_BASE_URL:-}"
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd -P)"
+LOGIN_REDIRECT_FILE="${NATHEE_LOGIN_REDIRECT_FILE:-$REPO_ROOT/public-site/.htaccess}"
 
 # shellcheck source=scripts/lib/app-readiness.sh
 source "$SCRIPT_DIR/lib/app-readiness.sh"
+# shellcheck source=scripts/lib/login-redirect.sh
+source "$SCRIPT_DIR/lib/login-redirect.sh"
 
 fail() {
   printf 'PRODUCTION_COMPONENT_AUDIT_FAIL: %s\n' "$1" >&2
@@ -26,16 +30,41 @@ status_for() {
   curl --silent --show-error --output /dev/null --write-out '%{http_code}' "$1"
 }
 
+redirect_for() {
+  curl --silent --show-error --max-redirs 0 --output /dev/null --write-out '%{redirect_url}' "$1"
+}
+
+LOGIN_REDIRECT_STATE="$(nathee_login_redirect_state "$LOGIN_REDIRECT_FILE")"
+LOGIN_REDIRECT_TARGET="$(nathee_login_redirect_target "$LOGIN_REDIRECT_FILE")"
+case "$LOGIN_REDIRECT_STATE" in
+  ACTIVE|INACTIVE) ;;
+  *) fail "login redirect release state is missing or invalid" ;;
+esac
+
 public_status="$(status_for "$PUBLIC_BASE_URL/")"
 gallery_status="$(status_for "$PUBLIC_BASE_URL/gallery/")"
 login_status="$(status_for "$PUBLIC_BASE_URL/login/")"
 [[ "$public_status" == "200" ]] || fail "public homepage is not live (status=$public_status)"
 [[ "$gallery_status" == "200" ]] || fail "public Gallery route is not live (status=$gallery_status)"
-[[ "$login_status" == "200" ]] || fail "static login-status route is not live (status=$login_status)"
 
 printf 'PRODUCTION_COMPONENT public-static-site=LIVE path=/home/zptqqwps/public_html/natheegroup2025.com url=%s/\n' "$PUBLIC_BASE_URL"
 printf 'PRODUCTION_COMPONENT public-gallery=LIVE_STATIC_MANIFEST url=%s/gallery/\n' "$PUBLIC_BASE_URL"
-printf 'PRODUCTION_COMPONENT login-auth=STATIC_PLACEHOLDER_ONLY url=%s/login/\n' "$PUBLIC_BASE_URL"
+
+if [[ "$LOGIN_REDIRECT_STATE" == "ACTIVE" ]]; then
+  login_location="$(redirect_for "$PUBLIC_BASE_URL/login/")"
+  [[ "$login_status" == "302" ]] || fail "active login handoff is not 302 (status=$login_status)"
+  [[ -n "$LOGIN_REDIRECT_TARGET" ]] || fail "active login handoff has no declared target"
+  [[ "$login_location" == "$LOGIN_REDIRECT_TARGET" ]] || fail "active login target mismatch (location=${login_location:-NONE})"
+  case "$LOGIN_REDIRECT_TARGET" in
+    "$PUBLIC_BASE_URL"/*) fail "active login target loops back to the public host" ;;
+    https://*) ;;
+    *) fail "active login target must use HTTPS" ;;
+  esac
+  printf 'PRODUCTION_COMPONENT login-auth=HANDED_OFF_TO_APPLICATION url=%s/login/ target=%s\n' "$PUBLIC_BASE_URL" "$LOGIN_REDIRECT_TARGET"
+else
+  [[ "$login_status" == "200" ]] || fail "static login-status route is not live (status=$login_status)"
+  printf 'PRODUCTION_COMPONENT login-auth=STATIC_PLACEHOLDER_ONLY url=%s/login/\n' "$PUBLIC_BASE_URL"
+fi
 
 if [[ -z "$APP_BASE_URL" ]]; then
   printf 'PRODUCTION_COMPONENT full-application=NOT_CONFIGURED url=NONE\n'
