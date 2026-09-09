@@ -102,7 +102,7 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
             <thead><tr><th>JOB NO.</th><th>บริษัท</th><th>เส้นทาง</th><th>กำหนดการ</th><th>สถานะ</th><th>ฉลาก</th></tr></thead>
             <tbody>{rows.map((job) => (
               <tr key={job.id}>
-                <td><b>{job.jobNumber}</b><small>{job.createdAt}</small></td>
+                <td><Link href={`/app/jobs/${job.id}`}><b>{job.jobNumber}</b></Link><small>{job.createdAt}</small></td>
                 <td>{job.companyName}</td>
                 <td>{job.origin} → {job.destination}</td>
                 <td>{job.pickup || "—"}<small>{job.delivery ? `ส่งโดยประมาณ ${job.delivery}` : "ยังไม่ระบุวันส่ง"}</small></td>

@@ -12,10 +12,11 @@ export default async function DashboardPage() {
   const policyCompany = customerRole ? actor.companyId : undefined;
   const canReadJobs = can(actor, "jobs:read", policyCompany);
   const canReadMotorcycles = can(actor, "motorcycles:read", policyCompany);
-  const companyCopy =
-    customerRole
-      ? "ภาพรวมงานและรถของบริษัทคุณ"
-      : "ภาพรวมการปฏิบัติงานจากข้อมูลจริง";
+  const canReadWebsite = can(actor, "site:read");
+  const canReadGallery = can(actor, "gallery:read");
+  const companyCopy = customerRole
+    ? "ภาพรวมงานและรถของบริษัทคุณ"
+    : "ภาพรวมการปฏิบัติงานจากข้อมูลจริง";
 
   return (
     <>
@@ -32,6 +33,39 @@ export default async function DashboardPage() {
           <b>{metrics.issues}</b><span>ต้องตรวจสอบ</span>
         </article>
       </div>
+
+      {(canReadWebsite || canReadGallery || canReadJobs) && (
+        <section className="detail-section">
+          <div className="detail-section-head"><div><p>QUICK ACTIONS</p><h2>จัดการด่วน</h2></div></div>
+          <div className="site-page-grid">
+            {canReadWebsite && (
+              <article className="app-panel">
+                <h2>จัดการเว็บไซต์</h2>
+                <p>แก้หน้าเว็บ ข่าว บทความ และข้อมูลส่วนกลางโดยไม่ต้องแก้โค้ด</p>
+                <div>
+                  <Link className="button button-gradient" href="/app/website">เปิด Website CMS</Link>
+                  <Link className="button button-glass" href="/app/posts">เพิ่มข่าว / โพสต์</Link>
+                </div>
+              </article>
+            )}
+            {canReadGallery && (
+              <article className="app-panel">
+                <h2>รูปและผลงาน</h2>
+                <p>อัปโหลดรูปจริง แก้คำบรรยาย จัดลำดับ และเผยแพร่จากหน้าเว็บ</p>
+                <div><Link className="button button-gradient" href="/app/gallery">เปิด Media Library</Link></div>
+              </article>
+            )}
+            {canReadJobs && (
+              <article className="app-panel">
+                <h2>อัปเดตงานขนส่ง</h2>
+                <p>เปิดงาน ดูรถ แก้เส้นทาง/กำหนดการ และอัปเดตสถานะงาน</p>
+                <div><Link className="button button-gradient" href="/app/jobs">เปิดงานขนส่ง</Link></div>
+              </article>
+            )}
+          </div>
+        </section>
+      )}
+
       <section className="app-panel app-empty">
         <div aria-hidden="true">🛰️</div>
         <h2>{metrics.motorcycles ? "ติดตามรายละเอียดได้จากเมนูรถจักรยานยนต์" : "ยังไม่มีข้อมูลรถในระบบ"}</h2>
