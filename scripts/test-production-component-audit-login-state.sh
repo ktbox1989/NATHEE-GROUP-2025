@@ -89,8 +89,8 @@ run_case() {
   local result=0
   write_state "$state" "$target" "$state_file"
 
-  PATH="$WORK_ROOT/bin:$PATH" \
-    FAKE_AUDIT_CASE="$test_case" \
+  FAKE_AUDIT_CASE="$test_case" \
+    NATHEE_AUDIT_CURL_DRIVER="$WORK_ROOT/bin/curl" \
     NATHEE_PUBLIC_BASE_URL="https://public.example" \
     NATHEE_APP_BASE_URL="" \
     NATHEE_LOGIN_REDIRECT_FILE="$state_file" \

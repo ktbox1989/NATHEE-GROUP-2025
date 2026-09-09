@@ -3,6 +3,7 @@ set -Eeuo pipefail
 
 PUBLIC_BASE_URL="${NATHEE_PUBLIC_BASE_URL:-https://natheegroup2025.com}"
 APP_BASE_URL="${NATHEE_APP_BASE_URL:-}"
+CURL_DRIVER="${NATHEE_AUDIT_CURL_DRIVER:-}"
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd -P)"
 LOGIN_REDIRECT_FILE="${NATHEE_LOGIN_REDIRECT_FILE:-$REPO_ROOT/public-site/.htaccess}"
@@ -17,21 +18,35 @@ fail() {
   exit 1
 }
 
-for command_name in curl grep rm; do
+for command_name in grep rm; do
   command -v "$command_name" >/dev/null 2>&1 || fail "$command_name is required"
 done
+if [[ -n "$CURL_DRIVER" ]]; then
+  [[ -f "$CURL_DRIVER" ]] || fail "audit curl driver does not exist"
+  command -v bash >/dev/null 2>&1 || fail "bash is required for audit curl driver"
+else
+  command -v curl >/dev/null 2>&1 || fail "curl is required"
+fi
 
 case "$PUBLIC_BASE_URL" in
   https://*) ;;
   *) fail "public Production base URL must use HTTPS" ;;
 esac
 
+audit_curl() {
+  if [[ -n "$CURL_DRIVER" ]]; then
+    bash "$CURL_DRIVER" "$@"
+  else
+    curl "$@"
+  fi
+}
+
 status_for() {
-  curl --silent --show-error --output /dev/null --write-out '%{http_code}' "$1"
+  audit_curl --silent --show-error --output /dev/null --write-out '%{http_code}' "$1"
 }
 
 redirect_for() {
-  curl --silent --show-error --max-redirs 0 --output /dev/null --write-out '%{redirect_url}' "$1"
+  audit_curl --silent --show-error --max-redirs 0 --output /dev/null --write-out '%{redirect_url}' "$1"
 }
 
 LOGIN_REDIRECT_STATE="$(nathee_login_redirect_state "$LOGIN_REDIRECT_FILE")"
@@ -83,7 +98,7 @@ esac
 
 health_file="${TMPDIR:-/tmp}/nathee-health-$$.json"
 trap 'rm -f "$health_file"' EXIT
-health_status="$(curl --silent --show-error --output "$health_file" --write-out '%{http_code}' "$APP_BASE_URL/api/health")"
+health_status="$(audit_curl --silent --show-error --output "$health_file" --write-out '%{http_code}' "$APP_BASE_URL/api/health")"
 [[ "$health_status" == "200" ]] || fail "application health is not ready (status=$health_status)"
 
 health_failures="$(nathee_health_failures "$health_file")"
