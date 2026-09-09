@@ -1,6 +1,21 @@
 # NATHEE GROUP 2025 — Canonical Project State
 
-Updated: 2026-08-24 (Asia/Bangkok)
+Updated: 2026-09-09 (Asia/Bangkok)
+
+## 2026-09-09 live checkpoint — current source ready; Sites publish pending
+
+- Functional source checkpoint immediately before this documentation-only update: `a5721455a8e27b2675431cdc50cb953f12098b02`; it passed the full release gates and is already an ancestor of `main`.
+- Self-service website CMS remains in source: pages, posts/news, Media Library, settings, Revision/Preview/Publish and Owner PIN login.
+- Added self-service transport-job detail/edit/status flow at `/app/jobs/[id]`, with server-side authorization, same-origin mutation checks, lifecycle validation, completion readiness and Audit history.
+- Release verification on this source passed: TypeScript, ESLint, public gates, security gates, production build, unit 787/787 and final rendered/database/integration 349/349.
+- Live `app.natheegroup2025.com` now resolves to ChatGPT Sites, and apex `/login/` redirects to the application login. Older statements below saying DNS/runtime/login handoff are absent or inactive are historical only.
+- Live `/api/health` currently returns 503 degraded: authentication=true, canonicalOrigin=true, database=true, storage=true; adminAuthentication=false and antiAbuse=false. `APP_RUNTIME_PASS` is therefore NOT_PROVEN.
+- Live probes for the new job routes return 404, proving the currently published Sites artifact predates `a572145`. GitHub push does not auto-publish the Sites artifact.
+- Do not redeploy the Z.com public website for this application change. Publish the existing ChatGPT Site from the Sites/Work/Codex surface, preserving project id, DB/R2 bindings, custom domain and existing server-side secrets.
+- After Sites publish, re-run route probes, `/api/health`, signed-in Owner acceptance, CMS Draft→Preview→Publish, customer isolation and QR/Print acceptance before claiming Production complete.
+
+The older checkpoint sections below are retained as historical evidence and may describe states that have since changed.
+
 
 ## Source checkpoint
 

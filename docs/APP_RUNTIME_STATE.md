@@ -1,5 +1,18 @@
 # Application runtime state — measured, not assumed
 
+## 2026-09-09 live checkpoint — supersedes the historical DNS/runtime headline below
+
+Live read-only probes now prove `app.natheegroup2025.com` resolves to ChatGPT Sites and terminates TLS. The apex `/login/` is already a 302 handoff to the application login.
+
+`/api/health` is reachable but returns 503 degraded. Current checks are authentication=true, canonicalOrigin=true, database=true and storage=true; adminAuthentication=false and antiAbuse=false. Auth mode is Owner PIN, with Supabase/Supabase Admin not configured. This is a real runtime, but it is not `APP_RUNTIME_PASS`.
+
+Functional source checkpoint `a5721455a8e27b2675431cdc50cb953f12098b02` passed the full local release suite and is already an ancestor of `main`. However, anonymous probes of the new `/api/jobs/[id]` and `/api/jobs/[id]/status` signatures return 404, so the live Sites artifact is older than current main. A GitHub push does not publish the Site automatically.
+
+Next deployment action is application-only: publish the existing ChatGPT Site from the Sites/Work/Codex surface while preserving the current custom domain, project binding, D1 `DB`, R2 `FILES` and server-side secrets. Do not redeploy the Z.com public website for this change. After publish, rerun route, health and signed-in acceptance before claiming Production complete.
+
+Everything below this checkpoint is retained as historical 2026-08-23 evidence; statements that DNS is absent or the application is not deployed no longer describe the live state.
+
+
 Measured from this worktree at `2026-08-23T05:30Z` against live DNS and the live
 network, re-run after the Owner identified the source of the 502. Nothing here
 was changed; every command below is read-only.
