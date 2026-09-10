@@ -1,5 +1,35 @@
 # NATHEE GROUP 2025 — Work History
 
+## 2026-09-11 — Posts: work-photograph gallery sections
+
+- Commit `74dfd76` on `main` (pushed; local = origin/main), from `0fb676f`.
+- A post can now show ผลงาน photographs: the post editor offers a GALLERY
+  section type that draws on a Media Library category with a bounded limit,
+  exactly the controls and rules the managed pages' editor already has. No UI
+  was redesigned — the same fields, the same GalleryLightbox grid, the same
+  empty state when a category has nothing published.
+- `PostContent` parses `galleryCategorySlug`/`galleryLimit` under the pages'
+  rule (slug pattern, limit 1–24, default 12), so a post and a page cannot
+  disagree about what a category reference allows. Existing revisions keep
+  parsing: they already stored the empty slug and the default limit.
+- Publish now refuses a post pointing at a category that is not publishable,
+  through the same `resolvePublishReferences` the pages lane uses; the editor
+  error copy names the problem reference.
+- The article page and the editor preview render the section through the same
+  query the marketing pages use (PUBLISHED + PUBLIC items in an ACTIVE
+  category, featured first), one query per distinct category; the public news
+  detail API carries the photographs as the section's media list, resolved one
+  category at a time so the 64-id media bound always holds.
+- Verification: unit 791/791 (+4), rendered/database/integration 349/349,
+  security gates 29 PASS, public gates PASS, `tsc --noEmit` PASS, ESLint PASS,
+  production build PASS. Owner-CMS UI contract extended (positive + negative).
+- Deployment: **none**. The ChatGPT Sites live artifact at
+  app.natheegroup2025.com still predates the self-service job management work —
+  `/api/jobs/__deploy_probe__/status` answered 404 and `/api/health` 503
+  degraded (Supabase Admin and Turnstile antiAbuse still false) before this
+  change. Publishing the application remains the next task and needs the
+  ChatGPT Work/Sites publish capability, which this session did not have.
+
 ## 2026-08-23 — Lane A: public CMS hardening (local only, inactive)
 
 - Branch `lane-a/public-cms-hardening-20260823`, from `main` at `74d88b4`; nine commits through `4d05660`.
