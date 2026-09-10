@@ -37,7 +37,10 @@ audit_curl() {
   if [[ -n "$CURL_DRIVER" ]]; then
     bash "$CURL_DRIVER" "$@"
   else
-    curl "$@"
+    # HTTP/1.1 on purpose: run from the shared-hosting server itself, the front
+    # end answers HTTP/2 requests on a reused connection with 421 Misdirected
+    # Request even while the site serves fine over a fresh HTTP/1.1 request.
+    curl --http1.1 "$@"
   fi
 }
 

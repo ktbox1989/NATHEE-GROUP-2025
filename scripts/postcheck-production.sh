@@ -32,7 +32,12 @@ trap 'rm -rf "$TMP_DIR"' EXIT
 fetch() {
   local path="$1"
   local output="$2"
-  curl --fail --silent --show-error --location --proto '=https' --tlsv1.2 \
+  # HTTP/1.1 on purpose: this check runs from the shared-hosting server itself,
+  # where the front end answers HTTP/2 requests for this host on a reused
+  # connection with 421 Misdirected Request even though the site serves fine.
+  # Pinning the protocol per request removes the connection-coalescing that
+  # triggers it, without weakening any assertion the postcheck makes.
+  curl --fail --silent --show-error --location --proto '=https' --tlsv1.2 --http1.1 \
     "$BASE_URL$path" --output "$output"
 }
 
@@ -40,7 +45,7 @@ capture_response() {
   local url="$1"
   local header_file="$2"
   local body_file="$3"
-  curl --silent --show-error --max-redirs 0 \
+  curl --silent --show-error --max-redirs 0 --http1.1 \
     --dump-header "$header_file.raw" --output "$body_file" "$url"
   tr -d '\r' < "$header_file.raw" > "$header_file"
 }
