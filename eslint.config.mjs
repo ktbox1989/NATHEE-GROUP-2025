@@ -38,6 +38,15 @@ const eslintConfig = defineConfig([
       },
     },
   },
+  {
+    // The plain-form back office navigates with real <a> elements on purpose:
+    // every page must work with client script unavailable, so the Next Link
+    // rule is off for that tree only.
+    files: ["app/admin/**"],
+    rules: {
+      "@next/next/no-html-link-for-pages": "off",
+    },
+  },
 ]);
 
 export default eslintConfig;

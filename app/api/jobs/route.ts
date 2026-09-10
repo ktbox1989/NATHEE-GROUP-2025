@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getDb } from "@/db";
 import { auditLogs, companies, transportJobs } from "@/db/schema";
 import { makeAuditRecord } from "@/lib/audit";
+import { adminReturnTarget } from "@/lib/admin-return";
 import { can } from "@/lib/authorization";
 import { nextBusinessNumber } from "@/lib/business-numbers";
 import { getCurrentActor } from "@/lib/current-actor";
@@ -14,11 +15,12 @@ export async function POST(request: NextRequest) {
   const actor = await getCurrentActor();
   if (!actor) return NextResponse.redirect(new URL("/login?error=not_authorized", request.url), 303);
   const form = await request.formData();
+  const back = adminReturnTarget(form, "/app/jobs");
   const companyId = String(form.get("companyId") ?? "");
   const origin = String(form.get("origin") ?? "").trim();
   const destination = String(form.get("destination") ?? "").trim();
   if (!companyId || !origin || !destination || !can(actor, "jobs:write", companyId)) {
-    return NextResponse.redirect(new URL("/app/jobs?error=invalid", request.url), 303);
+    return NextResponse.redirect(new URL(`${back}?error=invalid`, request.url), 303);
   }
 
   const db = getDb();
@@ -27,7 +29,7 @@ export async function POST(request: NextRequest) {
     .from(companies)
     .where(and(eq(companies.id, companyId), eq(companies.status, "ACTIVE")))
     .get();
-  if (!company) return NextResponse.redirect(new URL("/app/jobs?error=company", request.url), 303);
+  if (!company) return NextResponse.redirect(new URL(`${back}?error=company`, request.url), 303);
 
   const id = crypto.randomUUID();
   const jobNumber = await nextBusinessNumber("JOB");
@@ -51,9 +53,9 @@ export async function POST(request: NextRequest) {
       db.insert(auditLogs).values(makeAuditRecord({ actor, action: "CREATE", entityType: "transport_job", entityId: id, companyId, after: { ...record, publicId: "[opaque]" } })),
     ]);
   } catch {
-    return NextResponse.redirect(new URL("/app/jobs?error=save", request.url), 303);
+    return NextResponse.redirect(new URL(`${back}?error=save`, request.url), 303);
   }
-  return NextResponse.redirect(new URL("/app/jobs?status=created", request.url), 303);
+  return NextResponse.redirect(new URL(`${back}?status=created`, request.url), 303);
 }
 
 function optional(form: FormData, name: string): string | null {

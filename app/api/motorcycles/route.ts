@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getDb } from "@/db";
 import { auditLogs, motorcycles, statusEvents, transportJobs } from "@/db/schema";
 import { makeAuditRecord } from "@/lib/audit";
+import { adminReturnTarget } from "@/lib/admin-return";
 import { can } from "@/lib/authorization";
 import { nextSequence } from "@/lib/business-numbers";
 import { getCurrentActor } from "@/lib/current-actor";
@@ -15,6 +16,7 @@ export async function POST(request: NextRequest) {
   const actor = await getCurrentActor();
   if (!actor) return NextResponse.redirect(new URL("/login?error=not_authorized", request.url), 303);
   const form = await request.formData();
+  const back = adminReturnTarget(form, "/app/motorcycles");
   const jobId = String(form.get("jobId") ?? "");
   const db = getDb();
   const job = await db
@@ -28,12 +30,12 @@ export async function POST(request: NextRequest) {
     )
     .get();
   if (!job || !can(actor, "motorcycles:write", job.companyId)) {
-    return NextResponse.redirect(new URL("/app/motorcycles?error=job", request.url), 303);
+    return NextResponse.redirect(new URL(`${back}?error=job`, request.url), 303);
   }
 
   const parsed = parseMotorcycleIntakeForm(form);
   if (!parsed.ok) {
-    return NextResponse.redirect(new URL("/app/motorcycles?error=validation", request.url), 303);
+    return NextResponse.redirect(new URL(`${back}?error=validation`, request.url), 303);
   }
 
   const id = crypto.randomUUID();
@@ -68,7 +70,7 @@ export async function POST(request: NextRequest) {
       db.insert(auditLogs).values(makeAuditRecord({ actor, action: "QR_ASSIGN", entityType: "motorcycle", entityId: id, companyId: job.companyId, after: { publicId: record.publicId } })),
     ]);
   } catch {
-    return NextResponse.redirect(new URL("/app/motorcycles?error=duplicate", request.url), 303);
+    return NextResponse.redirect(new URL(`${back}?error=duplicate`, request.url), 303);
   }
-  return NextResponse.redirect(new URL(`/app/motorcycles/${id}?status=created`, request.url), 303);
+  return NextResponse.redirect(new URL(`${back}?status=created`, request.url), 303);
 }

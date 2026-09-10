@@ -87,6 +87,17 @@ class LocalD1Statement {
     const info = this.#db.prepare(this.#sql).run(...this.#params);
     return { success: true, results: [], meta: { changes: info.changes, duration: 0 } };
   }
+
+  /**
+   * What D1 answers for this statement inside a batch: SELECTs carry rows,
+   * everything else carries its change count — routes read `meta.changes` to
+   * prove a write landed, so answering an empty meta here would make
+   * successful writes look like lost-update refusals.
+   */
+  async asBatchResult() {
+    if (/^\s*(select|with)\b/i.test(this.#sql)) return await this.all();
+    return await this.run();
+  }
 }
 
 function createLocalD1(databasePath) {
@@ -95,7 +106,7 @@ function createLocalD1(databasePath) {
     prepare: (sql) => new LocalD1Statement(db, sql),
     async batch(statements) {
       const results = [];
-      for (const statement of statements) results.push(await statement.all());
+      for (const statement of statements) results.push(await statement.asBatchResult());
       return results;
     },
     async exec(sql) {

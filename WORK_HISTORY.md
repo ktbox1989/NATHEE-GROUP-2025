@@ -1,5 +1,43 @@
 # NATHEE GROUP 2025 — Work History
 
+## 2026-09-11 — The plain-form back office at /admin, plus a build-blocking env bug
+
+- The Owner asked for a fresh, simple back office built from new files. It
+  lives at `/admin`: five server-component pages (dashboard, jobs list + job
+  detail, posts) where **every control is a native HTML form and every link is
+  a real `<a>`** — zero client script, so it works in any browser condition
+  that can submit a form at all, including with JavaScript unavailable. The
+  full back office at `/app` is untouched and still available.
+- It reuses the audited mutation endpoints rather than duplicating them: the
+  jobs create/edit/status, motorcycle intake and post publish routes gained an
+  optional `returnTo` field (honoured only for `/admin` paths, via
+  `lib/admin-return.ts`; absent = exactly the previous redirects). One new
+  endpoint, `POST /api/admin/posts`, builds a validated `PostContent`
+  server-side from ordinary fields so a draft needs no browser script.
+- Proven by clicking through the real production build (serve-local-e2e):
+  created a job (JOB-2026-000001), added two motorcycles (job auto-moved to
+  IN_PROGRESS), edited job details, had COMPLETED correctly refused twice
+  (no_motorcycles / pending_motorcycles), cancelled a job with a reason,
+  created a post with category, published it and read it on the real
+  `/news/<slug>/` page.
+- Found and fixed a build-blocking bug while doing this: the Cloudflare vite
+  plugin statically replaces `process.env` with `{}` when building without
+  `nodejs_compat`, which would have shipped a login that can never see its
+  secrets. `nodejs_compat` is now always present for builds (as it always was
+  before the dev-only vars refactor), while `.env` vars and the
+  populate-process-env flag stay dev-only; the emitted build carries no vars.
+- Harness fixes: the local D1 adapter's `batch()` now answers `meta.changes`
+  for write statements like real D1, which had made successful raw-SQL writes
+  look like `error=stale`.
+- Gates: proxy matcher covers `/admin` (session refresh coverage), the Next
+  html-link rule is off for the /admin tree by design, and verification passed
+  end to end — TypeScript, ESLint, unit 791/791, rendered/database 322/322 +
+  earlier batches, client-bundle contract, security gates 29 PASS, public
+  gates 18 PASS, production build PASS.
+- Deployment: **none** — as before, the ChatGPT Sites artifact at
+  app.natheegroup2025.com is older than this work; publishing the existing
+  Site from `main` is still the step that makes any of it live.
+
 ## 2026-09-11 — Back-office "nothing can be pressed": two real source bugs
 
 - Symptom reproduced on the live application and then locally: every in-app

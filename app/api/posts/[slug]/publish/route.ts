@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getDb } from "@/db";
 import { auditLogs, postPublicationEvents, postRevisions, posts } from "@/db/schema";
 import { makeAuditRecord } from "@/lib/audit";
+import { adminReturnTarget } from "@/lib/admin-return";
 import { can } from "@/lib/authorization";
 import { getCurrentActor } from "@/lib/current-actor";
 import { isValidPostSlug, parsePostContentJson } from "@/lib/post-cms-content";
@@ -30,6 +31,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ sl
   if (!isValidPostSlug(slug)) return NextResponse.redirect(new URL("/app/posts?error=invalid_page", request.url), 303);
 
   const form = await request.formData();
+  const back = adminReturnTarget(form, `/app/posts/${encodeURIComponent(slug)}`);
   const action = String(form.get("action") ?? "").toUpperCase();
   const requestKey = text(form.get("requestKey"), 120);
   const revisionId = text(form.get("revisionId"), 100) || null;
@@ -41,12 +43,12 @@ export async function POST(request: NextRequest, context: { params: Promise<{ sl
     (action === "PUBLISH" && !revisionId) ||
     (action === "HIDE" && revisionId)
   ) {
-    return redirectError(request, slug, "invalid_publish");
+    return redirectError(request, back, "invalid_publish");
   }
 
   const db = getDb();
   const post = await db.select({ id: posts.id }).from(posts).where(eq(posts.slug, slug)).get();
-  if (!post) return redirectError(request, slug, "post_not_found");
+  if (!post) return redirectError(request, back, "post_not_found");
 
   const existing = await db
     .select({ id: postPublicationEvents.id })
@@ -54,7 +56,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ sl
     .where(eq(postPublicationEvents.requestKey, requestKey))
     .get();
   if (existing) {
-    return NextResponse.redirect(new URL(`/app/posts/${slug}?status=already_published`, request.url), 303);
+    return NextResponse.redirect(new URL(`${back}?status=already_published`, request.url), 303);
   }
 
   let referenceCount = 0;
@@ -64,10 +66,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ sl
       .from(postRevisions)
       .where(and(eq(postRevisions.id, revisionId!), eq(postRevisions.postId, post.id)))
       .get();
-    if (!revision) return redirectError(request, slug, "revision_not_found");
+    if (!revision) return redirectError(request, back, "revision_not_found");
 
     const content = parsePostContentJson(revision.contentJson);
-    if (!content) return redirectError(request, slug, "revision_unreadable");
+    if (!content) return redirectError(request, back, "revision_unreadable");
 
     // The media a post points at has to be showable. Without this an editor
     // gets a live post with a missing hero and no error anywhere, because every
@@ -78,7 +80,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ sl
     try {
       problems = unpublishableReferences(references, await resolvePublishReferences(references));
     } catch {
-      return redirectError(request, slug, "publish_failed");
+      return redirectError(request, back, "publish_failed");
     }
     if (problems.length > 0) {
       const label = firstUnpublishableLabel(problems);
@@ -96,7 +98,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ sl
   // revalidation contract here is what turns a stored publication event into a
   // statement about which public URLs stopped being true.
   const delivery = decidePublication(postPublishEvent(slug, action as "PUBLISH" | "HIDE", action === "PUBLISH" ? revisionId : null));
-  if (!delivery.ok) return redirectError(request, slug, "publish_rejected");
+  if (!delivery.ok) return redirectError(request, back, "publish_rejected");
 
   const eventId = crypto.randomUUID();
   try {
@@ -127,13 +129,13 @@ export async function POST(request: NextRequest, context: { params: Promise<{ sl
       .where(eq(postPublicationEvents.requestKey, requestKey))
       .get();
     if (concurrent) {
-      return NextResponse.redirect(new URL(`/app/posts/${slug}?status=already_published`, request.url), 303);
+      return NextResponse.redirect(new URL(`${back}?status=already_published`, request.url), 303);
     }
-    return redirectError(request, slug, "publish_failed");
+    return redirectError(request, back, "publish_failed");
   }
 
   return NextResponse.redirect(
-    new URL(`/app/posts/${slug}?status=${action === "PUBLISH" ? "published" : "hidden"}`, request.url),
+    new URL(`${back}?status=${action === "PUBLISH" ? "published" : "hidden"}`, request.url),
     303,
   );
 }

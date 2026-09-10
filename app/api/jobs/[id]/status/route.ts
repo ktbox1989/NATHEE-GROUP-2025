@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { NextResponse, type NextRequest } from "next/server";
 import { getD1, getDb } from "@/db";
 import { motorcycles, transportJobs } from "@/db/schema";
+import { adminReturnTarget } from "@/lib/admin-return";
 import { can } from "@/lib/authorization";
 import { getCurrentActor } from "@/lib/current-actor";
 import {
@@ -28,22 +29,23 @@ export async function POST(
     .where(eq(transportJobs.id, id))
     .get();
   if (!job || !can(actor, "jobs:write", job.companyId)) {
-    return redirect(request, id, "error", "forbidden");
+    return redirect(request, `/app/jobs/${encodeURIComponent(id)}`, "error", "forbidden");
   }
 
   const form = await request.formData();
+  const fallback = adminReturnTarget(form, `/app/jobs/${encodeURIComponent(id)}`);
   const expectedUpdatedAt = String(form.get("expectedUpdatedAt") ?? "");
   const newStatus = parseJobStatus(String(form.get("newStatus") ?? ""));
   const note = String(form.get("note") ?? "").trim().slice(0, 1000) || null;
 
   if (!expectedUpdatedAt || expectedUpdatedAt !== job.updatedAt) {
-    return redirect(request, id, "error", "stale");
+    return redirect(request, fallback, "error", "stale");
   }
   if (!newStatus || !canTransitionJob(job.status, newStatus)) {
-    return redirect(request, id, "error", "invalid_transition");
+    return redirect(request, fallback, "error", "invalid_transition");
   }
   if (newStatus === "CANCELLED" && (!note || note.length < 3)) {
-    return redirect(request, id, "error", "cancel_reason");
+    return redirect(request, fallback, "error", "cancel_reason");
   }
 
   if (newStatus === "COMPLETED") {
@@ -53,7 +55,7 @@ export async function POST(
       .where(eq(motorcycles.jobId, id))
       .all();
     const issue = jobCompletionIssue(statuses.map((row) => row.status));
-    if (issue) return redirect(request, id, "error", issue);
+    if (issue) return redirect(request, fallback, "error", issue);
   }
 
   const recordedAt = recordTimestamp();
@@ -104,23 +106,23 @@ export async function POST(
       `).bind(newStatus, recordedAt, id, job.status, auditId),
     ]);
     if ((results[0].meta.changes ?? 0) !== 1 || (results[1].meta.changes ?? 0) !== 1) {
-      return redirect(request, id, "error", "stale");
+      return redirect(request, fallback, "error", "stale");
     }
   } catch {
-    return redirect(request, id, "error", "save_status");
+    return redirect(request, fallback, "error", "save_status");
   }
 
-  return redirect(request, id, "status", "status_updated");
+  return redirect(request, fallback, "status", "status_updated");
 }
 
 function redirect(
   request: NextRequest,
-  id: string,
+  base: string,
   key: "status" | "error",
   value: string,
 ) {
   return NextResponse.redirect(
-    new URL(`/app/jobs/${encodeURIComponent(id)}?${key}=${encodeURIComponent(value)}`, request.url),
+    new URL(`${base}?${key}=${encodeURIComponent(value)}`, request.url),
     303,
   );
 }

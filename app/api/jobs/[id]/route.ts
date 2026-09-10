@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { NextResponse, type NextRequest } from "next/server";
 import { getD1, getDb } from "@/db";
 import { transportJobs } from "@/db/schema";
+import { adminReturnTarget } from "@/lib/admin-return";
 import { can } from "@/lib/authorization";
 import { getCurrentActor } from "@/lib/current-actor";
 import { isSameOrigin } from "@/lib/same-origin";
@@ -33,16 +34,17 @@ export async function POST(
     .get();
 
   if (!job || !can(actor, "jobs:write", job.companyId)) {
-    return redirect(request, id, "error", "forbidden");
+    return redirect(request, `/app/jobs/${encodeURIComponent(id)}`, "error", "forbidden");
   }
   if (job.status === "COMPLETED" || job.status === "CANCELLED") {
-    return redirect(request, id, "error", "locked");
+    return redirect(request, `/app/jobs/${encodeURIComponent(id)}`, "error", "locked");
   }
 
   const form = await request.formData();
+  const back = adminReturnTarget(form, `/app/jobs/${encodeURIComponent(id)}`);
   const expectedUpdatedAt = String(form.get("expectedUpdatedAt") ?? "");
   if (!expectedUpdatedAt || expectedUpdatedAt !== job.updatedAt) {
-    return redirect(request, id, "error", "stale");
+    return redirect(request, back, "error", "stale");
   }
 
   const origin = String(form.get("origin") ?? "").trim();
@@ -53,13 +55,13 @@ export async function POST(
   const delivery = optionalDate(form, "plannedDeliveryDate");
 
   if (!origin || origin.length > 200 || !destination || destination.length > 200) {
-    return redirect(request, id, "error", "invalid_details");
+    return redirect(request, back, "error", "invalid_details");
   }
   if (notes.length > 2000 || changeReason.length < 3 || changeReason.length > 500) {
-    return redirect(request, id, "error", "invalid_details");
+    return redirect(request, back, "error", "invalid_details");
   }
   if (pickup === undefined || delivery === undefined || (pickup && delivery && delivery < pickup)) {
-    return redirect(request, id, "error", "invalid_schedule");
+    return redirect(request, back, "error", "invalid_schedule");
   }
 
   const next = {
@@ -77,7 +79,7 @@ export async function POST(
     notes: job.notes,
   };
   if (JSON.stringify(next) === JSON.stringify(previous)) {
-    return redirect(request, id, "status", "unchanged");
+    return redirect(request, back, "status", "unchanged");
   }
 
   const recordedAt = recordTimestamp();
@@ -131,13 +133,13 @@ export async function POST(
       ),
     ]);
     if ((results[0].meta.changes ?? 0) !== 1 || (results[1].meta.changes ?? 0) !== 1) {
-      return redirect(request, id, "error", "stale");
+      return redirect(request, back, "error", "stale");
     }
   } catch {
-    return redirect(request, id, "error", "save_details");
+    return redirect(request, back, "error", "save_details");
   }
 
-  return redirect(request, id, "status", "details_updated");
+  return redirect(request, back, "status", "details_updated");
 }
 
 function optionalDate(form: FormData, name: string): string | null | undefined {
@@ -152,12 +154,9 @@ function optionalDate(form: FormData, name: string): string | null | undefined {
 
 function redirect(
   request: NextRequest,
-  id: string,
+  base: string,
   key: "status" | "error",
   value: string,
 ) {
-  return NextResponse.redirect(
-    new URL(`/app/jobs/${encodeURIComponent(id)}?${key}=${encodeURIComponent(value)}`, request.url),
-    303,
-  );
+  return NextResponse.redirect(new URL(`${base}?${key}=${encodeURIComponent(value)}`, request.url), 303);
 }

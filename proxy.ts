@@ -43,6 +43,7 @@ export const config = {
     "/news/:path*",
     "/sitemap.xml",
     "/app/:path*",
+    "/admin/:path*",
     "/portal/:path*",
     "/auth/:path*",
     "/api/auth/:path*",

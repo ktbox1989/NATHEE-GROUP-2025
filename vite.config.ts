@@ -33,14 +33,11 @@ function readLocalEnvVars(): Record<string, string> {
   }
 }
 
-// The Sites runtime populates process.env from the platform environment in
-// production (ownerPin/canonicalOrigin checks read process.env there). The
-// local workerd runtime only does that with the `nodejs_compat_populate_process_env`
-// flag plus plain-text vars, so without both a local dev server answers
-// `error=config` at the Owner PIN login no matter what `.env` says, and local
-// behavior drifts from production for every process.env reader. Both are added
-// for `vite dev` only: a production build must neither bake `.env` values into
-// its emitted wrangler config nor change the platform's compatibility flags.
+// `nodejs_compat` must be present for builds too, not just `vite dev`: the
+// Cloudflare vite plugin statically replaces `process.env` with `{}` when a
+// worker target is built without it, which would bake a login that can never
+// see its secrets. The populate flag and the `.env` vars are what only the
+// local dev server needs, so those stay dev-only.
 function localDevOnlyExtensions(isDev: boolean) {
   if (!isDev) return {};
   return {
@@ -50,9 +47,11 @@ function localDevOnlyExtensions(isDev: boolean) {
 }
 
 function localBindingConfig(isDev: boolean) {
+  const devOnly = localDevOnlyExtensions(isDev);
   return {
     main: "./worker/index.ts",
-    ...localDevOnlyExtensions(isDev),
+    ...devOnly,
+    compatibility_flags: devOnly.compatibility_flags ?? ["nodejs_compat"],
     d1_databases: d1
       ? [
           {
