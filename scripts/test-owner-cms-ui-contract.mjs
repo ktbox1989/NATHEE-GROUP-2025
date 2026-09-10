@@ -94,6 +94,20 @@ require(
     && postEditor.includes('type="submit" className="button button-gradient" disabled={busy || disabled}'),
   `${POST_EDITOR}: post save lacks server-equivalent validation or pending protection`,
 );
+// The slug is submitted through a hidden field the handler fills after
+// validation. Submitting the visible input directly stopped working the day it
+// gained `disabled={busy}`: setBusy(true) applies before the browser builds the
+// request, a disabled control is dropped from it, and the server refused every
+// save with `invalid_slug` — the Owner saw a save button that did nothing.
+require(
+  postEditor.includes('ref={slugRef} type="hidden" name="slug"')
+    && postEditor.includes("if (slugRef.current) slugRef.current.value = slug"),
+  `${POST_EDITOR}: the slug must be submitted from a handler-filled hidden field, not a busy-disabled input`,
+);
+require(
+  !postEditor.includes('name="slug" required maxLength={80}'),
+  `${POST_EDITOR}: the visible slug input must not carry the submitted name while it can be disabled`,
+);
 // A post shows work photographs through the same GALLERY section a page does,
 // offered only the categories the gallery lane has published as ACTIVE.
 require(

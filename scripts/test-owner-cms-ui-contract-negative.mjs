@@ -67,6 +67,10 @@ const CASES = [
     apply: (d) => edit(d, POSTS_PAGE, (s) => s.replace(" categories={categories}", "")),
   },
   {
+    name: "the slug goes back to riding the busy-disabled visible input",
+    apply: (d) => edit(d, POST_EDITOR, (s) => s.replace("if (slugRef.current) slugRef.current.value = slug", "")),
+  },
+  {
     name: "the Gallery add/upload action disappears",
     apply: (d) => edit(d, GALLERY_PAGE, (s) => s.replace("เพิ่มรายการ / อัปโหลดสื่อ", "Media Library")),
   },

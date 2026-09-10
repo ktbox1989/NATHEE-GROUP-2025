@@ -1,5 +1,48 @@
 # NATHEE GROUP 2025 — Work History
 
+## 2026-09-11 — Back-office "nothing can be pressed": two real source bugs
+
+- Symptom reproduced on the live application and then locally: every in-app
+  link click died silently, and saving a new post always answered
+  `?error=invalid_slug`. Root causes were two distinct source-level bugs, not
+  a stale-artifact-only problem.
+- Bug 1 — the production client bundle shipped without the router runtime it
+  imports. `vinext@1.0.0-beta.2`'s link shim dynamically imported
+  `navigateClientSide` from a chunk that did not export it, so every hydrated
+  click threw `TypeError: e is not a function` after `preventDefault`, and the
+  click went nowhere. Fixed by upgrading `vinext` to `1.0.0-beta.9` (with
+  `@vitejs/plugin-rsc@0.5.34`, its peer), whose bundle carries a
+  `vinext-*.js` runtime chunk. Verified by clicking through the built
+  artifact: SPA navigation keeps the page context, no console errors.
+- Bug 2 — the post editor submitted its slug from a `disabled={busy}` input.
+  `setBusy(true)` applies before the browser builds the submission, a disabled
+  control is dropped from it, and the server refused every new post with an
+  empty slug. Fixed the way the request key already works: the slug rides in a
+  hidden field the submit handler fills after validating.
+- Proof harness: `scripts/serve-local-e2e.mjs` runs the real production build
+  (`dist/server/index.js`) in Node with a D1 adapter over sqlite, a real
+  Miniflare R2 bucket, platform-style static-first asset routing and `.env`
+  application secrets — Owner PIN login, page renders, form posts and RSC
+  errors all observable without touching production. `vite.config.ts` gained a
+  dev-only `.env` → worker vars bridge (`nodejs_compat_populate_process_env`)
+  so `vite dev` can log in the way the Sites runtime allows in production;
+  production builds emit no vars and no flag changes.
+- Regression guards: `tests/client-bundle-contract.test.mjs` fails the build
+  artifacts if the router runtime symbol disappears from the client bundle
+  again, and the Owner-CMS UI contract now requires the handler-filled hidden
+  slug field (positive + negative cases).
+- Verified against the upgraded stack: TypeScript PASS, ESLint PASS, unit
+  791/791, rendered/database/integration 349/349 + client-bundle contract,
+  security gates 29 PASS, public gates PASS, production build PASS, and a
+  browser pass over /login, /app, website, site-content(+services), posts
+  (create + GALLERY section + preview-able publish → /news/<slug>/), gallery,
+  site-settings, motorcycles, notifications, audit and jobs (status
+  transition OPEN→IN_PROGRESS with audit recorded).
+- Deployment: **none** — the ChatGPT Sites artifact at app.natheegroup2025.com
+  still predates even the self-service job management work, so both this fix
+  and that feature remain unpublished until the existing Site is republished
+  from `main`.
+
 ## 2026-09-11 — Posts: work-photograph gallery sections
 
 - Commit `74dfd76` on `main` (pushed; local = origin/main), from `0fb676f`.

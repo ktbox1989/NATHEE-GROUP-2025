@@ -39,6 +39,7 @@ export function PostEditor({
   const [busy, setBusy] = useState(false);
   const payloadRef = useRef<HTMLInputElement>(null);
   const requestRef = useRef<HTMLInputElement>(null);
+  const slugRef = useRef<HTMLInputElement>(null);
 
   function submit(event: FormEvent<HTMLFormElement>) {
     if (slugField && !isValidPostSlug(slug)) {
@@ -54,6 +55,11 @@ export function PostEditor({
       if (payloadRef.current) payloadRef.current.value = JSON.stringify(validated);
       // A request key the server uses to make a double submit idempotent.
       if (requestRef.current) requestRef.current.value = browserSecureId("post-save");
+      // The slug rides in a hidden field the handler fills, because the visible
+      // one is disabled while busy and a disabled control is dropped from the
+      // submission — the server would then see an empty slug and refuse the
+      // save that was about to happen.
+      if (slugRef.current) slugRef.current.value = slug;
       setBusy(true);
       setMessage("กำลังบันทึก Revision ใหม่…");
     } catch {
@@ -73,11 +79,12 @@ export function PostEditor({
     <form className="cms-editor" action={action} method="post" onSubmit={submit} aria-busy={busy}>
       <input ref={payloadRef} type="hidden" name="contentJson" />
       <input ref={requestRef} type="hidden" name="requestKey" />
+      {slugField && <input ref={slugRef} type="hidden" name="slug" />}
 
       {slugField && (
         <label className="field">
           <span>Slug (ใช้เป็น URL /news/&lt;slug&gt;/ และเปลี่ยนภายหลังไม่ได้)</span>
-          <input name="slug" required maxLength={80} pattern="[a-z0-9]+(-[a-z0-9]+)*" placeholder="new-route-bangkok" value={slug} disabled={busy} onChange={(event) => setSlug(event.target.value.trim().toLowerCase())} aria-describedby="post-slug-hint" />
+          <input aria-label="Slug ของบทความ" required maxLength={80} pattern="[a-z0-9]+(-[a-z0-9]+)*" placeholder="new-route-bangkok" value={slug} disabled={busy} onChange={(event) => setSlug(event.target.value.trim().toLowerCase())} aria-describedby="post-slug-hint" />
           <small id="post-slug-hint">Slug เป็น URL ถาวร ระบบตรวจชื่อซ้ำและชื่อสงวนก่อนสร้าง Draft และจะไม่เผยแพร่อัตโนมัติ</small>
         </label>
       )}
