@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { GalleryLightbox } from "@/components/gallery-lightbox";
 import { can } from "@/lib/authorization";
 import { requireActor } from "@/lib/current-actor";
 import { isValidPostSlug } from "@/lib/post-cms-content";
 import { getPostEditorState, getRevisionContent } from "@/lib/post-cms-store";
 import { POSTS_INDEX_PATH } from "@/lib/public-cms/posts";
+import { readNewsGallerySections } from "@/lib/public-news";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +29,10 @@ export default async function PostPreview({ params, searchParams }: Props) {
   if (!content) notFound();
 
   const live = state.publication?.action === "PUBLISH" ? state.publication.revisionId : null;
+  const enabled = content.sections.filter((section) => section.enabled);
+  // A GALLERY section is previewed with the same photographs the article would
+  // show, because a preview that cannot show them is not a preview of the page.
+  const gallerySections = await readNewsGallerySections(enabled);
 
   return (
     <>
@@ -51,8 +57,7 @@ export default async function PostPreview({ params, searchParams }: Props) {
       </section>
 
       <article className="cms-preview">
-        {content.sections
-          .filter((section) => section.enabled)
+        {enabled
           .map((section) => (
             <section key={section.id}>
               <h2>{section.heading}</h2>
@@ -63,6 +68,15 @@ export default async function PostPreview({ params, searchParams }: Props) {
                   {item.body && <p>{item.body}</p>}
                 </div>
               ))}
+              {section.type === "GALLERY" && (
+                <div className="cms-preview-gallery">
+                  {(gallerySections.get(section.id) ?? []).length > 0 ? (
+                    <GalleryLightbox items={gallerySections.get(section.id) ?? []} />
+                  ) : (
+                    <p className="form-message">หมวดแกลเลอรีนี้ยังไม่มีภาพที่เผยแพร่ — หน้าจริงจะแสดงกล่องว่ายังไม่มีภาพที่เผยแพร่</p>
+                  )}
+                </div>
+              )}
             </section>
           ))}
       </article>

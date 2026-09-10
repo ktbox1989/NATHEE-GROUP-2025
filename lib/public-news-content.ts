@@ -19,7 +19,7 @@
 import { parsePostContentJson, type PostRobots } from "./post-cms-content.ts";
 import type { PublicMedia } from "./public-cms/contract.ts";
 import { postPath } from "./public-cms/posts.ts";
-import type { CmsFeature } from "./site-cms-content.ts";
+import type { CmsFeature, CmsSectionType } from "./site-cms-content.ts";
 import { timestampInstant } from "./timestamps.ts";
 
 /**
@@ -41,13 +41,32 @@ export type PublicNewsCard = {
   image: PublicMedia | null;
 };
 
+/**
+ * One work photograph a post's GALLERY section shows, in the shape the public
+ * gallery grid renders. Deliberately the same fields `GalleryLightbox` reads,
+ * so a photograph inside an article and one on a marketing page is one object
+ * and not two that agree until edited.
+ */
+export type NewsGalleryItem = {
+  id: string;
+  title: string;
+  caption: string | null;
+  altText: string;
+  categoryName: string;
+  takenAt: string | null;
+  location: string | null;
+};
+
 export type PublicNewsSection = {
   id: string;
+  type: CmsSectionType;
   heading: string;
   eyebrow: string;
   body: string;
   items: CmsFeature[];
   image: PublicMedia | null;
+  /** Photographs a GALLERY section resolved from the Media Library. */
+  gallery: NewsGalleryItem[];
   primaryLabel: string;
   primaryHref: string;
   secondaryLabel: string;

@@ -3,7 +3,7 @@ import { and, desc, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { PostEditor } from "@/components/post-editor";
 import { getDb } from "@/db";
-import { galleryItems } from "@/db/schema";
+import { galleryCategories, galleryItems } from "@/db/schema";
 import { can } from "@/lib/authorization";
 import { requireActor } from "@/lib/current-actor";
 import { DEFAULT_POST_CONTENT } from "@/lib/post-cms-content";
@@ -24,7 +24,7 @@ export default async function PostsPage({ searchParams }: { searchParams: Promis
   if (!can(actor, "site:read")) redirect("/app");
   const { error } = await searchParams;
 
-  const [summaries, mediaRows] = await Promise.all([
+  const [summaries, mediaRows, categoryRows] = await Promise.all([
     listPosts(),
     getDb()
       .select({ id: galleryItems.id, title: galleryItems.title })
@@ -33,8 +33,18 @@ export default async function PostsPage({ searchParams }: { searchParams: Promis
       .orderBy(desc(galleryItems.isFeatured), desc(galleryItems.createdAt))
       .limit(200)
       .all(),
+    // The same list the managed pages' editor picks a GALLERY section's category
+    // from, so a post and a page offer exactly the same choices.
+    getDb()
+      .select({ slug: galleryCategories.slug, label: galleryCategories.name })
+      .from(galleryCategories)
+      .where(eq(galleryCategories.status, "ACTIVE"))
+      .orderBy(galleryCategories.sortOrder, galleryCategories.name)
+      .limit(100)
+      .all(),
   ]);
   const media = mediaRows.map((row) => ({ id: row.id, label: row.title }));
+  const categories = categoryRows.map((row) => ({ slug: row.slug, label: row.label }));
   const canWrite = can(actor, "site:write");
 
   return (
@@ -98,7 +108,7 @@ export default async function PostsPage({ searchParams }: { searchParams: Promis
         <section className="app-panel" id="new-post">
           <h2>สร้างข่าวใหม่</h2>
           <p>Slug กำหนดเป็น URL ถาวรและเปลี่ยนภายหลังไม่ได้ เพราะจะทำให้ลิงก์เดิมเสีย</p>
-          <PostEditor action="/api/posts" slugField initial={DEFAULT_POST_CONTENT} media={media} />
+          <PostEditor action="/api/posts" slugField initial={DEFAULT_POST_CONTENT} media={media} categories={categories} />
         </section>
       )}
     </>

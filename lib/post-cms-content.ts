@@ -34,6 +34,7 @@ export type PostContent = {
 };
 
 const idPattern = /^[A-Za-z0-9_-]{1,100}$/;
+const slugPattern = /^[a-z0-9-]{2,80}$/;
 const sectionTypes = new Set(["HERO", "CONTENT", "FEATURES", "GALLERY", "FAQ", "CTA", "CONTACT"]);
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -108,6 +109,15 @@ export function parsePostContent(input: unknown): PostContent | null {
     if ((primaryLabel && !primaryHref) || (primaryHref && !primaryLabel)) return null;
     if ((secondaryLabel && !secondaryHref) || (secondaryHref && !secondaryLabel)) return null;
 
+    // The same rule a managed page's GALLERY section answers to: an empty slug
+    // means every category, and any other value is a category slug the gallery
+    // lane owns. One pattern, so a post and a page cannot disagree about what a
+    // slug is worth showing work photographs from.
+    const galleryCategorySlug = bounded(raw.galleryCategorySlug, 80);
+    if (galleryCategorySlug && !slugPattern.test(galleryCategorySlug)) return null;
+    const galleryLimit = Number(raw.galleryLimit ?? 12);
+    if (!Number.isSafeInteger(galleryLimit) || galleryLimit < 1 || galleryLimit > 24) return null;
+
     const rawItems = Array.isArray(raw.items) ? raw.items : [];
     if (rawItems.length > 12) return null;
     const items: Array<{ title: string; body: string }> = [];
@@ -131,8 +141,8 @@ export function parsePostContent(input: unknown): PostContent | null {
       primaryHref,
       secondaryLabel,
       secondaryHref,
-      galleryCategorySlug: "",
-      galleryLimit: 12,
+      galleryCategorySlug,
+      galleryLimit,
       items,
     });
   }

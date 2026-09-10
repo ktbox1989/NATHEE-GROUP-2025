@@ -23,6 +23,7 @@ const MEDIA_PICKER = "components/media-picker.tsx";
 const PAGES_PAGE = "app/app/site-content/page.tsx";
 const PAGE_EDITOR = "components/site-page-editor.tsx";
 const POSTS_PAGE = "app/app/posts/page.tsx";
+const POSTS_EDIT_PAGE = "app/app/posts/[slug]/page.tsx";
 const POST_EDITOR = "components/post-editor.tsx";
 const GALLERY_PAGE = "app/app/gallery/page.tsx";
 const GALLERY_UPLOAD = "components/gallery-bulk-upload-form.tsx";
@@ -31,8 +32,8 @@ const ORDER_BOARD = "components/gallery-order-board.tsx";
 const ORDER_PAGE = "app/app/gallery/order/page.tsx";
 const PUBLIC_PAGE = "components/cms-public-page.tsx";
 
-const [settingsEditor, settingsPage, mediaPicker, pagesPage, pageEditor, postsPage, postEditor, galleryPage, galleryUpload, pendingForm, orderBoard, orderPage, publicPage] = await Promise.all(
-  [SETTINGS_EDITOR, SETTINGS_PAGE, MEDIA_PICKER, PAGES_PAGE, PAGE_EDITOR, POSTS_PAGE, POST_EDITOR, GALLERY_PAGE, GALLERY_UPLOAD, PENDING_FORM, ORDER_BOARD, ORDER_PAGE, PUBLIC_PAGE].map(read),
+const [settingsEditor, settingsPage, mediaPicker, pagesPage, pageEditor, postsPage, postsEditPage, postEditor, galleryPage, galleryUpload, pendingForm, orderBoard, orderPage, publicPage] = await Promise.all(
+  [SETTINGS_EDITOR, SETTINGS_PAGE, MEDIA_PICKER, PAGES_PAGE, PAGE_EDITOR, POSTS_PAGE, POSTS_EDIT_PAGE, POST_EDITOR, GALLERY_PAGE, GALLERY_UPLOAD, PENDING_FORM, ORDER_BOARD, ORDER_PAGE, PUBLIC_PAGE].map(read),
 );
 
 // 0. A managed page is a fixed allowlisted identity, but its D1 record may not
@@ -92,6 +93,18 @@ require(
     && postEditor.includes("isValidPostSlug(slug)")
     && postEditor.includes('type="submit" className="button button-gradient" disabled={busy || disabled}'),
   `${POST_EDITOR}: post save lacks server-equivalent validation or pending protection`,
+);
+// A post shows work photographs through the same GALLERY section a page does,
+// offered only the categories the gallery lane has published as ACTIVE.
+require(
+  postEditor.includes('{ value: "GALLERY", label: "แกลเลอรีผลงาน" }')
+    && postEditor.includes("หมวด Gallery")
+    && postEditor.includes("จำนวนภาพ"),
+  `${POST_EDITOR}: a post cannot offer the work-photograph gallery section the pages editor offers`,
+);
+require(
+  postsPage.includes("categories={categories}") && postsEditPage.includes("categories={categories}"),
+  `${POST_EDITOR}: the post editors are not offered the gallery categories`,
 );
 require(
   galleryPage.includes('href="#gallery-upload"')

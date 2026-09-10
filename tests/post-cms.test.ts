@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { parsePostContent, parsePostContentJson, serializePostContent, type PostContent } from "../lib/post-cms-content.ts";
+import { collectPostReferences } from "../lib/post-cms-store.ts";
 import { mapStoredPostToPublicPost, type PostMediaResolver } from "../lib/post-cms-public.ts";
 import type { PublicMedia } from "../lib/public-cms/contract.ts";
 
@@ -188,4 +189,78 @@ test("a slug the public contract refuses cannot be mapped", () => {
     );
     assert.equal(result.ok, false, `slug ${JSON.stringify(slug)} was accepted`);
   }
+});
+
+// A post shows work photographs through a GALLERY section, the same way a
+// managed page does, so the category and limit obey the pages' rules.
+test("a GALLERY section parses with a category and a limit", () => {
+  const value = parsed({
+    sections: [
+      { id: "work", type: "GALLERY", enabled: true, heading: "ภาพผลงาน", body: "", galleryCategorySlug: "motorcycle-transport", galleryLimit: 8, items: [] },
+    ],
+  }) as PostContent;
+  assert.ok(value);
+  assert.equal(value.sections[0].galleryCategorySlug, "motorcycle-transport");
+  assert.equal(value.sections[0].galleryLimit, 8);
+  assert.deepEqual(parsePostContentJson(serializePostContent(value)), value);
+});
+
+test("a GALLERY section follows the same category and limit rules a page does", () => {
+  const gallery = (extra: Record<string, unknown>) =>
+    parsed({ sections: [{ id: "work", type: "GALLERY", enabled: true, heading: "ภาพผลงาน", body: "", items: [], ...extra }] });
+  assert.ok(gallery({ galleryCategorySlug: "" }), "an empty slug means every category");
+  assert.equal(gallery({ galleryCategorySlug: "UPPER" }), null, "uppercase slug");
+  assert.equal(gallery({ galleryCategorySlug: "x" }), null, "single-character slug");
+  assert.equal(gallery({ galleryCategorySlug: "has space" }), null, "slug with a space");
+  assert.equal(gallery({ galleryLimit: 0 }), null, "limit below one");
+  assert.equal(gallery({ galleryLimit: 25 }), null, "limit above twenty-four");
+  assert.equal(gallery({ galleryLimit: 1.5 }), null, "fractional limit");
+  assert.equal(gallery({})?.sections[0].galleryLimit, 12, "an absent limit keeps the stored default");
+});
+
+test("publish checks the gallery categories a post points at", () => {
+  const value = parsed({
+    featuredImageItemId: "gallery-hero-01",
+    sections: [
+      { id: "work", type: "GALLERY", enabled: true, heading: "ภาพผลงาน", body: "", galleryCategorySlug: "motorcycle-transport", items: [] },
+      { id: "more", type: "GALLERY", enabled: true, heading: "ภาพเพิ่ม", body: "", galleryCategorySlug: "motorcycle-transport", items: [] },
+      { id: "off", type: "GALLERY", enabled: false, heading: "ปิดอยู่", body: "", galleryCategorySlug: "hidden-category", items: [] },
+      { id: "all", type: "GALLERY", enabled: true, heading: "ทุกหมวด", body: "", galleryCategorySlug: "", items: [] },
+    ],
+  }) as PostContent;
+  const references = collectPostReferences(value);
+  assert.deepEqual(references.imageItemIds, ["gallery-hero-01"]);
+  // Deduplicated, enabled only, and an empty slug means every category rather
+  // than a category that has to exist.
+  assert.deepEqual(references.galleryCategorySlugs, ["motorcycle-transport"]);
+});
+
+test("a GALLERY section's photographs ride the section's media list", () => {
+  const value = parsed({
+    sections: [
+      { id: "work", type: "GALLERY", enabled: true, heading: "ภาพผลงาน", body: "", galleryCategorySlug: "works", galleryLimit: 2, items: [] },
+    ],
+  }) as PostContent;
+  const asked: Array<[string, number]> = [];
+  const photos: PublicMedia[] = [MEDIA, { ...MEDIA, id: "gallery-hero-02" }];
+  const withPhotos = mapStoredPostToPublicPost(
+    { slug: "works-post", revisionId: "rev-1", content: value, publishedAt: "2026-08-01T03:00:00.000Z", updatedAt: null },
+    resolveNothing,
+    (categorySlug, limit) => {
+      asked.push([categorySlug, limit]);
+      return photos.slice(0, limit);
+    },
+  );
+  assert.ok(withPhotos.ok, JSON.stringify(withPhotos.ok ? {} : withPhotos.violations));
+  assert.deepEqual(asked, [["works", 2]]);
+  assert.deepEqual(withPhotos.post.sections[0].media.map((media) => media.id), ["gallery-hero-01", "gallery-hero-02"]);
+
+  // Without a gallery resolution the section degrades to its heading and body
+  // rather than failing the whole post — the same drop an archived image gets.
+  const without = mapStoredPostToPublicPost(
+    { slug: "works-post", revisionId: "rev-1", content: value, publishedAt: "2026-08-01T03:00:00.000Z", updatedAt: null },
+    resolveNothing,
+  );
+  assert.ok(without.ok);
+  assert.deepEqual(without.post.sections[0].media, []);
 });

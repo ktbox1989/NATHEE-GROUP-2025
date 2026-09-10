@@ -4,7 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { PostEditor } from "@/components/post-editor";
 import { PublishForm } from "@/components/publish-form";
 import { getDb } from "@/db";
-import { galleryItems } from "@/db/schema";
+import { galleryCategories, galleryItems } from "@/db/schema";
 import { can } from "@/lib/authorization";
 import { requireActor } from "@/lib/current-actor";
 import { DEFAULT_POST_CONTENT, isValidPostSlug } from "@/lib/post-cms-content";
@@ -24,7 +24,7 @@ const ERRORS: Record<string, string> = {
   post_not_found: "ไม่พบข่าวนี้",
   revision_not_found: "ไม่พบ Revision ที่เลือก",
   revision_unreadable: "Revision นี้อ่านไม่ได้ จึงเผยแพร่ไม่ได้",
-  unpublishable_media: "มีรูปที่ยังไม่เผยแพร่หรือถูกเก็บแล้ว จึงเผยแพร่ไม่ได้",
+  unpublishable_media: "มีรูปหรือหมวดแกลเลอรีที่ยังไม่เผยแพร่หรือถูกซ่อน จึงเผยแพร่ไม่ได้",
   save_failed: "บันทึกไม่สำเร็จ กรุณาลองใหม่",
   publish_failed: "เผยแพร่ไม่สำเร็จ กรุณาลองใหม่",
 };
@@ -47,14 +47,24 @@ export default async function PostEditPage({ params, searchParams }: Props) {
   const state = await getPostEditorState(slug);
   if (!state) notFound();
 
-  const mediaRows = await getDb()
-    .select({ id: galleryItems.id, title: galleryItems.title })
-    .from(galleryItems)
-    .where(and(eq(galleryItems.status, "PUBLISHED"), eq(galleryItems.visibility, "PUBLIC")))
-    .orderBy(desc(galleryItems.isFeatured), desc(galleryItems.createdAt))
-    .limit(200)
-    .all();
+  const [mediaRows, categoryRows] = await Promise.all([
+    getDb()
+      .select({ id: galleryItems.id, title: galleryItems.title })
+      .from(galleryItems)
+      .where(and(eq(galleryItems.status, "PUBLISHED"), eq(galleryItems.visibility, "PUBLIC")))
+      .orderBy(desc(galleryItems.isFeatured), desc(galleryItems.createdAt))
+      .limit(200)
+      .all(),
+    getDb()
+      .select({ slug: galleryCategories.slug, label: galleryCategories.name })
+      .from(galleryCategories)
+      .where(eq(galleryCategories.status, "ACTIVE"))
+      .orderBy(galleryCategories.sortOrder, galleryCategories.name)
+      .limit(100)
+      .all(),
+  ]);
   const media = mediaRows.map((row) => ({ id: row.id, label: row.title }));
+  const categories = categoryRows.map((row) => ({ slug: row.slug, label: row.label }));
 
   const selected = query.revision
     ? state.revisions.find((revision) => revision.id === query.revision)
@@ -143,7 +153,7 @@ export default async function PostEditPage({ params, searchParams }: Props) {
           )}
         </p>
       )}
-      {canWrite && <PostEditor action={`/api/posts/${slug}/revisions`} initial={initial} media={media} />}
+      {canWrite && <PostEditor action={`/api/posts/${slug}/revisions`} initial={initial} media={media} categories={categories} />}
 
       <section className="detail-section">
         <div className="detail-section-head">

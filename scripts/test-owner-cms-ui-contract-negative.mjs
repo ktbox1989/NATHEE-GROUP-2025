@@ -59,6 +59,14 @@ const CASES = [
     apply: (d) => edit(d, POST_EDITOR, (s) => s.replace("parsePostContent(content)", "content")),
   },
   {
+    name: "the post editor loses the work-photograph gallery section",
+    apply: (d) => edit(d, POST_EDITOR, (s) => s.replace("หมวด Gallery", "หมวดภาพผลงาน")),
+  },
+  {
+    name: "the post editors stop passing the gallery categories",
+    apply: (d) => edit(d, POSTS_PAGE, (s) => s.replace(" categories={categories}", "")),
+  },
+  {
     name: "the Gallery add/upload action disappears",
     apply: (d) => edit(d, GALLERY_PAGE, (s) => s.replace("เพิ่มรายการ / อัปโหลดสื่อ", "Media Library")),
   },

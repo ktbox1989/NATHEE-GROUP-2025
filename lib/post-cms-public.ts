@@ -23,6 +23,14 @@ import type { PostContent } from "./post-cms-content.ts";
 
 /** Resolves an image id to public media. The gallery is this lane's data. */
 export type PostMediaResolver = (imageItemId: string) => PublicMedia | null;
+/**
+ * Resolves what a GALLERY section would show: the published, public photographs
+ * of one gallery category, in the gallery lane's own order, bounded by the
+ * section's limit. Absent means "no gallery resolution here" and the section
+ * renders as its heading and body alone — the same fail-closed drop an
+ * unresolvable single image gets.
+ */
+export type PostGalleryResolver = (categorySlug: string, limit: number) => PublicMedia[];
 
 export type StoredPost = {
   slug: string;
@@ -38,7 +46,11 @@ export type PostMapResult =
   | { ok: true; post: PublicPost }
   | { ok: false; reason: string; violations?: ContractViolation[] };
 
-function toSections(content: PostContent, resolveMedia: PostMediaResolver): PublicSection[] {
+function toSections(
+  content: PostContent,
+  resolveMedia: PostMediaResolver,
+  resolveGallery?: PostGalleryResolver,
+): PublicSection[] {
   const sections: PublicSection[] = [];
 
   for (const section of content.sections) {
@@ -51,6 +63,12 @@ function toSections(content: PostContent, resolveMedia: PostMediaResolver): Publ
       // Publish already refuses a revision whose media cannot be resolved, so
       // reaching here means the item was archived after publication.
       if (resolved) media.push(resolved);
+    }
+    // A GALLERY section's photographs are the section's body of media: the
+    // contract carries them as an ordinary media list, so a post's work
+    // photographs and a page's are the same kind of object downstream.
+    if (section.type === "GALLERY" && resolveGallery) {
+      media.push(...resolveGallery(section.galleryCategorySlug, section.galleryLimit));
     }
 
     const body = section.body.trim() ? [section.body.trim()] : [];
@@ -81,6 +99,7 @@ function toSections(content: PostContent, resolveMedia: PostMediaResolver): Publ
 export function mapStoredPostToPublicPost(
   stored: StoredPost,
   resolveMedia: PostMediaResolver,
+  resolveGallery?: PostGalleryResolver,
 ): PostMapResult {
   const { content } = stored;
 
@@ -98,7 +117,7 @@ export function mapStoredPostToPublicPost(
     publishedAt: stored.publishedAt,
     updatedAt: stored.updatedAt,
     featuredImage,
-    sections: toSections(content, resolveMedia),
+    sections: toSections(content, resolveMedia, resolveGallery),
     seo: {
       title: content.seo.title,
       description: content.seo.description,

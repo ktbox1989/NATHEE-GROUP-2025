@@ -227,9 +227,16 @@ export async function getPublishedPost(slug: string, database?: CmsDatabase): Pr
 /** Media a post points at, so publish can refuse a revision it cannot render. */
 export function collectPostReferences(content: PostContent): PublishReferences {
   const imageItemIds = new Set<string>();
+  const galleryCategorySlugs = new Set<string>();
   if (content.featuredImageItemId) imageItemIds.add(content.featuredImageItemId);
   for (const section of content.sections) {
-    if (section.enabled && section.imageItemId) imageItemIds.add(section.imageItemId);
+    if (!section.enabled) continue;
+    if (section.imageItemId) imageItemIds.add(section.imageItemId);
+    // An empty slug means every category, which needs no particular one to exist —
+    // the same reading `collectPageReferences` gives a page's GALLERY section.
+    if (section.type === "GALLERY" && section.galleryCategorySlug) {
+      galleryCategorySlugs.add(section.galleryCategorySlug);
+    }
   }
-  return { imageItemIds: [...imageItemIds], galleryCategorySlugs: [] };
+  return { imageItemIds: [...imageItemIds].sort(), galleryCategorySlugs: [...galleryCategorySlugs].sort() };
 }

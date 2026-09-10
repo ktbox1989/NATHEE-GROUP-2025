@@ -7,10 +7,12 @@ import { isValidPostSlug } from "@/lib/public-cms/posts";
 import type { CmsSection, CmsSectionType } from "@/lib/site-cms";
 
 type MediaOption = { id: string; label: string };
+type GalleryCategoryOption = { slug: string; label: string };
 
 const types: { value: CmsSectionType; label: string }[] = [
   { value: "CONTENT", label: "เนื้อหา" },
   { value: "FEATURES", label: "รายการจุดเด่น" },
+  { value: "GALLERY", label: "แกลเลอรีผลงาน" },
   { value: "FAQ", label: "คำถามที่พบบ่อย / FAQ" },
   { value: "CTA", label: "ปุ่มเรียกให้ติดต่อ" },
 ];
@@ -20,6 +22,7 @@ export function PostEditor({
   slugField,
   initial,
   media,
+  categories,
   disabled,
 }: {
   action: string;
@@ -27,6 +30,7 @@ export function PostEditor({
   slugField?: boolean;
   initial: PostContent;
   media: MediaOption[];
+  categories: GalleryCategoryOption[];
   disabled?: boolean;
 }) {
   const [content, setContent] = useState(initial);
@@ -172,6 +176,23 @@ export function PostEditor({
               ))}
             </select>
           </label>
+          {section.type === "GALLERY" && (
+            <>
+              <label className="field">
+                <span>หมวด Gallery</span>
+                <select value={section.galleryCategorySlug} onChange={(event) => patch(index, { galleryCategorySlug: event.target.value })}>
+                  <option value="">ทุกหมวด</option>
+                  {categories.map((item) => (
+                    <option value={item.slug} key={item.slug}>{item.label}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="field">
+                <span>จำนวนภาพ</span>
+                <input type="number" min={1} max={24} value={section.galleryLimit} onChange={(event) => patch(index, { galleryLimit: Number(event.target.value) })} />
+              </label>
+            </>
+          )}
           <label className="field field-inline">
             <input type="checkbox" checked={section.enabled} onChange={(event) => patch(index, { enabled: event.target.checked })} />
             <span>เปิดใช้งาน</span>

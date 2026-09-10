@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
+import { GalleryLightbox } from "@/components/gallery-lightbox";
 import { PublicSiteFooter, PublicSiteHeader } from "@/components/cms-public-page";
 import { PublicMediaImage } from "@/components/public-media-image";
 import { CANONICAL_ORIGIN } from "@/lib/public-cms/contract";
@@ -135,30 +136,45 @@ export default async function NewsArticlePage({ params }: Props) {
 function NewsSection({ section }: { section: PublicNewsSection }) {
   const hasActions = Boolean(section.primaryHref || section.secondaryHref);
   return (
-    <section className="cms-section cms-news-body">
+    <section className={section.type === "GALLERY" ? "cms-section cms-gallery-section" : "cms-section cms-news-body"}>
       <div className="shell">
         <div className="cms-section-heading">
           {section.eyebrow && <span className="eyebrow">{section.eyebrow}</span>}
           {section.heading && <h2>{section.heading}</h2>}
           {section.body && <p>{section.body}</p>}
         </div>
-        {section.image && (
-          <PublicMediaImage
-            media={section.image}
-            className="cms-section-image"
-            withOrientation
-            sizes="(max-width: 940px) calc(100vw - 40px), 720px"
-          />
-        )}
-        {section.items.length > 0 && (
-          <div className="cms-news-points">
-            {section.items.map((item, position) => (
-              <article key={`${section.id}-${position}`}>
-                <h3>{item.title}</h3>
-                {item.body && <p>{item.body}</p>}
-              </article>
-            ))}
-          </div>
+        {section.type === "GALLERY" ? (
+          // The same grid and lightbox a managed page's GALLERY section renders,
+          // so work photographs look the same wherever an editor puts them.
+          section.gallery.length > 0 ? (
+            <GalleryLightbox items={section.gallery} />
+          ) : (
+            <div className="app-panel app-empty">
+              <h3>ยังไม่มีภาพที่เผยแพร่</h3>
+              <p>ระบบจะแสดงเฉพาะภาพจริงที่แอดมินอนุมัติแล้ว</p>
+            </div>
+          )
+        ) : (
+          <>
+            {section.image && (
+              <PublicMediaImage
+                media={section.image}
+                className="cms-section-image"
+                withOrientation
+                sizes="(max-width: 940px) calc(100vw - 40px), 720px"
+              />
+            )}
+            {section.items.length > 0 && (
+              <div className="cms-news-points">
+                {section.items.map((item, position) => (
+                  <article key={`${section.id}-${position}`}>
+                    <h3>{item.title}</h3>
+                    {item.body && <p>{item.body}</p>}
+                  </article>
+                ))}
+              </div>
+            )}
+          </>
         )}
         {hasActions && (
           <div className="hero-actions">

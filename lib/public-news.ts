@@ -19,7 +19,9 @@
  * stack trace on a URL a search engine holds.
  */
 
+import { and, asc, desc, eq } from "drizzle-orm";
 import { getD1, getDb } from "@/db";
+import { galleryCategories, galleryItems } from "@/db/schema";
 import { getPublishedPost } from "@/lib/post-cms-store";
 import type { PublicMedia } from "@/lib/public-cms/contract";
 import { POSTS_PAGE_SIZE, postPath, resolvePostRedirect } from "@/lib/public-cms/posts";
@@ -29,6 +31,7 @@ import {
   MAX_NEWS_PAGE,
   referencedIndexImageIds,
   toNewsCard,
+  type NewsGalleryItem,
   type NewsIndexRow,
   type PublicNewsArticle,
   type PublicNewsCard,
@@ -121,6 +124,7 @@ export async function readPublishedNewsArticle(slug: string): Promise<PublicNews
 
     const enabled = content.sections.filter((section) => section.enabled);
     const images = await resolveImages([content.featuredImageItemId, ...enabled.map((section) => section.imageItemId)]);
+    const gallerySections = await readNewsGallerySections(enabled);
 
     return {
       slug: stored.slug,
@@ -135,11 +139,13 @@ export async function readPublishedNewsArticle(slug: string): Promise<PublicNews
       seo: content.seo,
       sections: enabled.map((section) => ({
         id: section.id,
+        type: section.type,
         heading: section.heading,
         eyebrow: section.eyebrow,
         body: section.body,
         items: section.items,
         image: section.imageItemId ? images.get(section.imageItemId) ?? null : null,
+        gallery: section.type === "GALLERY" ? gallerySections.get(section.id) ?? [] : [],
         primaryLabel: section.primaryLabel,
         primaryHref: section.primaryHref,
         secondaryLabel: section.secondaryLabel,
@@ -151,4 +157,82 @@ export async function readPublishedNewsArticle(slug: string): Promise<PublicNews
     // the alternative is an error page on a URL a search engine already holds.
     return null;
   }
+}
+
+/**
+ * The work photographs a post's GALLERY sections would show, keyed by category
+ * slug and bounded by the largest limit any one section asked for.
+ *
+ * One query per distinct category, never per section, so three sections drawing
+ * on the same category pay for it once. The selection and the ordering are the
+ * marketing pages' `GallerySection` verbatim — PUBLISHED and PUBLIC items in an
+ * ACTIVE category, featured first then by the gallery lane's own order — so a
+ * photograph cannot be visible in one place and refused in the other. A
+ * category that cannot be read yields no photographs rather than no article.
+ */
+export async function readNewsGalleryItemsByCategory(
+  sections: ReadonlyArray<{ type: string; galleryCategorySlug: string; galleryLimit: number }>,
+): Promise<Map<string, NewsGalleryItem[]>> {
+  const byCategory = new Map<string, number>();
+  for (const section of sections) {
+    if (section.type !== "GALLERY") continue;
+    const key = section.galleryCategorySlug;
+    // The largest limit asked for a category is the one that satisfies every
+    // section drawing on it; slicing per section happens at render.
+    byCategory.set(key, Math.max(byCategory.get(key) ?? 0, section.galleryLimit));
+  }
+
+  const bySlug = new Map<string, NewsGalleryItem[]>();
+  const db = getDb();
+  for (const [slug, limit] of byCategory) {
+    try {
+      const category = slug
+        ? await db
+            .select({ id: galleryCategories.id })
+            .from(galleryCategories)
+            .where(and(eq(galleryCategories.slug, slug), eq(galleryCategories.status, "ACTIVE")))
+            .get()
+        : null;
+      const rows = await db
+        .select({
+          id: galleryItems.id,
+          title: galleryItems.title,
+          caption: galleryItems.caption,
+          altText: galleryItems.altText,
+          takenAt: galleryItems.takenAt,
+          location: galleryItems.location,
+          categoryName: galleryCategories.name,
+        })
+        .from(galleryItems)
+        .innerJoin(galleryCategories, eq(galleryCategories.id, galleryItems.categoryId))
+        .where(
+          and(
+            eq(galleryItems.status, "PUBLISHED"),
+            eq(galleryItems.visibility, "PUBLIC"),
+            eq(galleryCategories.status, "ACTIVE"),
+            category ? eq(galleryItems.categoryId, category.id) : undefined,
+          ),
+        )
+        .orderBy(desc(galleryItems.isFeatured), asc(galleryItems.sortOrder), desc(galleryItems.createdAt), desc(galleryItems.id))
+        .limit(limit)
+        .all();
+      bySlug.set(slug, rows);
+    } catch {
+      bySlug.set(slug, []);
+    }
+  }
+  return bySlug;
+}
+
+/** The same photographs, keyed by the section that will render them. */
+export async function readNewsGallerySections(
+  sections: ReadonlyArray<{ id: string; type: string; galleryCategorySlug: string; galleryLimit: number }>,
+): Promise<Map<string, NewsGalleryItem[]>> {
+  const bySlug = await readNewsGalleryItemsByCategory(sections);
+  const perSection = new Map<string, NewsGalleryItem[]>();
+  for (const section of sections) {
+    if (section.type !== "GALLERY") continue;
+    perSection.set(section.id, (bySlug.get(section.galleryCategorySlug) ?? []).slice(0, section.galleryLimit));
+  }
+  return perSection;
 }
