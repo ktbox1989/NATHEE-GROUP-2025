@@ -12,8 +12,8 @@ import { fileURLToPath } from "node:url";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const gate = join(root, "scripts/test-authorization-coverage.mjs");
 
-const TRACKED_TREES = ["app/api", "app/app", "app/portal", "app/assets"];
-const TRACKED_FILES = ["lib/operational-qr-route.ts"];
+const TRACKED_TREES = ["app/api", "app/app", "app/admin", "app/portal", "app/assets"];
+const TRACKED_FILES = ["lib/operational-qr-route.ts", "lib/admin-access.ts"];
 
 const ADDED_ROUTE = "app/api/companies/exports/route.ts";
 
@@ -104,6 +104,20 @@ const CASES = [
     apply: (directory) =>
       edit(directory, "lib/operational-qr-route.ts", (source) =>
         source.replaceAll("getCurrentActor(", "assumeActor("),
+      ),
+  },
+  {
+    name: "the admin delegate stops rejecting customer roles",
+    apply: (directory) =>
+      edit(directory, "lib/admin-access.ts", (source) =>
+        source.replace("if (!isInternalRole(actor.role))", "if (false)"),
+      ),
+  },
+  {
+    name: "the admin permission delegate stops checking the requested permission",
+    apply: (directory) =>
+      edit(directory, "lib/admin-access.ts", (source) =>
+        source.replace("if (!can(actor, permission))", "if (false)"),
       ),
   },
   {

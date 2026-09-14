@@ -33,6 +33,11 @@ const CASES = [
       ),
   },
   {
+    name: "the admin tree is dropped from the matcher",
+    apply: (directory) =>
+      edit(directory, "proxy.ts", (source) => source.replace('    "/admin/:path*",\n', "")),
+  },
+  {
     name: "the protected application tree is dropped from the matcher",
     apply: (directory) =>
       edit(directory, "proxy.ts", (source) => source.replace('    "/app/:path*",\n', "")),

@@ -25,7 +25,7 @@ function require(condition, message) {
 
 /** Anything that resolves a session from request cookies. */
 const READS_SESSION =
-  /\b(createSupabaseServerClient|createSupabaseRouteClient|getCurrentActor|requireActor)\s*\(/;
+  /\b(createSupabaseServerClient|createSupabaseRouteClient|getCurrentActor|requireActor|requireAdminActor|requireAdminPermission)\s*\(/;
 
 async function walk(directory) {
   const absolute = join(root, directory);

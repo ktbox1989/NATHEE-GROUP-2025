@@ -34,7 +34,7 @@ function require(condition, message) {
  * server surface is authorized" true only of the surfaces the gate happened to
  * look at.
  */
-const PROTECTED_TREES = ["app/api", "app/app", "app/portal", "app/assets"];
+const PROTECTED_TREES = ["app/api", "app/app", "app/admin", "app/portal", "app/assets"];
 
 /** Resolving the acting user from the session. */
 const RESOLVES_ACTOR = /\b(requireActor|getCurrentActor)\s*\(/;
@@ -54,6 +54,12 @@ const SAME_ORIGIN = /\bisSameOrigin\s*\(\s*request\s*\)/;
  * verified below, so delegating is not a way to escape the requirement.
  */
 const AUTHORIZATION_DELEGATES = [
+  {
+    module: "lib/admin-access.ts",
+    specifier: "@/lib/admin-access",
+    reason:
+      "Requires an internal actor for /admin and applies permission checks before protected admin pages read business data.",
+  },
   {
     module: "lib/operational-qr-route.ts",
     specifier: "@/lib/operational-qr-route",
@@ -150,6 +156,10 @@ for (const delegate of AUTHORIZATION_DELEGATES) {
   require(RESOLVES_ACTOR.test(source), `${delegate.module}: delegate never resolves an actor`);
   require(MAKES_DECISION.test(source), `${delegate.module}: delegate never decides with the actor`);
   require(Boolean(delegate.reason?.trim()), `${delegate.module}: delegate has no stated reason`);
+  if (delegate.module === "lib/admin-access.ts") {
+    require(source.includes("isInternalRole(actor.role)"), `${delegate.module}: admin delegate must reject customer roles`);
+    require(/\bcan\(actor,\s*permission\)/.test(source), `${delegate.module}: admin permission delegate must enforce the requested permission`);
+  }
   delegateSpecifiers.add(delegate.specifier);
 }
 
