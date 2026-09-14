@@ -1,6 +1,16 @@
 # NATHEE GROUP 2025 — Canonical Project State
 
-Updated: 2026-09-09 (Asia/Bangkok)
+Updated: 2026-09-14 (Asia/Bangkok)
+
+## 2026-09-14 checkpoint — secure Operations UI refresh ready to publish
+
+- Implementation commit: `5a5fcb2` (`feat: redesign secure admin operations UI`). The existing audited APIs and `/app` workspace remain in place; this change redesigns the native-form `/admin` surface rather than replacing backend workflows.
+- `/admin` now has a responsive Operations Center layout, permission-aware navigation, real D1 dashboard metrics, redesigned jobs/create/edit/status/motorcycle flows, and redesigned News draft/publish controls. Controls remain native links/forms so no client router is required for core operations.
+- Security hardening: customer roles are rejected from `/admin`; per-page permissions are enforced through `lib/admin-access.ts`; job detail does not query motorcycle rows unless the actor has motorcycle read access for that company.
+- Regression guards now include the `/admin` tree in authorization coverage and session-refresh coverage, with negative mutations proving customer-role rejection, permission enforcement and `/admin` proxy matcher coverage cannot be removed silently.
+- Verification: TypeScript PASS, full ESLint PASS, public gates PASS (11 routes), security gates PASS including session-refresh and authorization positive/negative plus production-acceptance negative (`rejections=32`, `incomplete=6`, `acceptances=1`), unit `791/791`, DB/integration `330/330`, additional rendered/QR-role/client-bundle `28/28`, and direct `vinext build` PASS with all `/admin` routes emitted.
+- On this Windows host the acceptance-negative gate needs Git for Windows OpenSSL added to PATH for that test process only (`C:\Program Files\Git\usr\bin`); no system configuration was changed.
+- Deployment architecture is unchanged: do not redeploy the Z.com public site for this application UI. Publish the existing ChatGPT Site that owns `app.natheegroup2025.com`, preserving the current Site project, D1 `DB`, R2 `FILES`, custom domain and server-side secrets, then run live signed-in acceptance before claiming Production complete.
 
 ## 2026-09-09 live checkpoint — current source ready; Sites publish pending
 

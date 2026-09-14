@@ -1,5 +1,14 @@
 # NATHEE GROUP 2025 — Work History
 
+## 2026-09-14 — Secure Operations Center UI refresh
+
+- Implementation commit `5a5fcb2` redesigns `/admin` into a responsive Operations Center while preserving the existing real mutation endpoints and the full `/app` workspace. Core controls remain native forms and links rather than client-only interactions.
+- Authorization is stricter than the previous plain back office: customer roles are redirected away from `/admin`, each page asks for its real permission, motorcycle records are not queried without company-scoped motorcycle read access, and navigation only exposes modules the actor may use.
+- Security gates were expanded so `/admin` participates in authorization and session-refresh coverage. Negative mutation tests prove customer-role rejection, requested-permission enforcement and the `/admin/:path*` proxy matcher cannot be removed unnoticed.
+- Verified locally: TypeScript PASS; ESLint PASS; public gate suite PASS; security suite PASS with the acceptance-negative gate `32` rejections, `6` intentionally incomplete cases and `1` healthy acceptance; unit `791/791`; D1/database/integration `330/330`; rendered/QR-role/client-bundle `28/28`; Vinext production build PASS.
+- The Windows shell did not expose `openssl` on PATH, but Git for Windows already provides it. The acceptance-negative test passed after prepending `C:\Program Files\Git\usr\bin` to PATH for that process only; nothing was installed or changed globally.
+- Deployment remains application-only: Git source must be published through the existing ChatGPT Site for `app.natheegroup2025.com`. The Z.com public marketing release must not be overwritten by this application UI work.
+
 ## 2026-09-11 — The plain-form back office at /admin, plus a build-blocking env bug
 
 - The Owner asked for a fresh, simple back office built from new files. It
